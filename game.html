@@ -56,9 +56,6 @@
     // GAME START — paste your InfusionArcade.jsx content here
     // (remove the import lines at the top and "export default" from the function)
     // ══════════════════════════════════════════════════════════════════════════
-
-  import { useState, useEffect, useRef, useCallback } from "react";
-
 const CANVAS_W = 480;
 const CANVAS_H = 560;
 const SERIF = "Georgia, 'Times New Roman', serif";
@@ -350,7 +347,7 @@ const IVIG_WAVE_TRANSITION_TEXT = "Antibodies don't just fight infection — in 
 const PATHOGEN_COLORS = ["#ff6b6b", "#ff9f43", "#ee5a24"];
 const PATHOGEN_LABELS = ["Bacteria", "Virus", "Toxin"];
 
-export default function InfusionArcade() {
+function InfusionArcade({ initialDrug = null }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const animRef = useRef(null);
@@ -418,7 +415,12 @@ export default function InfusionArcade() {
       setScreen("intro");
     });
   }, [showSplashThen]);
-
+// Auto-launch the drug passed in from the homepage URL
+useEffect(() => {
+  if (!initialDrug) return;
+  const idx = DRUGS.findIndex(d => d.name === initialDrug);
+  if (idx !== -1) startDrug(idx);
+}, []);
   // Pointer control
   useEffect(() => {
     if (screen !== "playing") return;
