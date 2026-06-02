@@ -422,7 +422,7 @@ useEffect(() => {
   if (!initialDrug) return;
   const idx = DRUGS.findIndex(d => d.name === initialDrug);
   if (idx !== -1) startDrug(idx);
-}, []);
+}, [initialDrug, startDrug]);
   // Pointer control
   useEffect(() => {
     if (screen !== "playing") return;
