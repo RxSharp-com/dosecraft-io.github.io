@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Dosecraft · Playing</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #030812;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+  </style>
+
+  <!-- React + ReactDOM via CDN (production builds) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Babel standalone so JSX works without a build step -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!--
+    PASTE YOUR InfusionArcade.jsx CONTENT BELOW.
+    Replace everything between the GAME START and GAME END comments.
+    Keep the <script type="text/babel"> tags exactly as they are.
+
+    Two small edits required in your pasted code:
+      1. Remove the top import lines (useState, useEffect, useRef, useCallback)
+         — React hooks are available as React.useState etc via the CDN, and
+           Babel will handle them automatically when you use them directly.
+      2. Change the last line from:
+             export default function InfusionArcade() {
+         to:
+             function InfusionArcade() {
+         (remove "export default" — the mount call below handles rendering)
+  -->
+
+  <script type="text/babel">
+    // ── HOOKS (available globally via React CDN) ──────────────────────────────
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ── URL PARAM: read which drug was selected on the homepage ───────────────
+    function getDrugNameFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('drug') || null;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // GAME START — paste your InfusionArcade.jsx content here
+    // (remove the import lines at the top and "export default" from the function)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // PASTE HERE
+
+
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // GAME END
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // ── MOUNT ─────────────────────────────────────────────────────────────────
+    // Wraps InfusionArcade and auto-selects the drug from the URL
+    function App() {
+      const drugName = getDrugNameFromURL();
+      return <InfusionArcade initialDrug={drugName} />;
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
