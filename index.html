@@ -1,283 +1,369 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <!-- Makes the site look correct on mobile phones -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- The text that appears in the browser tab -->
-  <title>Russell Sharp — RxSharp</title>
-  <!-- Loads three fonts from Google (free) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet">
-  <!-- All visual styling lives here -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dosecraft · Infusion Arcade</title>
   <style>
-
-    /* --- Reset & Base --- */
-    /* Removes browser default spacing and sets box model */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    /* Base page styles */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Figtree', sans-serif;
-      font-weight: 300;
-      background-color: #fafaf9;
-      color: #1a1a1a;
-      padding: 0 1.5rem;  /* Side padding on mobile */
+      background: radial-gradient(ellipse at 30% 20%, #0a1a1a 0%, #060a14 40%, #070414 100%);
+      color: #f0f4ff;
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
     }
 
-    /* Centers content and limits max width */
-    .container {
-      max-width: 680px;
-      margin: 0 auto;  /* auto left/right = centered */
-    }
+    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    @keyframes letterBob { from { transform: translateY(0px); } to { transform: translateY(-6px); } }
+    @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes sideGlow { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
 
-    /* --- Header --- */
-    header {
-      border-bottom: 0.5px solid #e5e5e3;
-      padding: 2.5rem 0 2rem;
-      display: flex;              /* Side-by-side layout */
-      align-items: flex-end;
-      justify-content: space-between;
-    }
-
-    .wordmark {
-      font-family: 'DM Mono', monospace;
-      font-weight: 500;
-      font-size: 13px;
-      letter-spacing: 0.12em;
-      color: #888;
-      text-transform: uppercase;
-    }
-
-    /* The "Rx" part is darker than "Sharp" */
-    .wordmark span {
-      color: #1a1a1a;
-    }
-
-    nav {
+    .ticker-inner {
       display: flex;
-      gap: 1.5rem;
+      white-space: nowrap;
+      animation: ticker 50s linear infinite;
     }
-
-    nav a {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.08em;
+    .ticker-text {
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: #00d4c8;
       text-transform: uppercase;
-      color: #888;
-      text-decoration: none;  /* Removes underline */
+      padding-right: 80px;
     }
 
-    nav a:hover {
-      color: #1a1a1a;  /* Darkens on hover */
-    }
+    .phase { animation: fadeUp 0.35s ease both; }
 
-    /* --- Hero Section --- */
-    .hero {
-      padding: 4rem 0 3rem;
-      border-bottom: 0.5px solid #e5e5e3;
-    }
-
-    .eyebrow {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: #888;
-      margin-bottom: 1.5rem;
-    }
-
-    h1 {
-      font-family: 'DM Serif Display', serif;
-      font-size: clamp(36px, 6vw, 52px); /* Scales with screen size */
-      font-weight: 400;
-      line-height: 1.1;
-      letter-spacing: -0.01em;
-      margin-bottom: 1.5rem;
-    }
-
-    .bio {
-      font-size: 15px;
-      font-weight: 400;
-      color: #555;
-      line-height: 1.7;
-      max-width: 480px;
-    }
-
-    /* Small pill-shaped label tags */
-    .tags {
-      margin-top: 1.5rem;
-      display: flex;
-      flex-wrap: wrap;  /* Wraps to next line on small screens */
-      gap: 8px;
-    }
-
-    .tag {
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border: 0.5px solid #ddd;
-      border-radius: 2px;
-      color: #888;
-    }
-
-    /* --- Work Section --- */
-    .section {
-      padding: 2.5rem 0;
-      border-bottom: 0.5px solid #e5e5e3;
-    }
-
-    .section-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: #888;
-      margin-bottom: 1.5rem;
-    }
-
-    /* Card that holds the Dosecraft project */
-    .project-card {
-      border: 0.5px solid #e5e5e3;
+    .drug-btn {
+      background: rgba(255,255,255,0.04);
       border-radius: 8px;
-      padding: 1.25rem 1.5rem;
-      display: flex;
-      gap: 1.25rem;
-      align-items: flex-start;
+      padding: 13px 15px;
+      cursor: pointer;
+      text-align: left;
+      font-family: 'Courier New', Courier, monospace;
+      width: 100%;
+      color: #fff;
+      transition: all 0.12s ease;
+    }
+    .drug-btn:hover {
+      transform: translateY(-2px);
     }
 
-    /* The small square icon */
-    .project-icon {
-      width: 40px;
-      height: 40px;
-      border: 0.5px solid #ddd;
+    .game-tile {
+      text-align: center;
+      padding: 14px 16px;
+      border-radius: 8px;
+      min-width: 120px;
+      flex: 1;
+    }
+
+    .back-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.35);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 8px 20px;
       border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;  /* Prevents icon from shrinking */
-      font-family: 'DM Mono', monospace;
-      font-size: 13px;
-      font-weight: 500;
-      color: #888;
+      cursor: pointer;
     }
+    .back-btn:hover { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.3); }
 
-    .project-name {
-      font-size: 15px;
-      font-weight: 500;
-      margin-bottom: 4px;
+    #crt-overlay {
+      position: fixed; inset: 0; pointer-events: none; z-index: 99;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
     }
-
-    .project-desc {
-      font-size: 13px;
-      color: #555;
-      line-height: 1.6;
+    #side-left {
+      position: fixed; left: 0; top: 0; bottom: 0; width: 3px;
+      background: linear-gradient(to bottom, transparent, #00d4c8, #c084fc, #f59e0b, transparent);
+      pointer-events: none; z-index: 10;
+      animation: sideGlow 3s ease-in-out infinite;
     }
-
-    /* Green dot + "Active development" line */
-    .status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-family: 'DM Mono', monospace;
-      font-size: 10px;
-      color: #888;
-      margin-top: 8px;
+    #side-right {
+      position: fixed; right: 0; top: 0; bottom: 0; width: 3px;
+      background: linear-gradient(to bottom, transparent, #00d4c8, #c084fc, #f59e0b, transparent);
+      pointer-events: none; z-index: 10;
+      animation: sideGlow 3s ease-in-out infinite 1.5s;
     }
-
-    .dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: #1D9E75;  /* Green */
-    }
-
-    /* --- Footer --- */
-    footer {
-      padding: 2rem 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .footer-name {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: #aaa;
-      letter-spacing: 0.06em;
-    }
-
-    .footer-contact {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: #aaa;
-      letter-spacing: 0.06em;
-      text-decoration: none;
-    }
-
-    .footer-contact:hover {
-      color: #1a1a1a;
-    }
-
   </style>
 </head>
-
 <body>
-  <div class="container">
 
-    <!-- HEADER -->
-    <header>
-      <div class="wordmark"><span>Rx</span>Sharp</div>
-      <nav>
-        <a href="#about">About</a>
-        <a href="#work">Work</a>
-        <a href="#contact">Contact</a>
-      </nav>
-    </header>
+<!-- Fixed overlays -->
+<div id="crt-overlay"></div>
+<div id="side-left"></div>
+<div id="side-right"></div>
 
-    <!-- HERO -->
-    <section class="hero" id="about">
-      <p class="eyebrow">Russell Sharp — Pharmacist &amp; Builder</p>
-      <h1>Clinical minds<br>build better tools.</h1>
-      <p class="bio">I work at the intersection of pharmacy practice and patient-centered technology — designing systems that bring clarity to complex medical experiences.</p>
-      <div class="tags">
-        <span class="tag">Pharmacist</span>
-        <span class="tag">Healthcare Technology</span>
-        <span class="tag">Fayetteville, AR</span>
-      </div>
-    </section>
+<!-- Pixel corners -->
+<svg style="position:fixed;top:0;left:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M2 38L2 2L38 2" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="2" y="2" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
+<svg style="position:fixed;top:0;right:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M38 38L38 2L2 2" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="32" y="2" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
+<svg style="position:fixed;bottom:0;left:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M2 2L2 38L38 38" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="2" y="32" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
+<svg style="position:fixed;bottom:0;right:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M38 2L38 38L2 38" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="32" y="32" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
 
-    <!-- WORK -->
-    <section class="section" id="work">
-      <p class="section-label">Current work</p>
-      <div class="project-card">
-        <div class="project-icon">Dc</div>
-        <div>
-          <p class="project-name">Dosecraft: Infusion Arcade</p>
-          <p class="project-desc">A real-time simulation platform for IV infusion patients — turning clinical downtime into calm, visual understanding of how their medication works.</p>
-          <div class="status">
-            <span class="dot"></span>
-            Active development · dosecraft.io
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FOOTER -->
-    <footer id="contact">
-      <span class="footer-name">rxsharp.com</span>
-      <a class="footer-contact" href="mailto:hello@rxsharp.com">hello@rxsharp.com</a>
-    </footer>
-
+<!-- Ticker -->
+<div id="ticker-bar" style="border-top:2px solid #00d4c8;border-bottom:2px solid #00d4c8;background:#000;overflow:hidden;height:36px;display:flex;align-items:center;">
+  <div class="ticker-inner">
+    <span class="ticker-text">INSERT COIN TO BEGIN ✦ &nbsp; ZOSYN BATTLES BACTERIA ✦ &nbsp; VANCOMYCIN BLOCKS CONSTRUCTION ✦ &nbsp; IVIG REINFORCES YOUR IMMUNITY ✦ &nbsp; YOUR INFUSION IS WORKING ✦ &nbsp; STAY CALM · STAY SEATED · STAY CURIOUS ✦ &nbsp;&nbsp;&nbsp;</span>
+    <span class="ticker-text">INSERT COIN TO BEGIN ✦ &nbsp; ZOSYN BATTLES BACTERIA ✦ &nbsp; VANCOMYCIN BLOCKS CONSTRUCTION ✦ &nbsp; IVIG REINFORCES YOUR IMMUNITY ✦ &nbsp; YOUR INFUSION IS WORKING ✦ &nbsp; STAY CALM · STAY SEATED · STAY CURIOUS ✦ &nbsp;&nbsp;&nbsp;</span>
   </div>
-</body>
+</div>
 
+<!-- Logo -->
+<div style="text-align:center;padding:40px 24px 16px;">
+  <div id="logo" style="font-size:clamp(34px,9vw,68px);font-weight:900;letter-spacing:0.15em;line-height:1;"></div>
+  <div style="font-size:clamp(9px,2vw,13px);letter-spacing:0.45em;color:rgba(255,255,255,0.32);text-transform:uppercase;margin-top:8px;">INFUSION ARCADE</div>
+</div>
+
+<!-- App root -->
+<div id="app"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const DRUGS = [
+  { name:"Zosyn",      generic:"Piperacillin-Tazobactam",        color:"#00d4c8", group:"Penicillin",      mode:"WALL BREAKER",     tagline:"Breach the wall" },
+  { name:"Ancef",      generic:"Cefazolin",                      color:"#4f8ef7", group:"Cephalosporin",   mode:"WALL BREAKER",     tagline:"Demolish defenses" },
+  { name:"Rocephin",   generic:"Ceftriaxone",                    color:"#6366f1", group:"Cephalosporin",   mode:"WALL BREAKER",     tagline:"Destroy and clear" },
+  { name:"Maxipime",   generic:"Cefepime",                       color:"#818cf8", group:"Cephalosporin",   mode:"WALL BREAKER",     tagline:"Broad spectrum strike" },
+  { name:"Invanz",     generic:"Ertapenem",                      color:"#f59e0b", group:"Carbapenem",      mode:"WALL BREAKER",     tagline:"Deep penetrator" },
+  { name:"Merrem",     generic:"Meropenem",                      color:"#fb923c", group:"Carbapenem",      mode:"WALL BREAKER",     tagline:"Maximum firepower" },
+  { name:"Vancomycin", generic:"Vancomycin",                     color:"#c084fc", group:"Vancomycin",      mode:"BLOCK ATTACK",     tagline:"Block construction" },
+  { name:"Cubicin",    generic:"Daptomycin",                     color:"#eab308", group:"Daptomycin",      mode:"MEMBRANE BREACH",  tagline:"Punch through membranes" },
+  { name:"Bivigam",    generic:"Immune Globulin IV 10%",         color:"#f4a261", group:"Immunoglobulin",  mode:"IMMUNE DEFENSE",   tagline:"Reinforce immunity" },
+  { name:"Panzyga",    generic:"Immune Globulin IV 10%",         color:"#e76f51", group:"Immunoglobulin",  mode:"IMMUNE DEFENSE",   tagline:"Flood and rebalance" },
+  { name:"Octagam",    generic:"Immune Globulin IV 5%/10%",      color:"#e9c46a", group:"Immunoglobulin",  mode:"IMMUNE DEFENSE",   tagline:"Dual-action defense" },
+  { name:"Hyqvia",     generic:"SCIG + Recombinant Hyaluronidase",color:"#2a9d8f",group:"Immunoglobulin",  mode:"IMMUNE DEFENSE",   tagline:"Steady absorption" },
+];
+
+const GROUPS = [
+  { label:"Penicillin",     color:"#00d4c8" },
+  { label:"Cephalosporin",  color:"#6366f1" },
+  { label:"Carbapenem",     color:"#f59e0b" },
+  { label:"Vancomycin",     color:"#c084fc" },
+  { label:"Daptomycin",     color:"#eab308" },
+  { label:"Immunoglobulin", color:"#f4a261" },
+];
+
+const GAME_TILES = [
+  { label:"Wall Breaker",    icon:"🧱", color:"#00d4c8", desc:"Cell wall antibiotics" },
+  { label:"Block Attack",    icon:"🔒", color:"#c084fc", desc:"Vancomycin" },
+  { label:"Membrane Breach", icon:"💥", color:"#eab308", desc:"Daptomycin" },
+  { label:"Immune Defense",  icon:"🛡", color:"#f4a261", desc:"IVIG / SCIG" },
+];
+
+// ── LOGO ──────────────────────────────────────────────────────────────────────
+(function buildLogo() {
+  const el = document.getElementById('logo');
+  const colors  = ['#00d4c8','#c084fc','#f59e0b'];
+  const shadows  = ['0 0 10px #00d4c8,0 0 30px #00d4c855','0 0 10px #c084fc,0 0 30px #c084fc55','0 0 10px #f59e0b,0 0 30px #f59e0b55'];
+  'DOSECRAFT'.split('').forEach((l, i) => {
+    const s = document.createElement('span');
+    s.textContent = l;
+    const ci = i % 3;
+    s.style.cssText = `display:inline-block;color:${colors[ci]};text-shadow:${shadows[ci]};`
+      + `animation:letterBob ${1.2 + i*0.1}s ease-in-out ${i*0.07}s infinite alternate;`;
+    el.appendChild(s);
+  });
+})();
+
+// ── BLINK ─────────────────────────────────────────────────────────────────────
+let blinkOn = true;
+setInterval(() => {
+  const el = document.getElementById('blink-prompt');
+  if (el) { blinkOn = !blinkOn; el.style.opacity = blinkOn ? '1' : '0'; }
+}, 650);
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(phase, data) {
+  const app = document.getElementById('app');
+  app.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'phase';
+
+  if (phase === 'attract') {
+    div.innerHTML = attractHTML();
+  } else if (phase === 'select') {
+    div.innerHTML = selectHTML();
+  } else if (phase === 'selected') {
+    div.innerHTML = selectedHTML(data);
+  }
+
+  app.appendChild(div);
+
+  // Re-start blink after render
+  if (phase === 'attract') {
+    blinkOn = true;
+  }
+}
+
+// ── ATTRACT SCREEN ────────────────────────────────────────────────────────────
+function attractHTML() {
+  const tiles = GAME_TILES.map(g => `
+    <div class="game-tile" style="border:1px solid ${g.color}33;background:${g.color}0a;">
+      <div style="font-size:24px;margin-bottom:7px;">${g.icon}</div>
+      <div style="font-size:10px;font-weight:700;color:${g.color};letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">${g.label}</div>
+      <div style="font-size:9px;color:rgba(255,255,255,0.28);">${g.desc}</div>
+    </div>
+  `).join('');
+
+  return `
+    <!-- Scoreboard -->
+    <div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:16px;
+      border-top:1px solid rgba(255,255,255,0.1);border-bottom:1px solid rgba(255,255,255,0.1);
+      padding:16px 0;margin:0 24px 28px;">
+      <div style="text-align:center;padding:0 20px;">
+        <div style="font-size:28px;font-weight:900;color:#00d4c8;text-shadow:0 0 10px #00d4c888;">12</div>
+        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Medications</div>
+      </div>
+      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
+      <div style="text-align:center;padding:0 20px;">
+        <div style="font-size:28px;font-weight:900;color:#c084fc;text-shadow:0 0 10px #c084fc88;">4</div>
+        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Game Modes</div>
+      </div>
+      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
+      <div style="text-align:center;padding:0 20px;">
+        <div style="font-size:28px;font-weight:900;color:#f59e0b;text-shadow:0 0 10px #f59e0b88;">6</div>
+        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Drug Classes</div>
+      </div>
+    </div>
+
+    <!-- Blink prompt -->
+    <div style="text-align:center;padding:4px 0 28px;">
+      <span id="blink-prompt"
+        onclick="render('select')"
+        style="font-size:clamp(13px,3.5vw,20px);letter-spacing:0.3em;color:#f59e0b;
+               text-shadow:0 0 12px #f59e0b;text-transform:uppercase;cursor:pointer;
+               transition:opacity 0.05s;">
+        ▶ SELECT YOUR MEDICATION ◀
+      </span>
+    </div>
+
+    <!-- Tagline -->
+    <div style="text-align:center;padding:0 24px 36px;max-width:440px;margin:0 auto;">
+      <p style="font-size:clamp(11px,2.5vw,14px);line-height:2;color:rgba(255,255,255,0.38);letter-spacing:0.06em;">
+        You're receiving your infusion right now.<br>
+        Watch your medication work — in real time.
+      </p>
+    </div>
+
+    <!-- Game mode tiles -->
+    <div style="display:flex;justify-content:center;gap:10px;padding:0 16px 44px;flex-wrap:wrap;">
+      ${tiles}
+    </div>
+
+    <div style="text-align:center;padding:0 0 28px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
+      SharpRX Interactive · dosecraft.io
+    </div>
+  `;
+}
+
+// ── SELECT SCREEN ─────────────────────────────────────────────────────────────
+function selectHTML() {
+  const chips = ['WALL BREAKER','BLOCK ATTACK','MEMBRANE BREACH','IMMUNE DEFENSE'].map(m =>
+    `<span style="font-size:9px;letter-spacing:0.15em;color:rgba(255,255,255,0.28);
+      background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
+      border-radius:4px;padding:3px 8px;">${m}</span>`
+  ).join('');
+
+  const groups = GROUPS.map(grp => {
+    const drugs = DRUGS.filter(d => d.group === grp.label);
+    if (!drugs.length) return '';
+
+    const cards = drugs.map(d => `
+      <button class="drug-btn"
+        style="border:1.5px solid ${d.color}44;"
+        onmouseenter="
+          this.style.background='linear-gradient(135deg,${d.color}22,${d.color}0d)';
+          this.style.borderColor='${d.color}';
+          this.style.transform='translateY(-2px)';
+          this.style.boxShadow='0 4px 20px ${d.color}33';
+        "
+        onmouseleave="
+          this.style.background='rgba(255,255,255,0.04)';
+          this.style.borderColor='${d.color}44';
+          this.style.transform='none';
+          this.style.boxShadow='none';
+        "
+        onclick="render('selected',${JSON.stringify(d).replace(/"/g,'&quot;')})">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:${d.color};box-shadow:0 0 6px ${d.color};flex-shrink:0;"></div>
+              <span style="font-size:15px;font-weight:900;color:${d.color};letter-spacing:0.06em;">${d.name}</span>
+            </div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.38);padding-left:16px;margin-bottom:3px;">${d.generic}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.22);padding-left:16px;letter-spacing:0.1em;">${d.tagline}</div>
+          </div>
+          <span style="background:${d.color}1a;border:1px solid ${d.color}44;border-radius:4px;
+            padding:3px 7px;font-size:8px;letter-spacing:0.1em;color:${d.color}cc;
+            text-transform:uppercase;white-space:nowrap;flex-shrink:0;">${d.mode}</span>
+        </div>
+      </button>
+    `).join('');
+
+    return `
+      <div style="display:flex;align-items:center;gap:10px;margin-top:20px;margin-bottom:10px;">
+        <div style="height:1px;width:14px;background:${grp.color}88;"></div>
+        <div style="font-size:9px;letter-spacing:0.35em;color:${grp.color}99;text-transform:uppercase;white-space:nowrap;">${grp.label}</div>
+        <div style="flex:1;height:1px;background:linear-gradient(to right,${grp.color}44,transparent);"></div>
+      </div>
+      <div style="display:grid;gap:7px;">${cards}</div>
+    `;
+  }).join('');
+
+  return `
+    <div style="text-align:center;padding:4px 16px 16px;font-size:11px;letter-spacing:0.25em;color:rgba(255,255,255,0.3);text-transform:uppercase;">
+      Select your medication
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:0 16px 18px;">
+      ${chips}
+    </div>
+
+    <div style="max-width:540px;margin:0 auto;padding:0 14px;">
+      ${groups}
+    </div>
+
+    <div style="text-align:center;padding:28px 0 16px;">
+      <button class="back-btn" onclick="render('attract')">← Back</button>
+    </div>
+    <div style="text-align:center;padding:0 0 32px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
+      SharpRX Interactive · dosecraft.io
+    </div>
+  `;
+}
+
+// ── SELECTED CONFIRMATION ─────────────────────────────────────────────────────
+function selectedHTML(drug) {
+  return `
+    <div style="text-align:center;padding:60px 24px 48px;">
+      <div style="font-size:40px;margin-bottom:18px;color:${drug.color};text-shadow:0 0 20px ${drug.color}88;">✦</div>
+      <div style="font-size:clamp(22px,6vw,32px);font-weight:900;color:${drug.color};
+        text-shadow:0 0 16px ${drug.color}88;letter-spacing:0.1em;margin-bottom:8px;">${drug.name}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:10px;">
+        ${drug.generic}
+      </div>
+      <div style="display:inline-block;background:${drug.color}1a;border:1px solid ${drug.color}44;
+        border-radius:4px;padding:4px 12px;font-size:9px;letter-spacing:0.15em;
+        color:${drug.color}cc;text-transform:uppercase;margin-bottom:32px;">${drug.mode}</div>
+      <p style="font-size:13px;color:rgba(255,255,255,0.38);letter-spacing:0.08em;margin-bottom:36px;line-height:1.8;">
+        ${drug.tagline}<br>
+        <span style="color:rgba(255,255,255,0.22);font-size:11px;">Launching simulation...</span>
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="back-btn" onclick="render('select')">← Back to menu</button>
+      </div>
+    </div>
+    <div style="text-align:center;padding:0 0 32px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
+      SharpRX Interactive · dosecraft.io
+    </div>
+  `;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+render('attract');
+</script>
+</body>
 </html>
