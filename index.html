@@ -12,6 +12,7 @@
       font-family: 'Courier New', Courier, monospace;
       min-height: 100vh;
       overflow-x: hidden;
+      overflow-y: auto;
     }
 
     @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -309,7 +310,7 @@ function selectHTML() {
         <div style="font-size:9px;letter-spacing:0.35em;color:${grp.color}99;text-transform:uppercase;white-space:nowrap;">${grp.label}</div>
         <div style="flex:1;height:1px;background:linear-gradient(to right,${grp.color}44,transparent);"></div>
       </div>
-      <div style="display:grid;gap:7px;">${cards}</div>
+      <div style="display:grid;gap:7px;width:100%;">${cards}</div>
     `;
   }).join('');
 
