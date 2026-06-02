@@ -286,7 +286,7 @@ function selectHTML() {
           this.style.transform='none';
           this.style.boxShadow='none';
         "
-        onclick="render('selected',${JSON.stringify(d).replace(/"/g,'&quot;')})">
+        onclick="window.location.href='game.html?drug=${encodeURIComponent(d.name)}'"
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
