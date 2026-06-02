@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- Makes the site look correct on mobile phones -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- The text that appears in the browser tab -->
+  <title>Russell Sharp — RxSharp</title>
+  <!-- Loads three fonts from Google (free) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display&family=Figtree:wght@300;400;500&display=swap" rel="stylesheet">
+  <!-- All visual styling lives here -->
+  <style>
+
+    /* --- Reset & Base --- */
+    /* Removes browser default spacing and sets box model */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Base page styles */
+    body {
+      font-family: 'Figtree', sans-serif;
+      font-weight: 300;
+      background-color: #fafaf9;
+      color: #1a1a1a;
+      padding: 0 1.5rem;  /* Side padding on mobile */
+    }
+
+    /* Centers content and limits max width */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;  /* auto left/right = centered */
+    }
+
+    /* --- Header --- */
+    header {
+      border-bottom: 0.5px solid #e5e5e3;
+      padding: 2.5rem 0 2rem;
+      display: flex;              /* Side-by-side layout */
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .wordmark {
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      color: #888;
+      text-transform: uppercase;
+    }
+
+    /* The "Rx" part is darker than "Sharp" */
+    .wordmark span {
+      color: #1a1a1a;
+    }
+
+    nav {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    nav a {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #888;
+      text-decoration: none;  /* Removes underline */
+    }
+
+    nav a:hover {
+      color: #1a1a1a;  /* Darkens on hover */
+    }
+
+    /* --- Hero Section --- */
+    .hero {
+      padding: 4rem 0 3rem;
+      border-bottom: 0.5px solid #e5e5e3;
+    }
+
+    .eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(36px, 6vw, 52px); /* Scales with screen size */
+      font-weight: 400;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      margin-bottom: 1.5rem;
+    }
+
+    .bio {
+      font-size: 15px;
+      font-weight: 400;
+      color: #555;
+      line-height: 1.7;
+      max-width: 480px;
+    }
+
+    /* Small pill-shaped label tags */
+    .tags {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-wrap: wrap;  /* Wraps to next line on small screens */
+      gap: 8px;
+    }
+
+    .tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border: 0.5px solid #ddd;
+      border-radius: 2px;
+      color: #888;
+    }
+
+    /* --- Work Section --- */
+    .section {
+      padding: 2.5rem 0;
+      border-bottom: 0.5px solid #e5e5e3;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Card that holds the Dosecraft project */
+    .project-card {
+      border: 0.5px solid #e5e5e3;
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+
+    /* The small square icon */
+    .project-icon {
+      width: 40px;
+      height: 40px;
+      border: 0.5px solid #ddd;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;  /* Prevents icon from shrinking */
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: #888;
+    }
+
+    .project-name {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .project-desc {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.6;
+    }
+
+    /* Green dot + "Active development" line */
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #1D9E75;  /* Green */
+    }
+
+    /* --- Footer --- */
+    footer {
+      padding: 2rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #aaa;
+      letter-spacing: 0.06em;
+    }
+
+    .footer-contact {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #aaa;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+    }
+
+    .footer-contact:hover {
+      color: #1a1a1a;
+    }
+
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- HEADER -->
+    <header>
+      <div class="wordmark"><span>Rx</span>Sharp</div>
+      <nav>
+        <a href="#about">About</a>
+        <a href="#work">Work</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero" id="about">
+      <p class="eyebrow">Russell Sharp — Pharmacist &amp; Builder</p>
+      <h1>Clinical minds<br>build better tools.</h1>
+      <p class="bio">I work at the intersection of pharmacy practice and patient-centered technology — designing systems that bring clarity to complex medical experiences.</p>
+      <div class="tags">
+        <span class="tag">Pharmacist</span>
+        <span class="tag">Healthcare Technology</span>
+        <span class="tag">Fayetteville, AR</span>
+      </div>
+    </section>
+
+    <!-- WORK -->
+    <section class="section" id="work">
+      <p class="section-label">Current work</p>
+      <div class="project-card">
+        <div class="project-icon">Dc</div>
+        <div>
+          <p class="project-name">Dosecraft: Infusion Arcade</p>
+          <p class="project-desc">A real-time simulation platform for IV infusion patients — turning clinical downtime into calm, visual understanding of how their medication works.</p>
+          <div class="status">
+            <span class="dot"></span>
+            Active development · dosecraft.io
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer id="contact">
+      <span class="footer-name">rxsharp.com</span>
+      <a class="footer-contact" href="mailto:hello@rxsharp.com">hello@rxsharp.com</a>
+    </footer>
+
+  </div>
+</body>
+
+</html>
