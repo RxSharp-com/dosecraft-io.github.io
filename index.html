@@ -310,7 +310,7 @@ function selectHTML() {
         <div style="font-size:9px;letter-spacing:0.35em;color:${grp.color}99;text-transform:uppercase;white-space:nowrap;">${grp.label}</div>
         <div style="flex:1;height:1px;background:linear-gradient(to right,${grp.color}44,transparent);"></div>
       </div>
-      <div style="display:grid;gap:7px;width:100%;max-width:540px;margin:0 auto;">${cards}</div>
+      <div style="display:grid;gap:7px;width:100%;grid-template-columns:1fr;">${cards}</div>
     `;
   }).join('');
 
