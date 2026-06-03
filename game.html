@@ -1150,7 +1150,7 @@ useEffect(() => {
         </div>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <BigBtn label={`Watch ${drug.name} work →`} onClick={() => setScreen("playing")} primary />
-          <BigBtn label="← Back" onClick={() => window.location.href = "index.html"; }} />
+          <BigBtn label="← Back" onClick={() => { window.location.href = "index.html"; }} />
         </div>
         <SharpRXBadge />
       </div>
@@ -1180,7 +1180,7 @@ useEffect(() => {
         </div>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
           <BigBtn label="Play again" onClick={() => startDrug(drugIdx)} primary />
-          <BigBtn label="Choose another medication" onClick={() => window.location.href = "index.html"; }} />
+          <BigBtn label="Choose another medication" onClick={() => { window.location.href = "index.html"; }} />
         </div>
         <SharpRXBadge />
       </div>
@@ -1191,8 +1191,8 @@ useEffect(() => {
     <div style={{ ...pageStyle, padding: 8 }}>
       <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H} style={{ display: "block", borderRadius: 14, border: `2px solid ${col}33`, boxShadow: `0 0 40px ${col}22`, maxWidth: "100%", touchAction: "none" }} />
       <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", justifyContent: "center" }}>
-        <button onClick={() => { cancelAnimationFrame(animRef.current); window.location.href = "index.html"; }} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "10px 20px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>← Menu</button>
-        <button onClick={() => { cancelAnimationFrame(animRef.current); window.location.href = "index.html"; }} style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "10px 20px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>ℹ About {drug.name}</button>
+        <button onClick={() => { cancelAnimationFrame(animRef.current); { window.location.href = "index.html"; }} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "10px 20px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>← Menu</button>
+        <button onClick={() => { cancelAnimationFrame(animRef.current); { window.location.href = "index.html"; }} style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "10px 20px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>ℹ About {drug.name}</button>
       </div>
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: 2, textTransform: "uppercase" }}>SharpRX Interactive</div>
     </div>
