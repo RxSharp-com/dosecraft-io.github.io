@@ -292,15 +292,20 @@ const IVIG_WAVE_TRANSITION_TEXT = "Antibodies don't just fight infection — in 
 const PATHOGEN_COLORS = ["#ff6b6b", "#ff9f43", "#ee5a24"];
 const PATHOGEN_LABELS = ["Bacteria", "Virus", "Toxin"];
 
-function InfusionArcade() {
+function InfusionArcade({ initialDrug }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const animRef = useRef(null);
   const pointerRef = useRef({ x: CANVAS_W / 2, y: CANVAS_H / 2 });
   const splashTimerRef = useRef(null);
 
+  // If a drug name was passed via URL param, find its index (default 0)
+  const initialIdx = initialDrug
+    ? Math.max(0, DRUGS.findIndex(d => d.name.toLowerCase() === initialDrug.toLowerCase()))
+    : 0;
+
   const [screen, setScreen] = useState("menu");
-  const [drugIdx, setDrugIdx] = useState(0);
+  const [drugIdx, setDrugIdx] = useState(initialIdx);
   const [progress, setProgress] = useState(0);
   const [splashVisible, setSplashVisible] = useState(false);
   const [infusionLogoUrl, setInfusionLogoUrl] = useState(null);
@@ -355,6 +360,11 @@ function InfusionArcade() {
   useEffect(() => {
     return () => clearInterval(infusionTickRef.current);
   }, []);
+
+  // Auto-select drug from URL param — skips the in-game menu entirely
+  useEffect(() => {
+    if (initialDrug) startDrug(initialIdx);
+  }, []); // intentionally runs once on mount only
 
   const drug = DRUGS[drugIdx];
   const col = drug.drugColor;
