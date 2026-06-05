@@ -1223,6 +1223,7 @@ function InfusionArcade() {
 
     return (
       <div style={{ ...pageStyle, padding: "24px 16px" }}>
+        <style>{`@keyframes dripDrop { 0%,100% { transform: translateY(0); opacity:1; } 60% { transform: translateY(6px); opacity:0.3; } }`}</style>
         <div style={{ maxWidth: 440, width: "100%" }}>
 
           {/* Header */}
@@ -1254,12 +1255,9 @@ function InfusionArcade() {
                 <rect x="28" y="6" width="16" height="10" rx="4" fill={col + "66"} />
                 {/* Drip tube */}
                 <line x1="36" y1="90" x2="36" y2="110" stroke={col + "55"} strokeWidth="2.5" strokeDasharray="3,3" />
-                {/* Drip drop (only when not complete) */}
+                {/* Drip drop (only when not complete) — animated via CSS keyframes */}
                 {!isComplete && (
-                  <ellipse cx="36" cy="107" rx="3" ry="3.5" fill={col + "cc"}>
-                    <animateTransform attributeName="transform" type="translate" values="0,0;0,6;0,0" dur="2s" repeatCount="indefinite" />
-                  </animateTransform>
-                  </ellipse>
+                  <circle cx="36" cy="107" r="3" fill={col + "cc"} style={{ animation: "dripDrop 2s ease-in-out infinite" }} />
                 )}
               </svg>
             </div>
