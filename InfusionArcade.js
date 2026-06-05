@@ -292,6 +292,49 @@ const IVIG_WAVE_TRANSITION_TEXT = "Antibodies don't just fight infection — in 
 const PATHOGEN_COLORS = ["#ff6b6b", "#ff9f43", "#ee5a24"];
 const PATHOGEN_LABELS = ["Bacteria", "Virus", "Toxin"];
 
+// ── ROUND VARIATION SYSTEM ────────────────────────────────────────────────────
+// Each round randomly picks one pattern and one objective.
+// Patterns adjust spawn rate and movement speed via multipliers.
+// Objectives give the player a simple goal to notice — they don't block winning.
+//
+// To add a new pattern: copy any entry below and adjust spawnMult / speedMult.
+// To add a new objective: copy any entry below and adjust the label.
+// The actual checking logic is in applyRoundVariation() further down.
+
+const ROUND_PATTERNS = [
+  { id: "steady",     label: "Steady Flow",     spawnMult: 1.0,  speedMult: 1.0  },
+  { id: "burst",      label: "Burst Wave",      spawnMult: 1.35, speedMult: 0.9  },
+  { id: "fastLight",  label: "Fast & Light",    spawnMult: 0.8,  speedMult: 1.25 },
+  { id: "slowHeavy",  label: "Slow & Heavy",    spawnMult: 1.2,  speedMult: 0.75 },
+  { id: "staggered",  label: "Staggered",       spawnMult: 1.1,  speedMult: 1.05 },
+];
+
+// Objectives are purely cosmetic goals — they do not change win conditions.
+// label: shown in the HUD. gameTypes: which game types this objective applies to.
+const ROUND_OBJECTIVES = [
+  { id: "intercept",  label: "Block 8 builders",        gameTypes: ["vanco"] },
+  { id: "clearAll",   label: "Clear every wall section", gameTypes: ["breakout"] },
+  { id: "noMiss",     label: "Let nothing past",         gameTypes: ["vanco"] },
+  { id: "breach",     label: "Breach the membrane",      gameTypes: ["dapto"] },
+  { id: "flood",      label: "Flood the receptors",      gameTypes: ["ivig"] },
+  { id: "steady",     label: "Hold steady",              gameTypes: ["breakout","vanco","dapto","ivig"] },
+];
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// Returns a pattern and an objective appropriate for this game type.
+// roundCount (0-based) drives a gentle ramp: +5% speed per completed round, capped at +30%.
+function pickRoundSetup(gameType, roundCount) {
+  const pattern = pickRandom(ROUND_PATTERNS);
+  const eligible = ROUND_OBJECTIVES.filter(o => o.gameTypes.includes(gameType));
+  const objective = pickRandom(eligible.length ? eligible : ROUND_OBJECTIVES);
+  // Gentle ramp: each completed round adds a small speed bump, max 1.3×
+  const rampMult = Math.min(1.3, 1 + roundCount * 0.05);
+  return { pattern, objective, rampMult };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function InfusionArcade({ initialDrug }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
@@ -320,6 +363,12 @@ function InfusionArcade({ initialDrug }) {
   const [infusionProgress, setInfusionProgress] = useState(0);
   const infusionTickRef = useRef(null);
 
+  // ── ROUND VARIATION STATE ─────────────────────────────────────────────────
+  // roundCount: how many rounds have been completed this session (drives ramp)
+  // roundSetup: the pattern + objective chosen at the start of each round
+  const [roundCount, setRoundCount] = useState(0);
+  const [roundSetup, setRoundSetup] = useState(null);
+
   // Milestone message derived from infusion progress (0–1)
   function getMilestoneMessage(pct) {
     if (pct >= 1)    return "Infusion complete.";
@@ -347,6 +396,7 @@ function InfusionArcade({ initialDrug }) {
   // Called when the arcade round finishes (replaces direct setScreen("win"))
   function handleRoundComplete() {
     cancelAnimationFrame(animRef.current);
+    setRoundCount(c => c + 1); // track completed rounds for the difficulty ramp
     if (infusionMode === "active" && sessionStartTime) {
       // Session already running — go straight to companion
       setScreen("companion");
@@ -388,38 +438,76 @@ function InfusionArcade({ initialDrug }) {
     stateRef.current = null;
     showSplashThen(() => {
       const d = DRUGS[idx];
+
+      // Pick a random pattern + objective for this round and store in state
+      // so the intro screen and HUD can display it.
+      const setup = pickRoundSetup(d.gameType, roundCount);
+      setRoundSetup(setup);
+
+      const { spawnMult, speedMult } = setup.pattern;
+      const speed = speedMult * setup.rampMult; // combined speed multiplier
+
       if (d.gameType === "breakout") {
-        stateRef.current = { gameType: "breakout", paddle: { x: CANVAS_W / 2 - PADDLE_W / 2, y: CANVAS_H - 52 }, targetPaddleX: CANVAS_W / 2 - PADDLE_W / 2, ball: { x: CANVAS_W / 2, y: CANVAS_H - 76, vx: 0, vy: 0 }, bricks: buildBricks(), launched: false, particles: [], totalBricks: BRICK_COLS * BRICK_ROWS, clearedBricks: 0 };
+        // Ball speed scales with the speed multiplier (base 4.8 → up to ~6)
+        const ballSpeed = 4.8 * speed;
+        stateRef.current = {
+          gameType: "breakout",
+          paddle: { x: CANVAS_W / 2 - PADDLE_W / 2, y: CANVAS_H - 52 },
+          targetPaddleX: CANVAS_W / 2 - PADDLE_W / 2,
+          ball: { x: CANVAS_W / 2, y: CANVAS_H - 76, vx: 0, vy: 0 },
+          bricks: buildBricks(), launched: false, particles: [],
+          totalBricks: BRICK_COLS * BRICK_ROWS, clearedBricks: 0,
+          // Variation: store ball speed so tickBreakout can use it on launch
+          ballSpeed,
+        };
       } else if (d.gameType === "vanco") {
-        stateRef.current = { gameType: "vanco", vancoX: CANVAS_W / 2 - VANCO_W / 2, targetVancoX: CANVAS_W / 2 - VANCO_W / 2, vancoY: CANVAS_H - 76, precursors: [], particles: [], spawnTimer: 0, spawnRate: 100, speed: 1.3, blocked: 0, total: 0, goal: 24 };
+        // spawnRate (frames between spawns) shrinks when spawnMult is high = faster spawning
+        // base spawnRate is 100; divide by spawnMult so higher mult = more frequent
+        const spawnRate = Math.round(100 / spawnMult);
+        stateRef.current = {
+          gameType: "vanco",
+          vancoX: CANVAS_W / 2 - VANCO_W / 2, targetVancoX: CANVAS_W / 2 - VANCO_W / 2,
+          vancoY: CANVAS_H - 76, precursors: [], particles: [],
+          spawnTimer: 0, spawnRate, speed: 1.3 * speed,
+          blocked: 0, total: 0, goal: 24,
+        };
       } else if (d.gameType === "dapto") {
-        stateRef.current = { gameType: "dapto", daptoX: CANVAS_W / 2 - DAPTO_W / 2, daptoY: 140, targetDaptoX: CANVAS_W / 2 - DAPTO_W / 2, targetDaptoY: 140, caIons: buildCaIons(), membrane: buildMembrane(), particles: [], caCollected: 0, inserted: 0, wave: 0, waveTransition: 0 };
+        // Ca²⁺ ions move a bit faster with higher speed multiplier
+        const ions = buildCaIons().map(c => ({
+          ...c, vx: c.vx * speed, vy: c.vy * speed,
+        }));
+        stateRef.current = {
+          gameType: "dapto",
+          daptoX: CANVAS_W / 2 - DAPTO_W / 2, daptoY: 140,
+          targetDaptoX: CANVAS_W / 2 - DAPTO_W / 2, targetDaptoY: 140,
+          caIons: ions, membrane: buildMembrane(), particles: [],
+          caCollected: 0, inserted: 0, wave: 0, waveTransition: 0,
+        };
       } else if (d.gameType === "ivig") {
+        // Pathogens move faster + block spawn rate scales with spawnMult
+        const blockSpawnRate = Math.round(60 / spawnMult);
+        const pathogens = buildIvigPathogens(0).map(p => ({
+          ...p, vx: p.vx * speed, vy: p.vy * speed,
+        }));
         stateRef.current = {
           gameType: "ivig",
-          ivigWave: 0, // 0 = neutralization, 1 = receptor blockade
-          waveTransition: 0, waveTransitionMsg: "",
-          // Wave 1 state
+          ivigWave: 0, waveTransition: 0, waveTransitionMsg: "",
           shooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2,
           targetShooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2,
-          projectiles: [],
-          pathogens: buildIvigPathogens(0),
-          shootCooldown: 0,
-          neutralized: 0, totalPathogens: 21,
-          // Wave 2 state
+          projectiles: [], pathogens,
+          shootCooldown: 0, neutralized: 0, totalPathogens: 21,
           receptors: buildReceptorGrid(),
-          igGBalls: [], // floating IgG balls player guides
-          igGX: CANVAS_W / 2, igGY: CANVAS_H - 80,
+          igGBalls: [], igGX: CANVAS_W / 2, igGY: CANVAS_H - 80,
           targetIgGX: CANVAS_W / 2, targetIgGY: CANVAS_H - 80,
           occupied: 0, totalReceptors: IVIG_ROWS * IVIG_COLS,
-          blockSpawnTimer: 0, blockSpawnRate: 60,
+          blockSpawnTimer: 0, blockSpawnRate,
           particles: [],
         };
       }
       setProgress(0);
       setScreen("intro");
     });
-  }, [showSplashThen]);
+  }, [showSplashThen, roundCount]);
 
   // Pointer control
   useEffect(() => {
@@ -447,7 +535,7 @@ function InfusionArcade({ initialDrug }) {
       if (s.gameType === "breakout" && !s.launched) {
         const dx = pos.x - s.ball.x, dy = pos.y - s.ball.y;
         const dist = Math.sqrt(dx * dx + dy * dy); if (dist < 1) return;
-        const speed = 4.8;
+        const speed = s.ballSpeed || 4.8; // use pattern-varied speed if set
         let vx = (dx / dist) * speed, vy = (dy / dist) * speed;
         if (vy > -0.8) vy = -speed * 0.85;
         const spd = Math.sqrt(vx * vx + vy * vy);
@@ -506,7 +594,18 @@ function InfusionArcade({ initialDrug }) {
       ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = `10px ${SANS}`; ctx.textAlign = "right";
       const enc = d.encouragement.length > 42 ? d.encouragement.slice(0, 42) + "…" : d.encouragement;
       ctx.fillText(enc, CANVAS_W - 10, 21);
-      // custom label for ivig progress bar
+
+      // ── Round variation: show pattern label (left) and objective (right) ──
+      // Uses a subtle second row just below the main HUD bar.
+      if (roundSetup) {
+        ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(0, 34, CANVAS_W, 18);
+        ctx.font = `9px ${SANS}`; ctx.textAlign = "left";
+        ctx.fillStyle = dc + "99";
+        ctx.fillText("◈ " + roundSetup.pattern.label, 12, 46);
+        ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.textAlign = "right";
+        ctx.fillText("Goal: " + roundSetup.objective.label, CANVAS_W - 10, 46);
+      }
+
       const barX = 16, barY = CANVAS_H - 22, barW = CANVAS_W - 32, barH = 10;
       ctx.fillStyle = "rgba(255,255,255,0.12)"; drawRoundRect(ctx, barX, barY, barW, barH, 5); ctx.fill();
       if (pct > 0) {
@@ -1302,6 +1401,13 @@ function InfusionArcade({ initialDrug }) {
                 {drug.name} is working in the background. Take a break — or play another round.
               </div>
             )}
+            {/* Show last round's pattern + objective as a light recap */}
+            {roundSetup && !isComplete && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 10, color: col + "88", letterSpacing: 1 }}>◈ {roundSetup.pattern.label}</span>
+                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", letterSpacing: 1 }}>Goal: {roundSetup.objective.label}</span>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
@@ -1310,21 +1416,8 @@ function InfusionArcade({ initialDrug }) {
               <BigBtn
                 label="▶ Play another round"
                 onClick={() => {
-                  stateRef.current = null;
-                  setProgress(0);
-                  showSplashThen(() => {
-                    const d = DRUGS[drugIdx];
-                    if (d.gameType === "breakout") {
-                      stateRef.current = { gameType: "breakout", paddle: { x: CANVAS_W / 2 - PADDLE_W / 2, y: CANVAS_H - 52 }, targetPaddleX: CANVAS_W / 2 - PADDLE_W / 2, ball: { x: CANVAS_W / 2, y: CANVAS_H - 76, vx: 0, vy: 0 }, bricks: buildBricks(), launched: false, particles: [], totalBricks: BRICK_COLS * BRICK_ROWS, clearedBricks: 0 };
-                    } else if (d.gameType === "vanco") {
-                      stateRef.current = { gameType: "vanco", vancoX: CANVAS_W / 2 - VANCO_W / 2, targetVancoX: CANVAS_W / 2 - VANCO_W / 2, vancoY: CANVAS_H - 76, precursors: [], particles: [], spawnTimer: 0, spawnRate: 100, speed: 1.3, blocked: 0, total: 0, goal: 24 };
-                    } else if (d.gameType === "dapto") {
-                      stateRef.current = { gameType: "dapto", daptoX: CANVAS_W / 2 - DAPTO_W / 2, daptoY: 140, targetDaptoX: CANVAS_W / 2 - DAPTO_W / 2, targetDaptoY: 140, caIons: buildCaIons(), membrane: buildMembrane(), particles: [], caCollected: 0, inserted: 0, wave: 0, waveTransition: 0 };
-                    } else if (d.gameType === "ivig") {
-                      stateRef.current = { gameType: "ivig", ivigWave: 0, waveTransition: 0, waveTransitionMsg: "", shooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2, targetShooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2, projectiles: [], pathogens: buildIvigPathogens(0), shootCooldown: 0, neutralized: 0, totalPathogens: 21, receptors: buildReceptorGrid(), igGBalls: [], igGX: CANVAS_W / 2, igGY: CANVAS_H - 80, targetIgGX: CANVAS_W / 2, targetIgGY: CANVAS_H - 80, occupied: 0, totalReceptors: IVIG_ROWS * IVIG_COLS, blockSpawnTimer: 0, blockSpawnRate: 60, particles: [] };
-                    }
-                    setScreen("playing");
-                  });
+                  // startDrug handles pattern selection, ramp, and state init
+                  startDrug(drugIdx);
                 }}
                 primary
               />
