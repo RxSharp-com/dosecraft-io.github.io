@@ -204,12 +204,95 @@ const DRUGS = [
   },
 ];
 
-function buildBricks() {
-  const bricks = [];
-  for (let row = 0; row < BRICK_ROWS; row++)
+// ── BRICK LAYOUTS ─────────────────────────────────────────────────────────────
+// Each layout function returns an array of brick objects.
+// buildBricks() picks one at random so every breakout round looks different.
+
+function brickAt(col, row) {
+  return {
+    x: BRICK_OFFSET_X + col * (BRICK_W + BRICK_PAD),
+    y: BRICK_OFFSET_Y + row * (BRICK_H + BRICK_PAD),
+    w: BRICK_W, h: BRICK_H, alive: true,
+  };
+}
+
+// Layout A — classic full grid (original)
+function bricksFullGrid() {
+  const b = [];
+  for (let r = 0; r < BRICK_ROWS; r++)
     for (let c = 0; c < BRICK_COLS; c++)
-      bricks.push({ x: BRICK_OFFSET_X + c * (BRICK_W + BRICK_PAD), y: BRICK_OFFSET_Y + row * (BRICK_H + BRICK_PAD), w: BRICK_W, h: BRICK_H, alive: true });
-  return bricks;
+      b.push(brickAt(c, r));
+  return b;
+}
+
+// Layout B — checkerboard: every other brick missing
+function bricksCheckerboard() {
+  const b = [];
+  for (let r = 0; r < BRICK_ROWS; r++)
+    for (let c = 0; c < BRICK_COLS; c++)
+      if ((r + c) % 2 === 0) b.push(brickAt(c, r));
+  return b;
+}
+
+// Layout C — diamond / pyramid shape
+function bricksDiamond() {
+  const b = [];
+  const center = (BRICK_COLS - 1) / 2;
+  for (let r = 0; r < BRICK_ROWS; r++) {
+    const spread = BRICK_ROWS - 1 - r; // wider at top
+    const start = Math.round(center - spread);
+    const end   = Math.round(center + spread);
+    for (let c = Math.max(0, start); c <= Math.min(BRICK_COLS - 1, end); c++)
+      b.push(brickAt(c, r));
+  }
+  return b;
+}
+
+// Layout D — two separated clusters (left block + right block)
+function bricksTwoClusters() {
+  const b = [];
+  for (let r = 0; r < BRICK_ROWS; r++) {
+    for (let c = 0; c < 3; c++)         b.push(brickAt(c, r));     // left cluster
+    for (let c = BRICK_COLS - 3; c < BRICK_COLS; c++) b.push(brickAt(c, r)); // right cluster
+  }
+  return b;
+}
+
+// Layout E — fortress: hollow rectangle with filled corners
+function bricksFortress() {
+  const b = [];
+  for (let r = 0; r < BRICK_ROWS; r++)
+    for (let c = 0; c < BRICK_COLS; c++) {
+      const isEdge = r === 0 || r === BRICK_ROWS - 1 || c === 0 || c === BRICK_COLS - 1;
+      if (isEdge) b.push(brickAt(c, r));
+    }
+  return b;
+}
+
+// Layout F — random scatter: ~60% of bricks present, random positions
+function bricksScatter() {
+  const b = [];
+  for (let r = 0; r < BRICK_ROWS; r++)
+    for (let c = 0; c < BRICK_COLS; c++)
+      if (Math.random() < 0.62) b.push(brickAt(c, r));
+  // guarantee at least 16 bricks so the round is meaningful
+  if (b.length < 16) return bricksFullGrid();
+  return b;
+}
+
+const BRICK_LAYOUTS = [
+  bricksFullGrid,
+  bricksCheckerboard,
+  bricksDiamond,
+  bricksTwoClusters,
+  bricksFortress,
+  bricksScatter,
+];
+
+function buildBricks() {
+  // Pick a random layout each time — gives each breakout round a different shape
+  const layoutFn = BRICK_LAYOUTS[Math.floor(Math.random() * BRICK_LAYOUTS.length)];
+  return layoutFn();
 }
 
 function getLanes() {
@@ -450,14 +533,15 @@ function InfusionArcade({ initialDrug }) {
       if (d.gameType === "breakout") {
         // Ball speed scales with the speed multiplier (base 4.8 → up to ~6)
         const ballSpeed = 4.8 * speed;
+        const bricks = buildBricks(); // layout is random each round
         stateRef.current = {
           gameType: "breakout",
           paddle: { x: CANVAS_W / 2 - PADDLE_W / 2, y: CANVAS_H - 52 },
           targetPaddleX: CANVAS_W / 2 - PADDLE_W / 2,
           ball: { x: CANVAS_W / 2, y: CANVAS_H - 76, vx: 0, vy: 0 },
-          bricks: buildBricks(), launched: false, particles: [],
-          totalBricks: BRICK_COLS * BRICK_ROWS, clearedBricks: 0,
-          // Variation: store ball speed so tickBreakout can use it on launch
+          bricks, launched: false, particles: [],
+          totalBricks: bricks.length, // use actual count, not fixed COLS*ROWS
+          clearedBricks: 0,
           ballSpeed,
         };
       } else if (d.gameType === "vanco") {
@@ -693,7 +777,8 @@ function InfusionArcade({ initialDrug }) {
     function tickVanco(s) {
       s.vancoX += (s.targetVancoX - s.vancoX) * 0.3;
       s.spawnTimer++;
-      if (s.spawnTimer >= s.spawnRate && s.total < 48) {
+      // Spawn indefinitely until the goal is reached — no hard cap
+      if (s.spawnTimer >= s.spawnRate && s.blocked < s.goal) {
         s.spawnTimer = 0; s.total++;
         const lanes = getLanes(), lane = lanes[Math.floor(Math.random() * LANE_COUNT)];
         const px = Math.max(4, Math.min(CANVAS_W - PRECURSOR_W - 4, lane + (Math.random() - 0.5) * 20));
@@ -712,7 +797,8 @@ function InfusionArcade({ initialDrug }) {
       }
       s.precursors = s.precursors.filter(p => p.opacity > 0 && p.y < CANVAS_H + 20);
       tickP(s);
-      if (s.total >= 48 && s.precursors.every(p => p.bound || p.missed || p.opacity <= 0)) { handleRoundComplete(); return false; }
+      // Win when the player has intercepted enough precursors to fill the bar
+      if (s.blocked >= s.goal) { handleRoundComplete(); return false; }
       const pct = Math.min(1, s.blocked / s.goal);
       drawBg();
       ctx.save(); ctx.fillStyle = "rgba(255,80,80,0.07)"; ctx.fillRect(0, CANVAS_H - 90, CANVAS_W, 90);
