@@ -301,18 +301,33 @@ function getLanes() {
   );
 }
 
-function buildMembrane() {
-  const segW = 42, gap = 4, count = Math.floor((CANVAS_W - 32) / (segW + gap));
-  return Array.from({ length: count }, (_, i) => ({
-    x: 16 + i * (segW + gap), y: MEM_Y - MEM_THICKNESS / 2,
-    w: segW, h: MEM_THICKNESS, inserted: false, flash: 0, oligoFlash: 0,
+// ── DAPTOMYCIN BUILDERS ───────────────────────────────────────────────────────
+
+// Divides the membrane into DAPTO_ZONE_COUNT zones, each tracking stability.
+// Replaces the old flat-segment buildMembrane().
+function buildMembraneZones() {
+  const totalW = CANVAS_W - 32;
+  const zoneW  = Math.floor(totalW / DAPTO_ZONE_COUNT);
+  return Array.from({ length: DAPTO_ZONE_COUNT }, (_, i) => ({
+    id:          `zone-${i}`,
+    x:           16 + i * zoneW,
+    width:       i === DAPTO_ZONE_COUNT - 1 ? totalW - i * zoneW : zoneW,
+    y:           MEM_Y - MEM_THICKNESS / 2,
+    h:           MEM_THICKNESS,
+    stability:   90 + Math.random() * 10,  // start near full, slight variation
+    status:      "normal",                 // normal | weak | repairing | disrupted
+    repairTimer: 0,
+    flashTimer:  0,
+    vulnerable:  false,                    // used by pulseWeakness round style
   }));
 }
 
+// Spawns floating Ca²⁺ ions in the upper play area.
 function buildCaIons() {
-  return Array.from({ length: 6 }, (_, i) => ({
-    x: 80 + i * 60, y: 70 + Math.random() * 80,
-    vx: (Math.random() - 0.5) * 2.0, vy: (Math.random() - 0.5) * 2.0,
+  return Array.from({ length: 4 }, (_, i) => ({
+    x: 70 + i * 90, y: 60 + Math.random() * 100,
+    vx: (Math.random() - 0.5) * 1.8,
+    vy: (Math.random() - 0.5) * 1.8,
     r: CA_R, collected: false,
   }));
 }
@@ -374,6 +389,15 @@ const IVIG_WAVE_TRANSITION_TEXT = "Antibodies don't just fight infection — in 
 
 const PATHOGEN_COLORS = ["#ff6b6b", "#ff9f43", "#ee5a24"];
 const PATHOGEN_LABELS = ["Bacteria", "Virus", "Toxin"];
+
+// ── DAPTOMYCIN UPGRADE CONSTANTS ─────────────────────────────────────────────
+const DAPTO_MAX_CHARGE   = 3;      // max calcium charge level
+const DAPTO_ZONE_COUNT   = 5;      // number of membrane zones
+const DAPTO_REPAIR_RATE  = 0.06;   // stability restored per frame while repairing
+const DAPTO_HIT_NORMAL   = 18;     // stability removed per uncharged hit
+const DAPTO_HIT_CHARGED  = 38;     // stability removed per fully charged hit
+const DAPTO_CHAIN_BLEED  = 8;      // stability bleed to neighbours in chainLeak mode
+const DAPTO_ROUND_STYLES = ["chargeStrike", "patchPressure", "pulseWeakness", "chainLeak"];
 
 // ── ROUND VARIATION SYSTEM ────────────────────────────────────────────────────
 // Each round randomly picks one pattern and one objective.
@@ -556,16 +580,35 @@ function InfusionArcade({ initialDrug }) {
           blocked: 0, total: 0, goal: 24,
         };
       } else if (d.gameType === "dapto") {
-        // Ca²⁺ ions move a bit faster with higher speed multiplier
+        // Pick a round style randomly — determines repair rate, pulse, chain behaviour
+        const roundStyle = DAPTO_ROUND_STYLES[Math.floor(Math.random() * DAPTO_ROUND_STYLES.length)];
         const ions = buildCaIons().map(c => ({
           ...c, vx: c.vx * speed, vy: c.vy * speed,
         }));
         stateRef.current = {
           gameType: "dapto",
+          // Player molecule position
           daptoX: CANVAS_W / 2 - DAPTO_W / 2, daptoY: 140,
           targetDaptoX: CANVAS_W / 2 - DAPTO_W / 2, targetDaptoY: 140,
-          caIons: ions, membrane: buildMembrane(), particles: [],
-          caCollected: 0, inserted: 0, wave: 0, waveTransition: 0,
+          // Calcium charge system (replaces old caCollected counter)
+          charge: 0,
+          caIons: ions,
+          caSpawnTimer: 0,
+          // Membrane zone system (replaces old flat membrane array)
+          zones: buildMembraneZones(),
+          // Progress tracking — cumulative damage dealt vs goal
+          totalDamageDealt: 0,
+          damageGoal: 280,
+          // Round variation
+          roundStyle,
+          repairSpawnTimer: 0,
+          repairSpawnRate: roundStyle === "patchPressure" ? 180 : 300,
+          pulseTimer: 0,
+          pulseTarget: -1,
+          // Visual / compat
+          particles: [],
+          wave: 0,          // kept so win screen narration refs don't break
+          waveTransition: 0,
         };
       } else if (d.gameType === "ivig") {
         // Pathogens move faster + block spawn rate scales with spawnMult
@@ -822,107 +865,294 @@ function InfusionArcade({ initialDrug }) {
       drawHUD(pct, `Infection clearing: ${Math.round(pct * 100)}%`); return true;
     }
 
-    // ── DAPTOMYCIN ────────────────────────────────────────────────────────────
-    function advanceDaptoWave(s) {
-      s.wave++; if (s.wave >= TOTAL_WAVES) { handleRoundComplete(); return false; }
-      s.membrane = buildMembrane(); s.caIons = buildCaIons(); s.caCollected = 0; s.waveTransition = 120; return true;
-    }
+    // ── DAPTOMYCIN (upgraded) ─────────────────────────────────────────────────
     function tickDapto(s) {
-      s.daptoX += (s.targetDaptoX - s.daptoX) * 0.3; s.daptoY += (s.targetDaptoY - s.daptoY) * 0.3;
+
+      // ── Wave transition overlay (kept for compat) ───────────────────────────
       if (s.waveTransition > 0) {
         s.waveTransition--;
         drawBg();
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = dc; ctx.font = `bold 20px ${SERIF}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("Bacteria clearing…", CANVAS_W / 2, CANVAS_H / 2 - 40);
-        ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.font = `15px ${SANS}`; ctx.fillText(WAVE_MESSAGES[s.wave] || "", CANVAS_W / 2, CANVAS_H / 2);
-        ctx.fillStyle = "rgba(255,255,255,0.55)"; ctx.font = `12px ${SANS}`; ctx.fillText(WAVE_NARRATION[s.wave] || "", CANVAS_W / 2, CANVAS_H / 2 + 34);
+        ctx.fillText("Membrane destabilized…", CANVAS_W / 2, CANVAS_H / 2 - 24);
+        ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = `13px ${SANS}`;
+        ctx.fillText("Cubicin is continuing to work.", CANVAS_W / 2, CANVAS_H / 2 + 14);
         drawWatermark(); return true;
       }
-      s.caIons = s.caIons.filter(c => !c.collected);
-      if (s.caIons.length < 5) s.caIons.push({ x: 60 + Math.random() * (CANVAS_W - 120), y: 60 + Math.random() * 90, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, r: CA_R, collected: false });
-      for (const ca of s.caIons) {
-        ca.x += ca.vx; ca.y += ca.vy;
-        if (ca.x - ca.r < 0) { ca.x = ca.r; ca.vx *= -1; } if (ca.x + ca.r > CANVAS_W) { ca.x = CANVAS_W - ca.r; ca.vx *= -1; }
-        if (ca.y - ca.r < 38) { ca.y = 38 + ca.r; ca.vy *= -1; } if (ca.y + ca.r > MEM_Y - 60) { ca.y = MEM_Y - 60; ca.vy *= -1; }
-        const dx = ca.x - (s.daptoX + DAPTO_W / 2), dy = ca.y - (s.daptoY + DAPTO_H / 2);
-        if (Math.sqrt(dx * dx + dy * dy) < DAPTO_W + ca.r && !ca.collected && s.caCollected < CA_MAX) { ca.collected = true; s.caCollected++; spawnP(s, ca.x, ca.y, "#fef08a", 8, 3); }
+
+      // ── Move player molecule ────────────────────────────────────────────────
+      s.daptoX += (s.targetDaptoX - s.daptoX) * 0.3;
+      s.daptoY += (s.targetDaptoY - s.daptoY) * 0.3;
+
+      // ── Ca²⁺ ion physics & collection ──────────────────────────────────────
+      // Respawn when fewer than 3 uncollected ions remain
+      s.caSpawnTimer++;
+      if (s.caSpawnTimer > 60) {
+        s.caSpawnTimer = 0;
+        const alive = s.caIons.filter(c => !c.collected).length;
+        if (alive < 3) {
+          s.caIons.push({
+            x: 60 + Math.random() * (CANVAS_W - 120),
+            y: 55 + Math.random() * 100,
+            vx: (Math.random() - 0.5) * 1.8,
+            vy: (Math.random() - 0.5) * 1.8,
+            r: CA_R, collected: false,
+          });
+        }
       }
-      const activated = s.caCollected >= 2;
-      for (const seg of s.membrane) {
-        if (seg.inserted) { if (seg.oligoFlash > 0) seg.oligoFlash--; continue; }
-        if (seg.flash > 0) { seg.flash--; continue; }
-        const cx = s.daptoX + DAPTO_W / 2, cy = s.daptoY + DAPTO_H;
-        if (cx > seg.x && cx < seg.x + seg.w && cy >= seg.y - 8 && cy <= seg.y + seg.h + 4) {
-          if (!activated) { seg.flash = 16; }
-          else {
-            seg.inserted = true; spawnP(s, seg.x + seg.w / 2, seg.y, dc, 14, 5);
-            for (let i = 0; i < 5; i++) s.particles.push({ x: seg.x + seg.w / 2, y: seg.y + seg.h / 2, vx: (Math.random() - 0.5) * 5, vy: 2 + Math.random() * 4, life: 40, maxLife: 40, color: "#86efac", r: 5 });
-            const idx = s.membrane.indexOf(seg);
-            [-1, 1, -2, 2].forEach(off => { const nb = s.membrane[idx + off]; if (nb && !nb.inserted) { nb.oligoFlash = 18; setTimeout(() => { if (!nb.inserted) { nb.inserted = true; spawnP(s, nb.x + nb.w / 2, nb.y, dc + "88", 6, 3); } }, Math.abs(off) * 200 + 200); } });
-            if (s.caCollected > 0) s.caCollected = Math.max(0, s.caCollected - 1);
+
+      for (const ca of s.caIons) {
+        if (ca.collected) continue;
+        ca.x += ca.vx; ca.y += ca.vy;
+        if (ca.x - ca.r < 0)         { ca.x = ca.r;          ca.vx *= -1; }
+        if (ca.x + ca.r > CANVAS_W)  { ca.x = CANVAS_W-ca.r; ca.vx *= -1; }
+        if (ca.y - ca.r < 38)        { ca.y = 38 + ca.r;     ca.vy *= -1; }
+        if (ca.y + ca.r > MEM_Y - 60){ ca.y = MEM_Y - 60;    ca.vy *= -1; }
+        // Collection: player molecule overlaps ion
+        const dx = ca.x - (s.daptoX + DAPTO_W / 2);
+        const dy = ca.y - (s.daptoY + DAPTO_H / 2);
+        if (Math.sqrt(dx*dx + dy*dy) < DAPTO_W / 2 + ca.r && !ca.collected && s.charge < DAPTO_MAX_CHARGE) {
+          ca.collected = true;
+          s.charge = Math.min(DAPTO_MAX_CHARGE, s.charge + 1);
+          spawnP(s, ca.x, ca.y, "#fef08a", 8, 3);
+        }
+      }
+
+      // ── pulseWeakness: periodically make one zone more vulnerable ───────────
+      if (s.roundStyle === "pulseWeakness") {
+        s.pulseTimer++;
+        if (s.pulseTimer > 220) {
+          s.pulseTimer = 0;
+          if (s.pulseTarget >= 0 && s.zones[s.pulseTarget])
+            s.zones[s.pulseTarget].vulnerable = false;
+          const eligible = s.zones.filter(z => z.status !== "disrupted");
+          if (eligible.length > 0) {
+            const pick = eligible[Math.floor(Math.random() * eligible.length)];
+            pick.vulnerable = true;
+            s.pulseTarget = s.zones.indexOf(pick);
           }
         }
       }
+
+      // ── Repair patch spawning ───────────────────────────────────────────────
+      s.repairSpawnTimer++;
+      if (s.repairSpawnTimer >= s.repairSpawnRate) {
+        s.repairSpawnTimer = 0;
+        const candidates = s.zones.filter(z => z.status === "normal" || z.status === "weak");
+        if (candidates.length > 0) {
+          const pick = candidates[Math.floor(Math.random() * candidates.length)];
+          pick.status = "repairing";
+          pick.repairTimer = 0;
+        }
+      }
+
+      // ── Zone repair logic ───────────────────────────────────────────────────
+      for (const zone of s.zones) {
+        if (zone.status === "repairing") {
+          zone.stability = Math.min(100, zone.stability + DAPTO_REPAIR_RATE);
+          zone.repairTimer++;
+          if (zone.stability >= 95) { zone.status = "normal"; zone.repairTimer = 0; }
+        }
+        if (zone.flashTimer > 0) zone.flashTimer--;
+      }
+
+      // ── Collision: player molecule hits membrane zones ──────────────────────
+      const playerCX     = s.daptoX + DAPTO_W / 2;
+      const playerBottom = s.daptoY + DAPTO_H;
+
+      for (const zone of s.zones) {
+        if (zone.status === "disrupted") continue;
+        const inX = playerCX > zone.x && playerCX < zone.x + zone.width;
+        const inY = playerBottom >= zone.y - 6 && playerBottom <= zone.y + zone.h + 4;
+        if (!inX || !inY) continue;
+
+        // Interrupt repair on contact
+        if (zone.status === "repairing") {
+          zone.status = "normal";
+          zone.repairTimer = 0;
+          spawnP(s, zone.x + zone.width / 2, zone.y, "#86efac", 6, 3);
+        }
+
+        // Damage scaled by charge and vulnerability
+        const fullyCharged = s.charge >= DAPTO_MAX_CHARGE;
+        const vulnMult = zone.vulnerable ? (fullyCharged ? 1.5 : 1.4) : 1;
+        const dmg = (fullyCharged ? DAPTO_HIT_CHARGED : DAPTO_HIT_NORMAL) * vulnMult;
+
+        zone.stability = Math.max(0, zone.stability - dmg);
+        zone.flashTimer = 18;
+        s.totalDamageDealt += dmg;
+
+        // Consume one charge per hit (charged or not — uncharged hits still land)
+        if (s.charge > 0) s.charge--;
+
+        // chainLeak: bleed small damage to neighbours
+        if (s.roundStyle === "chainLeak") {
+          const idx = s.zones.indexOf(zone);
+          [-1, 1].forEach(offset => {
+            const nb = s.zones[idx + offset];
+            if (nb && nb.status !== "disrupted") {
+              nb.stability = Math.max(0, nb.stability - DAPTO_CHAIN_BLEED);
+              s.totalDamageDealt += DAPTO_CHAIN_BLEED;
+              spawnP(s, nb.x + nb.width / 2, nb.y + zone.h / 2, dc + "88", 4, 2);
+            }
+          });
+        }
+
+        // Hit particles
+        spawnP(s, zone.x + zone.width / 2, zone.y + zone.h / 2,
+          fullyCharged ? "#fff" : dc, fullyCharged ? 14 : 8, fullyCharged ? 6 : 4);
+
+        // Mark zone disrupted when stability hits 0
+        if (zone.stability <= 0) {
+          zone.status = "disrupted";
+          zone.stability = 0;
+          zone.vulnerable = false;
+          spawnP(s, zone.x + zone.width / 2, zone.y + zone.h / 2, dc, 20, 6);
+        } else if (zone.stability < 35) {
+          zone.status = "weak";
+        }
+
+        break; // only one zone hit per frame
+      }
+
       tickP(s);
-      const insertedCount = s.membrane.filter(seg => seg.inserted).length;
-      const waveProgress = Math.min(1, insertedCount / (s.membrane.length * 0.6));
-      const overallPct = Math.min(1, (s.wave / TOTAL_WAVES) + (waveProgress / TOTAL_WAVES));
-      setProgress(overallPct);
-      if (insertedCount / s.membrane.length >= 0.6) { if (advanceDaptoWave(s) === false) return false; }
+
+      // ── Progress ────────────────────────────────────────────────────────────
+      const pct = Math.min(1, s.totalDamageDealt / s.damageGoal);
+      setProgress(pct);
+      if (pct >= 1) { cancelAnimationFrame(animRef.current); setScreen("win"); return false; }
+
+      // ── DRAW ────────────────────────────────────────────────────────────────
       drawBg();
-      ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.font = `10px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText("Bloodstream — calcium zone", 12, 52);
-      ctx.textAlign = "right"; ctx.fillStyle = dc + "cc"; ctx.font = `bold 10px ${SANS}`; ctx.fillText(WAVE_MESSAGES[s.wave] || "", CANVAS_W - 12, 52);
+
+      // Top labels
+      ctx.fillStyle = "rgba(255,255,255,0.28)";
+      ctx.font = `10px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("Bloodstream — calcium zone", 12, 52);
+      ctx.textAlign = "right"; ctx.fillStyle = dc + "cc"; ctx.font = `bold 10px ${SANS}`;
+      const styleLabel = { chargeStrike: "Charge & Strike", patchPressure: "Patch Pressure", pulseWeakness: "Pulse Weakness", chainLeak: "Chain Leak" }[s.roundStyle] || "";
+      ctx.fillText(styleLabel, CANVAS_W - 12, 52);
+
+      // Membrane background strip
       const memY0 = MEM_Y - MEM_THICKNESS / 2;
       ctx.save();
       const mg = ctx.createLinearGradient(0, memY0, 0, memY0 + MEM_THICKNESS);
       mg.addColorStop(0, "#1a3a1a"); mg.addColorStop(0.5, "#0d2010"); mg.addColorStop(1, "#1a3a1a");
-      ctx.fillStyle = mg; ctx.fillRect(0, memY0, CANVAS_W, MEM_THICKNESS);
-      ctx.strokeStyle = "rgba(100,200,100,0.2)"; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, memY0); ctx.lineTo(CANVAS_W, memY0); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, memY0 + MEM_THICKNESS); ctx.lineTo(CANVAS_W, memY0 + MEM_THICKNESS); ctx.stroke(); ctx.restore();
-      ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.font = `bold 10px ${SANS}`; ctx.textAlign = "center"; ctx.fillText("Bacterial Membrane", CANVAS_W / 2, memY0 - 8);
-      for (const seg of s.membrane) {
+      ctx.fillStyle = mg; ctx.fillRect(0, memY0, CANVAS_W, MEM_THICKNESS); ctx.restore();
+      ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `bold 10px ${SANS}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("Bacterial Membrane", CANVAS_W / 2, memY0 - 8);
+
+      // Draw each membrane zone
+      for (const zone of s.zones) {
+        const cx = zone.x + zone.width / 2;
+        const cy = zone.y + zone.h / 2;
+        const stabPct = zone.stability / 100;
+
         let fillC, strokeC, glowC;
-        if (seg.inserted) { fillC = "#1a3a0a"; strokeC = "#44ff88"; glowC = "#44ff88"; }
-        else if (seg.oligoFlash > 0) { fillC = "#2a5a14"; strokeC = "#88ff44"; glowC = "#88ff44"; seg.oligoFlash--; }
-        else { fillC = dc + "22"; strokeC = dc + "88"; glowC = dc; }
-        ctx.save(); ctx.shadowBlur = seg.flash > 0 ? 16 : (seg.inserted ? 12 : 5); ctx.shadowColor = seg.flash > 0 ? "#fff5" : glowC;
-        drawRoundRect(ctx, seg.x + 1, seg.y + 2, seg.w - 2, seg.h - 4, 5); ctx.fillStyle = fillC; ctx.fill(); ctx.strokeStyle = strokeC; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
-        if (seg.inserted) { ctx.fillStyle = "#44ff8899"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("✓", seg.x + seg.w / 2, seg.y + MEM_THICKNESS / 2); }
+        if (zone.status === "disrupted") {
+          fillC = "#0a1a0a"; strokeC = "#44ff8844"; glowC = "#44ff88";
+        } else if (zone.status === "repairing") {
+          fillC = `rgba(80,200,120,${0.15 + stabPct * 0.2})`;
+          strokeC = "#4ade80"; glowC = "#4ade80";
+        } else if (zone.status === "weak") {
+          fillC = `rgba(255,100,60,${0.15 + (1 - stabPct) * 0.25})`;
+          strokeC = "#ff6644"; glowC = "#ff6644";
+        } else {
+          fillC = dc + Math.round(stabPct * 0x33).toString(16).padStart(2, "0");
+          strokeC = dc + (zone.vulnerable ? "ff" : "88");
+          glowC = dc;
+        }
+
+        ctx.save();
+        ctx.shadowBlur = zone.flashTimer > 0 ? 22 : (zone.vulnerable ? 14 : 6);
+        ctx.shadowColor = zone.flashTimer > 0 ? "#fff" : glowC;
+        drawRoundRect(ctx, zone.x + 2, zone.y + 3, zone.width - 4, zone.h - 6, 5);
+        ctx.fillStyle = fillC; ctx.fill();
+        ctx.strokeStyle = strokeC; ctx.lineWidth = zone.vulnerable ? 2.5 : 1.5; ctx.stroke();
+        ctx.restore();
+
+        // Stability bar inside each zone
+        if (zone.status !== "disrupted") {
+          const barH = 4, barY = zone.y + zone.h - 8, barX = zone.x + 4, barW = zone.width - 8;
+          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(barX, barY, barW, barH);
+          const barColor = stabPct > 0.6 ? "#4ade80" : stabPct > 0.3 ? "#facc15" : "#f87171";
+          ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * stabPct, barH);
+        }
+
+        // Status label
+        ctx.fillStyle = zone.status === "disrupted" ? "#44ff8866"
+          : zone.status === "repairing"             ? "#4ade80"
+          : zone.status === "weak"                  ? "#ff8866"
+          : zone.vulnerable                         ? "#fff"
+          : "rgba(255,255,255,0.5)";
+        ctx.font = `bold ${zone.status === "disrupted" ? 11 : 9}px ${SANS}`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const label = zone.status === "disrupted" ? "✓ breached"
+          : zone.status === "repairing"           ? "⟳ repairing"
+          : zone.status === "weak"                ? "! weak"
+          : zone.vulnerable                       ? "▼ exposed"
+          : "";
+        if (label) ctx.fillText(label, cx, cy - 4);
       }
-      ctx.fillStyle = "rgba(255,255,255,0.3)"; ctx.font = `10px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; ctx.fillText("Inside bacteria", 12, MEM_Y + MEM_THICKNESS / 2 + 20);
-      drawP(s);
+
+      ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.font = `10px ${SANS}`;
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("Inside bacteria", 12, MEM_Y + MEM_THICKNESS / 2 + 20);
+
+      // Draw Ca²⁺ ions
       for (const ca of s.caIons) {
         if (ca.collected) continue;
-        ctx.save(); ctx.shadowBlur = 18; ctx.shadowColor = "#fef08a"; ctx.fillStyle = "#fef08a";
+        ctx.save(); ctx.shadowBlur = 18; ctx.shadowColor = "#fef08a";
+        ctx.fillStyle = "#fef08a";
         ctx.beginPath(); ctx.arc(ca.x, ca.y, ca.r, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-        ctx.fillStyle = "#78350f"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("Ca²⁺", ca.x, ca.y);
+        ctx.fillStyle = "#78350f"; ctx.font = `bold 9px ${SANS}`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("Ca²⁺", ca.x, ca.y);
       }
-      const caP = Math.min(1, s.caCollected / CA_MAX);
-      ctx.save(); ctx.shadowBlur = 14 + caP * 24; ctx.shadowColor = dc;
-      const dg = ctx.createRadialGradient(s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, 4, s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2);
-      dg.addColorStop(0, dc); dg.addColorStop(1, dc + "77");
-      ctx.fillStyle = dg; ctx.beginPath(); ctx.arc(s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = dc; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
-      ctx.fillStyle = "#1c0800"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("CUBICIN", s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2 - 5);
-      ctx.font = `7px ${SANS}`; ctx.fillStyle = "#1c080088"; ctx.fillText(`Ca²⁺ ${s.caCollected}/${CA_MAX}`, s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2 + 7);
-      for (let i = 0; i < CA_MAX; i++) {
-        const px = s.daptoX + DAPTO_W / 2 - (CA_MAX / 2) * 12 + i * 12 + 6, py = s.daptoY + DAPTO_H + 14;
-        ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2);
-        ctx.fillStyle = i < s.caCollected ? "#fbbf24" : "rgba(255,255,255,0.18)"; ctx.fill();
+
+      // Draw player Cubicin molecule
+      const fullyCharged = s.charge >= DAPTO_MAX_CHARGE;
+      ctx.save();
+      ctx.shadowBlur = 14 + (s.charge / DAPTO_MAX_CHARGE) * 24;
+      ctx.shadowColor = fullyCharged ? "#fff" : dc;
+      const dg = ctx.createRadialGradient(
+        s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, 4,
+        s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2
+      );
+      dg.addColorStop(0, fullyCharged ? "#fff" : dc);
+      dg.addColorStop(1, (fullyCharged ? "#fff" : dc) + "77");
+      ctx.fillStyle = dg;
+      ctx.beginPath(); ctx.arc(s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = fullyCharged ? "#fff" : dc; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = "#1c0800"; ctx.font = `bold 9px ${SANS}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("CUBICIN", s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2 - 5);
+
+      // Charge dots below molecule
+      for (let i = 0; i < DAPTO_MAX_CHARGE; i++) {
+        const dotX = s.daptoX + DAPTO_W / 2 - (DAPTO_MAX_CHARGE / 2) * 14 + i * 14 + 7;
+        const dotY = s.daptoY + DAPTO_H + 12;
+        ctx.beginPath(); ctx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = i < s.charge ? "#fbbf24" : "rgba(255,255,255,0.18)"; ctx.fill();
       }
-      for (let w = 0; w < TOTAL_WAVES; w++) {
-        const dotX = CANVAS_W / 2 - (TOTAL_WAVES - 1) * 18 + w * 36, dotY = CANVAS_H - 50;
-        ctx.beginPath(); ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
-        ctx.fillStyle = w < s.wave ? dc : (w === s.wave ? dc + "66" : "rgba(255,255,255,0.15)"); ctx.fill();
-        ctx.fillStyle = w < s.wave ? "#000" : "rgba(255,255,255,0.5)"; ctx.font = `bold 8px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(w + 1, dotX, dotY);
-      }
-      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `12px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-      if (!activated) ctx.fillText("Drag through Ca²⁺ to activate Cubicin", CANVAS_W / 2, CANVAS_H - 36);
-      else ctx.fillText("Drag Cubicin into the membrane to punch through", CANVAS_W / 2, CANVAS_H - 36);
-      drawHUD(overallPct, `Infection clearing: ${Math.round(overallPct * 100)}%`); return true;
+      ctx.fillStyle = dc; ctx.font = `bold 8px ${SANS}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillText(`Charge: ${s.charge}/${DAPTO_MAX_CHARGE}`, s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H + 26);
+
+      // Instruction line
+      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `12px ${SANS}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      if (!fullyCharged)
+        ctx.fillText("Collect Ca²⁺ to charge · Drag Cubicin into the membrane", CANVAS_W / 2, CANVAS_H - 36);
+      else
+        ctx.fillText("Fully charged — drag into membrane for maximum disruption!", CANVAS_W / 2, CANVAS_H - 36);
+
+      drawP(s);
+      drawHUD(pct, `Membrane disruption: ${Math.round(pct * 100)}%`);
+      return true;
     }
 
     // ── IVIG ─────────────────────────────────────────────────────────────────
