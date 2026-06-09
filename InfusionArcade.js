@@ -303,22 +303,25 @@ function getLanes() {
 
 // ── DAPTOMYCIN BUILDERS ───────────────────────────────────────────────────────
 
-// Divides the membrane into DAPTO_ZONE_COUNT zones, each tracking stability.
-// Replaces the old flat-segment buildMembrane().
+// Builds 6 membrane zones. Each zone tracks its phase independently:
+//   intact -> inserting (collecting molecule hits) -> clustering (hold to oligomerize)
+//   -> pore (K+ ions stream out) -> done
 function buildMembraneZones() {
   const totalW = CANVAS_W - 32;
   const zoneW  = Math.floor(totalW / DAPTO_ZONE_COUNT);
   return Array.from({ length: DAPTO_ZONE_COUNT }, (_, i) => ({
-    id:          `zone-${i}`,
-    x:           16 + i * zoneW,
-    width:       i === DAPTO_ZONE_COUNT - 1 ? totalW - i * zoneW : zoneW,
-    y:           MEM_Y - MEM_THICKNESS / 2,
-    h:           MEM_THICKNESS,
-    stability:   90 + Math.random() * 10,  // start near full, slight variation
-    status:      "normal",                 // normal | weak | repairing | disrupted
-    repairTimer: 0,
-    flashTimer:  0,
-    vulnerable:  false,                    // used by pulseWeakness round style
+    id:            i,
+    x:             16 + i * zoneW,
+    width:         i === DAPTO_ZONE_COUNT - 1 ? totalW - i * zoneW : zoneW,
+    y:             MEM_Y - MEM_THICKNESS / 2,
+    h:             MEM_THICKNESS,
+    stage:         "intact",       // intact | inserting | clustering | pore | done
+    insertions:    0,              // 0..DAPTO_INSERTIONS_NEEDED
+    clusterTimer:  0,              // counts up while player is parked here
+    flashTimer:    0,
+    repairTimer:   0,              // > 0 means a repair patch is active
+    vulnerable:    false,          // pulseWeakness: accepts hits without charge
+    kIons:         [],             // K+ ions streaming out of this pore
   }));
 }
 
@@ -390,14 +393,17 @@ const IVIG_WAVE_TRANSITION_TEXT = "Antibodies don't just fight infection — in 
 const PATHOGEN_COLORS = ["#ff6b6b", "#ff9f43", "#ee5a24"];
 const PATHOGEN_LABELS = ["Bacteria", "Virus", "Toxin"];
 
-// ── DAPTOMYCIN UPGRADE CONSTANTS ─────────────────────────────────────────────
-const DAPTO_MAX_CHARGE   = 3;      // max calcium charge level
-const DAPTO_ZONE_COUNT   = 5;      // number of membrane zones
-const DAPTO_REPAIR_RATE  = 0.06;   // stability restored per frame while repairing
-const DAPTO_HIT_NORMAL   = 18;     // stability removed per uncharged hit
-const DAPTO_HIT_CHARGED  = 38;     // stability removed per fully charged hit
-const DAPTO_CHAIN_BLEED  = 8;      // stability bleed to neighbours in chainLeak mode
-const DAPTO_ROUND_STYLES = ["chargeStrike", "patchPressure", "pulseWeakness", "chainLeak"];
+// ── DAPTOMYCIN PHASE-BASED CONSTANTS ─────────────────────────────────────────
+const DAPTO_ZONE_COUNT        = 6;     // membrane zones
+const DAPTO_MAX_CHARGE        = 3;     // Ca2+ charge slots
+const DAPTO_INSERTIONS_NEEDED = 3;     // hits needed before oligomerization begins
+const DAPTO_CLUSTER_FRAMES    = 120;   // frames of contact to complete clustering (~2s)
+const DAPTO_KION_SPEED        = 1.6;   // K+ ion fall speed (px/frame)
+const DAPTO_KION_DRAIN        = 0.004; // membrane potential lost per K+ ion that exits
+const DAPTO_REPAIR_FRAMES     = 300;   // frames between repair spawns (normal)
+const DAPTO_REPAIR_FRAMES_PP  = 160;   // frames between repair spawns (patchPressure)
+const DAPTO_ROUND_STYLES      = ["chargeStrike", "patchPressure", "pulseWeakness", "chainLeak"];
+// Zone stages: "intact" -> "inserting" -> "clustering" -> "pore" -> "done"
 
 // ── ROUND VARIATION SYSTEM ────────────────────────────────────────────────────
 // Each round randomly picks one pattern and one objective.
@@ -580,34 +586,31 @@ function InfusionArcade({ initialDrug }) {
           blocked: 0, total: 0, goal: 24,
         };
       } else if (d.gameType === "dapto") {
-        // Pick a round style randomly — determines repair rate, pulse, chain behaviour
         const roundStyle = DAPTO_ROUND_STYLES[Math.floor(Math.random() * DAPTO_ROUND_STYLES.length)];
-        const ions = buildCaIons().map(c => ({
-          ...c, vx: c.vx * speed, vy: c.vy * speed,
-        }));
+        const ions = buildCaIons().map(c => ({ ...c, vx: c.vx * speed, vy: c.vy * speed }));
         stateRef.current = {
           gameType: "dapto",
-          // Player molecule position
+          // Player molecule
           daptoX: CANVAS_W / 2 - DAPTO_W / 2, daptoY: 140,
           targetDaptoX: CANVAS_W / 2 - DAPTO_W / 2, targetDaptoY: 140,
-          // Calcium charge system (replaces old caCollected counter)
+          // Calcium charge
           charge: 0,
           caIons: ions,
           caSpawnTimer: 0,
-          // Membrane zone system (replaces old flat membrane array)
+          // Membrane zones (phase-based)
           zones: buildMembraneZones(),
-          // Progress tracking — cumulative damage dealt vs goal
-          totalDamageDealt: 0,
-          damageGoal: 280,
+          // Depolarization meter: starts at 1.0, drains to 0 via K+ ions
+          membranePotential: 1.0,
+          // Repair patches
+          repairSpawnTimer: 0,
+          repairSpawnRate: roundStyle === "patchPressure" ? DAPTO_REPAIR_FRAMES_PP : DAPTO_REPAIR_FRAMES,
           // Round variation
           roundStyle,
-          repairSpawnTimer: 0,
-          repairSpawnRate: roundStyle === "patchPressure" ? 180 : 300,
           pulseTimer: 0,
           pulseTarget: -1,
-          // Visual / compat
+          // Compat fields
           particles: [],
-          wave: 0,          // kept so win screen narration refs don't break
+          wave: 0,
           waveTransition: 0,
         };
       } else if (d.gameType === "ivig") {
@@ -865,67 +868,59 @@ function InfusionArcade({ initialDrug }) {
       drawHUD(pct, `Infection clearing: ${Math.round(pct * 100)}%`); return true;
     }
 
-    // ── DAPTOMYCIN (upgraded) ─────────────────────────────────────────────────
+    // ── DAPTOMYCIN — phase-based: insertion -> oligomerization -> pore -> depolarization
     function tickDapto(s) {
 
-      // ── Wave transition overlay (kept for compat) ───────────────────────────
+      // Wave transition overlay (compat)
       if (s.waveTransition > 0) {
         s.waveTransition--;
         drawBg();
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
         ctx.fillStyle = dc; ctx.font = `bold 20px ${SERIF}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("Membrane destabilized…", CANVAS_W / 2, CANVAS_H / 2 - 24);
+        ctx.fillText("Membrane depolarizing…", CANVAS_W / 2, CANVAS_H / 2 - 24);
         ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = `13px ${SANS}`;
-        ctx.fillText("Cubicin is continuing to work.", CANVAS_W / 2, CANVAS_H / 2 + 14);
+        ctx.fillText("Cubicin pores are opening.", CANVAS_W / 2, CANVAS_H / 2 + 14);
         drawWatermark(); return true;
       }
 
-      // ── Move player molecule ────────────────────────────────────────────────
+      // ── Move player ──────────────────────────────────────────────────────────
       s.daptoX += (s.targetDaptoX - s.daptoX) * 0.3;
       s.daptoY += (s.targetDaptoY - s.daptoY) * 0.3;
 
-      // ── Ca²⁺ ion physics & collection ──────────────────────────────────────
-      // Respawn when fewer than 3 uncollected ions remain
+      // ── Ca2+ ion physics & collection ────────────────────────────────────────
       s.caSpawnTimer++;
       if (s.caSpawnTimer > 60) {
         s.caSpawnTimer = 0;
-        const alive = s.caIons.filter(c => !c.collected).length;
-        if (alive < 3) {
+        if (s.caIons.filter(c => !c.collected).length < 3) {
           s.caIons.push({
-            x: 60 + Math.random() * (CANVAS_W - 120),
-            y: 55 + Math.random() * 100,
-            vx: (Math.random() - 0.5) * 1.8,
-            vy: (Math.random() - 0.5) * 1.8,
+            x: 60 + Math.random() * (CANVAS_W - 120), y: 55 + Math.random() * 90,
+            vx: (Math.random() - 0.5) * 1.8, vy: (Math.random() - 0.5) * 1.8,
             r: CA_R, collected: false,
           });
         }
       }
-
       for (const ca of s.caIons) {
         if (ca.collected) continue;
         ca.x += ca.vx; ca.y += ca.vy;
-        if (ca.x - ca.r < 0)         { ca.x = ca.r;          ca.vx *= -1; }
-        if (ca.x + ca.r > CANVAS_W)  { ca.x = CANVAS_W-ca.r; ca.vx *= -1; }
-        if (ca.y - ca.r < 38)        { ca.y = 38 + ca.r;     ca.vy *= -1; }
-        if (ca.y + ca.r > MEM_Y - 60){ ca.y = MEM_Y - 60;    ca.vy *= -1; }
-        // Collection: player molecule overlaps ion
-        const dx = ca.x - (s.daptoX + DAPTO_W / 2);
-        const dy = ca.y - (s.daptoY + DAPTO_H / 2);
-        if (Math.sqrt(dx*dx + dy*dy) < DAPTO_W / 2 + ca.r && !ca.collected && s.charge < DAPTO_MAX_CHARGE) {
+        if (ca.x - ca.r < 0)          { ca.x = ca.r;          ca.vx *= -1; }
+        if (ca.x + ca.r > CANVAS_W)   { ca.x = CANVAS_W-ca.r; ca.vx *= -1; }
+        if (ca.y - ca.r < 38)         { ca.y = 38+ca.r;        ca.vy *= -1; }
+        if (ca.y + ca.r > MEM_Y - 60) { ca.y = MEM_Y-60;       ca.vy *= -1; }
+        const dx = ca.x - (s.daptoX + DAPTO_W/2), dy = ca.y - (s.daptoY + DAPTO_H/2);
+        if (Math.sqrt(dx*dx+dy*dy) < DAPTO_W/2 + ca.r && !ca.collected && s.charge < DAPTO_MAX_CHARGE) {
           ca.collected = true;
-          s.charge = Math.min(DAPTO_MAX_CHARGE, s.charge + 1);
+          s.charge++;
           spawnP(s, ca.x, ca.y, "#fef08a", 8, 3);
         }
       }
 
-      // ── pulseWeakness: periodically make one zone more vulnerable ───────────
+      // ── pulseWeakness: one zone periodically accepts hits without charge ──────
       if (s.roundStyle === "pulseWeakness") {
         s.pulseTimer++;
-        if (s.pulseTimer > 220) {
+        if (s.pulseTimer > 260) {
           s.pulseTimer = 0;
-          if (s.pulseTarget >= 0 && s.zones[s.pulseTarget])
-            s.zones[s.pulseTarget].vulnerable = false;
-          const eligible = s.zones.filter(z => z.status !== "disrupted");
+          if (s.pulseTarget >= 0 && s.zones[s.pulseTarget]) s.zones[s.pulseTarget].vulnerable = false;
+          const eligible = s.zones.filter(z => z.stage !== "pore" && z.stage !== "done");
           if (eligible.length > 0) {
             const pick = eligible[Math.floor(Math.random() * eligible.length)];
             pick.vulnerable = true;
@@ -934,103 +929,146 @@ function InfusionArcade({ initialDrug }) {
         }
       }
 
-      // ── Repair patch spawning ───────────────────────────────────────────────
+      // ── Repair patch spawning ─────────────────────────────────────────────────
+      // Repairs can knock one insertion off an inserting/clustering zone
       s.repairSpawnTimer++;
       if (s.repairSpawnTimer >= s.repairSpawnRate) {
         s.repairSpawnTimer = 0;
-        const candidates = s.zones.filter(z => z.status === "normal" || z.status === "weak");
+        const candidates = s.zones.filter(z => z.stage === "inserting" || z.stage === "clustering");
         if (candidates.length > 0) {
           const pick = candidates[Math.floor(Math.random() * candidates.length)];
-          pick.status = "repairing";
-          pick.repairTimer = 0;
+          pick.repairTimer = 180; // repair patch lasts 3 seconds unless interrupted
         }
       }
 
-      // ── Zone repair logic ───────────────────────────────────────────────────
-      for (const zone of s.zones) {
-        if (zone.status === "repairing") {
-          zone.stability = Math.min(100, zone.stability + DAPTO_REPAIR_RATE);
-          zone.repairTimer++;
-          if (zone.stability >= 95) { zone.status = "normal"; zone.repairTimer = 0; }
-        }
-        if (zone.flashTimer > 0) zone.flashTimer--;
-      }
-
-      // ── Collision: player molecule hits membrane zones ──────────────────────
+      // ── Per-zone logic ───────────────────────────────────────────────────────
       const playerCX     = s.daptoX + DAPTO_W / 2;
       const playerBottom = s.daptoY + DAPTO_H;
+      let playerOnZone   = null;
 
       for (const zone of s.zones) {
-        if (zone.status === "disrupted") continue;
+        if (zone.flashTimer > 0) zone.flashTimer--;
+
+        // Repair patch ticks down; if it fully elapses it removes one insertion
+        if (zone.repairTimer > 0) {
+          zone.repairTimer--;
+          if (zone.repairTimer === 0 && zone.stage === "inserting" && zone.insertions > 0) {
+            zone.insertions--;
+            if (zone.insertions === 0) zone.stage = "intact";
+            spawnP(s, zone.x + zone.width/2, zone.y, "#4ade80", 6, 3);
+          }
+          if (zone.repairTimer === 0 && zone.stage === "clustering") {
+            // patchPressure: aggressive repair resets clustering
+            if (s.roundStyle === "patchPressure") {
+              zone.stage = "inserting";
+              zone.clusterTimer = 0;
+              zone.insertions = Math.max(0, zone.insertions - (s.roundStyle === "patchPressure" ? 2 : 1));
+              if (zone.insertions === 0) zone.stage = "intact";
+            }
+          }
+        }
+
+        // K+ ions from open pores fall downward and drain membrane potential
+        if (zone.stage === "pore" || zone.stage === "done") {
+          // Spawn new K+ ions periodically while pore is open
+          if (zone.stage === "pore" && Math.random() < 0.08) {
+            zone.kIons.push({
+              x: zone.x + 6 + Math.random() * (zone.width - 12),
+              y: zone.y + zone.h,
+              vy: DAPTO_KION_SPEED + Math.random() * 0.8,
+              opacity: 1,
+            });
+          }
+          for (const k of zone.kIons) {
+            k.y += k.vy;
+            k.opacity = Math.max(0, 1 - (k.y - (zone.y + zone.h)) / 90);
+          }
+          // Any K+ that exits the visible area drains potential
+          const escaped = zone.kIons.filter(k => k.y > MEM_Y + MEM_THICKNESS/2 + 95);
+          s.membranePotential = Math.max(0, s.membranePotential - escaped.length * DAPTO_KION_DRAIN);
+          zone.kIons = zone.kIons.filter(k => k.y <= MEM_Y + MEM_THICKNESS/2 + 95);
+        }
+
+        // Player contact detection
         const inX = playerCX > zone.x && playerCX < zone.x + zone.width;
         const inY = playerBottom >= zone.y - 6 && playerBottom <= zone.y + zone.h + 4;
-        if (!inX || !inY) continue;
+        if (!inX || !inY) {
+          // Player left — clustering timer pauses (doesn't reset)
+          continue;
+        }
 
-        // Interrupt repair on contact
-        if (zone.status === "repairing") {
-          zone.status = "normal";
+        playerOnZone = zone;
+
+        if (zone.stage === "pore" || zone.stage === "done") continue;
+
+        // Interrupt repair patch on contact
+        if (zone.repairTimer > 0) {
           zone.repairTimer = 0;
-          spawnP(s, zone.x + zone.width / 2, zone.y, "#86efac", 6, 3);
+          spawnP(s, zone.x + zone.width/2, zone.y, "#86efac", 8, 3);
         }
 
-        // Damage scaled by charge and vulnerability
-        const fullyCharged = s.charge >= DAPTO_MAX_CHARGE;
-        const vulnMult = zone.vulnerable ? (fullyCharged ? 1.5 : 1.4) : 1;
-        const dmg = (fullyCharged ? DAPTO_HIT_CHARGED : DAPTO_HIT_NORMAL) * vulnMult;
+        // ── Stage: intact or inserting — charged hit inserts one molecule ──────
+        if (zone.stage === "intact" || zone.stage === "inserting") {
+          const canHit = s.charge > 0 || zone.vulnerable;
+          if (canHit && zone.flashTimer === 0) {
+            zone.insertions++;
+            zone.flashTimer = 22;
+            if (s.charge > 0) s.charge--;
+            spawnP(s, zone.x + zone.width/2, zone.y + zone.h/2, dc, 10, 4);
 
-        zone.stability = Math.max(0, zone.stability - dmg);
-        zone.flashTimer = 18;
-        s.totalDamageDealt += dmg;
-
-        // Consume one charge per hit (charged or not — uncharged hits still land)
-        if (s.charge > 0) s.charge--;
-
-        // chainLeak: bleed small damage to neighbours
-        if (s.roundStyle === "chainLeak") {
-          const idx = s.zones.indexOf(zone);
-          [-1, 1].forEach(offset => {
-            const nb = s.zones[idx + offset];
-            if (nb && nb.status !== "disrupted") {
-              nb.stability = Math.max(0, nb.stability - DAPTO_CHAIN_BLEED);
-              s.totalDamageDealt += DAPTO_CHAIN_BLEED;
-              spawnP(s, nb.x + nb.width / 2, nb.y + zone.h / 2, dc + "88", 4, 2);
+            // chainLeak: neighbour gets a free partial insertion
+            if (s.roundStyle === "chainLeak") {
+              const idx = s.zones.indexOf(zone);
+              [-1, 1].forEach(off => {
+                const nb = s.zones[idx + off];
+                if (nb && nb.stage !== "pore" && nb.stage !== "done" && nb.insertions < DAPTO_INSERTIONS_NEEDED) {
+                  nb.insertions++;
+                  if (nb.insertions >= DAPTO_INSERTIONS_NEEDED) { nb.stage = "clustering"; nb.clusterTimer = 0; }
+                  else nb.stage = "inserting";
+                  spawnP(s, nb.x + nb.width/2, nb.y + nb.h/2, dc + "88", 5, 3);
+                }
+              });
             }
-          });
+
+            if (zone.insertions >= DAPTO_INSERTIONS_NEEDED) {
+              zone.stage = "clustering";
+              zone.clusterTimer = 0;
+            } else {
+              zone.stage = "inserting";
+            }
+          }
         }
 
-        // Hit particles
-        spawnP(s, zone.x + zone.width / 2, zone.y + zone.h / 2,
-          fullyCharged ? "#fff" : dc, fullyCharged ? 14 : 8, fullyCharged ? 6 : 4);
-
-        // Mark zone disrupted when stability hits 0
-        if (zone.stability <= 0) {
-          zone.status = "disrupted";
-          zone.stability = 0;
-          zone.vulnerable = false;
-          spawnP(s, zone.x + zone.width / 2, zone.y + zone.h / 2, dc, 20, 6);
-        } else if (zone.stability < 35) {
-          zone.status = "weak";
+        // ── Stage: clustering — hold position to oligomerize ──────────────────
+        if (zone.stage === "clustering") {
+          zone.clusterTimer++;
+          if (zone.clusterTimer >= DAPTO_CLUSTER_FRAMES) {
+            zone.stage = "pore";
+            zone.kIons = [];
+            spawnP(s, zone.x + zone.width/2, zone.y + zone.h/2, "#fff", 22, 7);
+            spawnP(s, zone.x + zone.width/2, zone.y + zone.h/2, dc, 14, 5);
+          }
         }
-
-        break; // only one zone hit per frame
       }
 
       tickP(s);
 
-      // ── Progress ────────────────────────────────────────────────────────────
-      const pct = Math.min(1, s.totalDamageDealt / s.damageGoal);
+      // ── Progress: depolarization meter drives win condition ──────────────────
+      const pct = Math.min(1, 1 - s.membranePotential);
       setProgress(pct);
-      if (pct >= 1) { cancelAnimationFrame(animRef.current); setScreen("win"); return false; }
+      if (s.membranePotential <= 0) { cancelAnimationFrame(animRef.current); setScreen("win"); return false; }
 
-      // ── DRAW ────────────────────────────────────────────────────────────────
+      // ════════════════════════════════════════════════════════════════════════
+      // DRAW
+      // ════════════════════════════════════════════════════════════════════════
       drawBg();
 
-      // Top labels
-      ctx.fillStyle = "rgba(255,255,255,0.28)";
-      ctx.font = `10px ${SANS}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      // Top label
+      ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.font = `10px ${SANS}`;
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
       ctx.fillText("Bloodstream — calcium zone", 12, 52);
+      const styleLabel = { chargeStrike:"Charge & Strike", patchPressure:"Patch Pressure", pulseWeakness:"Pulse Weakness", chainLeak:"Chain Leak" }[s.roundStyle] || "";
       ctx.textAlign = "right"; ctx.fillStyle = dc + "cc"; ctx.font = `bold 10px ${SANS}`;
-      const styleLabel = { chargeStrike: "Charge & Strike", patchPressure: "Patch Pressure", pulseWeakness: "Pulse Weakness", chainLeak: "Chain Leak" }[s.roundStyle] || "";
       ctx.fillText(styleLabel, CANVAS_W - 12, 52);
 
       // Membrane background strip
@@ -1043,64 +1081,106 @@ function InfusionArcade({ initialDrug }) {
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       ctx.fillText("Bacterial Membrane", CANVAS_W / 2, memY0 - 8);
 
-      // Draw each membrane zone
+      // ── Draw zones ───────────────────────────────────────────────────────────
       for (const zone of s.zones) {
         const cx = zone.x + zone.width / 2;
         const cy = zone.y + zone.h / 2;
-        const stabPct = zone.stability / 100;
 
+        // Zone fill/stroke by stage
         let fillC, strokeC, glowC;
-        if (zone.status === "disrupted") {
-          fillC = "#0a1a0a"; strokeC = "#44ff8844"; glowC = "#44ff88";
-        } else if (zone.status === "repairing") {
-          fillC = `rgba(80,200,120,${0.15 + stabPct * 0.2})`;
-          strokeC = "#4ade80"; glowC = "#4ade80";
-        } else if (zone.status === "weak") {
-          fillC = `rgba(255,100,60,${0.15 + (1 - stabPct) * 0.25})`;
-          strokeC = "#ff6644"; glowC = "#ff6644";
-        } else {
-          fillC = dc + Math.round(stabPct * 0x33).toString(16).padStart(2, "0");
-          strokeC = dc + (zone.vulnerable ? "ff" : "88");
-          glowC = dc;
+        switch (zone.stage) {
+          case "done":
+          case "pore":
+            fillC = "#0a1a0a"; strokeC = "#44ff8855"; glowC = "#44ff88"; break;
+          case "clustering":
+            fillC = "rgba(200,150,255,0.18)"; strokeC = "#c084fc"; glowC = "#c084fc"; break;
+          case "inserting":
+            fillC = dc + "22"; strokeC = dc + "cc"; glowC = dc; break;
+          default: // intact
+            fillC = "rgba(255,255,255,0.04)"; strokeC = zone.vulnerable ? "#fff" : dc + "44"; glowC = dc;
         }
 
         ctx.save();
-        ctx.shadowBlur = zone.flashTimer > 0 ? 22 : (zone.vulnerable ? 14 : 6);
+        ctx.shadowBlur = zone.flashTimer > 0 ? 24 : (zone.stage === "clustering" ? 16 : 6);
         ctx.shadowColor = zone.flashTimer > 0 ? "#fff" : glowC;
         drawRoundRect(ctx, zone.x + 2, zone.y + 3, zone.width - 4, zone.h - 6, 5);
         ctx.fillStyle = fillC; ctx.fill();
-        ctx.strokeStyle = strokeC; ctx.lineWidth = zone.vulnerable ? 2.5 : 1.5; ctx.stroke();
+        ctx.strokeStyle = strokeC; ctx.lineWidth = zone.stage === "clustering" ? 2.5 : 1.5; ctx.stroke();
         ctx.restore();
 
-        // Stability bar inside each zone
-        if (zone.status !== "disrupted") {
-          const barH = 4, barY = zone.y + zone.h - 8, barX = zone.x + 4, barW = zone.width - 8;
-          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(barX, barY, barW, barH);
-          const barColor = stabPct > 0.6 ? "#4ade80" : stabPct > 0.3 ? "#facc15" : "#f87171";
-          ctx.fillStyle = barColor; ctx.fillRect(barX, barY, barW * stabPct, barH);
+        // Insertion dots (shown in inserting + clustering stages)
+        if (zone.stage === "inserting" || zone.stage === "clustering") {
+          const dotSpacing = 14, totalDots = DAPTO_INSERTIONS_NEEDED;
+          const dotsStartX = cx - ((totalDots - 1) * dotSpacing) / 2;
+          for (let d = 0; d < totalDots; d++) {
+            ctx.beginPath();
+            ctx.arc(dotsStartX + d * dotSpacing, cy - 4, 5, 0, Math.PI * 2);
+            ctx.fillStyle = d < zone.insertions ? dc : "rgba(255,255,255,0.15)"; ctx.fill();
+          }
         }
 
-        // Status label
-        ctx.fillStyle = zone.status === "disrupted" ? "#44ff8866"
-          : zone.status === "repairing"             ? "#4ade80"
-          : zone.status === "weak"                  ? "#ff8866"
-          : zone.vulnerable                         ? "#fff"
-          : "rgba(255,255,255,0.5)";
-        ctx.font = `bold ${zone.status === "disrupted" ? 11 : 9}px ${SANS}`;
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        const label = zone.status === "disrupted" ? "✓ breached"
-          : zone.status === "repairing"           ? "⟳ repairing"
-          : zone.status === "weak"                ? "! weak"
-          : zone.vulnerable                       ? "▼ exposed"
-          : "";
-        if (label) ctx.fillText(label, cx, cy - 4);
+        // Clustering progress arc
+        if (zone.stage === "clustering") {
+          const arcPct = zone.clusterTimer / DAPTO_CLUSTER_FRAMES;
+          ctx.save();
+          ctx.strokeStyle = "#c084fc"; ctx.lineWidth = 3;
+          ctx.shadowBlur = 10; ctx.shadowColor = "#c084fc";
+          ctx.beginPath();
+          ctx.arc(cx, cy + 7, 10, -Math.PI/2, -Math.PI/2 + arcPct * Math.PI * 2);
+          ctx.stroke(); ctx.restore();
+          ctx.fillStyle = "#c084fc"; ctx.font = `bold 8px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("clustering…", cx, cy + 20);
+        }
+
+        // Repair patch indicator
+        if (zone.repairTimer > 0) {
+          const rpct = zone.repairTimer / 180;
+          ctx.save();
+          ctx.strokeStyle = "#4ade80"; ctx.lineWidth = 3;
+          ctx.shadowBlur = 10; ctx.shadowColor = "#4ade80";
+          ctx.beginPath();
+          ctx.arc(cx, zone.y + 8, 8, -Math.PI/2, -Math.PI/2 + rpct * Math.PI * 2);
+          ctx.stroke(); ctx.restore();
+          ctx.fillStyle = "#4ade80"; ctx.font = `9px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("repairing", cx, zone.y + 8);
+        }
+
+        // Pore label
+        if (zone.stage === "pore" || zone.stage === "done") {
+          ctx.fillStyle = "#44ff8877"; ctx.font = `bold 10px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("pore open", cx, cy);
+        }
+
+        // Vulnerable indicator (pulseWeakness)
+        if (zone.vulnerable && zone.stage !== "pore" && zone.stage !== "done") {
+          ctx.fillStyle = "#fff"; ctx.font = `bold 8px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("exposed", cx, zone.y + zone.h - 6);
+        }
+
+        // K+ ions streaming below pore zones
+        for (const k of zone.kIons) {
+          ctx.save();
+          ctx.globalAlpha = k.opacity;
+          ctx.fillStyle = "#a5f3fc";
+          ctx.shadowBlur = 8; ctx.shadowColor = "#a5f3fc";
+          ctx.beginPath(); ctx.arc(k.x, k.y, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = "#0e4f5c"; ctx.font = `bold 7px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("K+", k.x, k.y);
+          ctx.restore();
+        }
       }
 
+      // Zone label below membrane
       ctx.fillStyle = "rgba(255,255,255,0.28)"; ctx.font = `10px ${SANS}`;
       ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-      ctx.fillText("Inside bacteria", 12, MEM_Y + MEM_THICKNESS / 2 + 20);
+      ctx.fillText("Inside bacteria", 12, MEM_Y + MEM_THICKNESS/2 + 20);
 
-      // Draw Ca²⁺ ions
+      // ── Ca2+ ions ────────────────────────────────────────────────────────────
       for (const ca of s.caIons) {
         if (ca.collected) continue;
         ctx.save(); ctx.shadowBlur = 18; ctx.shadowColor = "#fef08a";
@@ -1109,49 +1189,66 @@ function InfusionArcade({ initialDrug }) {
         ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
         ctx.fillStyle = "#78350f"; ctx.font = `bold 9px ${SANS}`;
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("Ca²⁺", ca.x, ca.y);
+        ctx.fillText("Ca2+", ca.x, ca.y);
       }
 
-      // Draw player Cubicin molecule
+      // ── Player Cubicin molecule ───────────────────────────────────────────────
       const fullyCharged = s.charge >= DAPTO_MAX_CHARGE;
       ctx.save();
       ctx.shadowBlur = 14 + (s.charge / DAPTO_MAX_CHARGE) * 24;
       ctx.shadowColor = fullyCharged ? "#fff" : dc;
       const dg = ctx.createRadialGradient(
-        s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, 4,
-        s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2
+        s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2, 4,
+        s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2, DAPTO_W/2
       );
       dg.addColorStop(0, fullyCharged ? "#fff" : dc);
       dg.addColorStop(1, (fullyCharged ? "#fff" : dc) + "77");
       ctx.fillStyle = dg;
-      ctx.beginPath(); ctx.arc(s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2, DAPTO_W / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2, DAPTO_W/2, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = fullyCharged ? "#fff" : dc; ctx.lineWidth = 2.5; ctx.stroke();
       ctx.restore();
       ctx.fillStyle = "#1c0800"; ctx.font = `bold 9px ${SANS}`;
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("CUBICIN", s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H / 2 - 5);
+      ctx.fillText("CUBICIN", s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2 - 5);
 
-      // Charge dots below molecule
+      // Charge dots under molecule
       for (let i = 0; i < DAPTO_MAX_CHARGE; i++) {
-        const dotX = s.daptoX + DAPTO_W / 2 - (DAPTO_MAX_CHARGE / 2) * 14 + i * 14 + 7;
-        const dotY = s.daptoY + DAPTO_H + 12;
-        ctx.beginPath(); ctx.arc(dotX, dotY, 5, 0, Math.PI * 2);
+        const dotX = s.daptoX+DAPTO_W/2 - (DAPTO_MAX_CHARGE/2)*14 + i*14 + 7;
+        const dotY = s.daptoY+DAPTO_H+12;
+        ctx.beginPath(); ctx.arc(dotX, dotY, 5, 0, Math.PI*2);
         ctx.fillStyle = i < s.charge ? "#fbbf24" : "rgba(255,255,255,0.18)"; ctx.fill();
       }
       ctx.fillStyle = dc; ctx.font = `bold 8px ${SANS}`;
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-      ctx.fillText(`Charge: ${s.charge}/${DAPTO_MAX_CHARGE}`, s.daptoX + DAPTO_W / 2, s.daptoY + DAPTO_H + 26);
+      ctx.fillText(`Charge: ${s.charge}/${DAPTO_MAX_CHARGE}`, s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H+26);
 
-      // Instruction line
+      // ── Membrane potential meter (right side) ────────────────────────────────
+      const meterX = CANVAS_W - 22, meterY = 68, meterH = 160;
+      ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(meterX, meterY, 12, meterH);
+      const potFill = s.membranePotential * meterH;
+      const potColor = s.membranePotential > 0.5 ? "#4ade80" : s.membranePotential > 0.25 ? "#facc15" : "#f87171";
+      ctx.fillStyle = potColor;
+      ctx.shadowBlur = 8; ctx.shadowColor = potColor;
+      ctx.fillRect(meterX, meterY + meterH - potFill, 12, potFill);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.font = `8px ${SANS}`;
+      ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+      ctx.fillText("MEM", meterX + 6, meterY - 4);
+      ctx.fillText("POT", meterX + 6, meterY - 14);
+
+      // ── Clustering hint: show if player is on a clustering zone ─────────────
+      const onClustering = playerOnZone && playerOnZone.stage === "clustering";
       ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `12px ${SANS}`;
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-      if (!fullyCharged)
-        ctx.fillText("Collect Ca²⁺ to charge · Drag Cubicin into the membrane", CANVAS_W / 2, CANVAS_H - 36);
+      if (onClustering)
+        ctx.fillText("Hold here — Cubicin is clustering…", CANVAS_W/2, CANVAS_H - 36);
+      else if (!fullyCharged)
+        ctx.fillText("Collect Ca2+ then drag Cubicin into the membrane", CANVAS_W/2, CANVAS_H - 36);
       else
-        ctx.fillText("Fully charged — drag into membrane for maximum disruption!", CANVAS_W / 2, CANVAS_H - 36);
+        ctx.fillText("Fully charged — insert into membrane, then hold to cluster", CANVAS_W/2, CANVAS_H - 36);
 
       drawP(s);
-      drawHUD(pct, `Membrane disruption: ${Math.round(pct * 100)}%`);
+      drawHUD(pct, `Membrane depolarization: ${Math.round(pct * 100)}%`);
       return true;
     }
 
