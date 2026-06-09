@@ -1202,7 +1202,7 @@ function InfusionArcade({ initialDrug }) {
         s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2, DAPTO_W/2
       );
       dg.addColorStop(0, fullyCharged ? "#fff" : dc);
-      dg.addColorStop(1, (fullyCharged ? "#fff" : dc) + "77");
+      dg.addColorStop(1, fullyCharged ? "#ffffff77" : dc + "77");
       ctx.fillStyle = dg;
       ctx.beginPath(); ctx.arc(s.daptoX+DAPTO_W/2, s.daptoY+DAPTO_H/2, DAPTO_W/2, 0, Math.PI*2); ctx.fill();
       ctx.strokeStyle = fullyCharged ? "#fff" : dc; ctx.lineWidth = 2.5; ctx.stroke();
