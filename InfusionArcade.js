@@ -26,6 +26,20 @@ const IVIG_SHOOTER_W = 70, IVIG_SHOOTER_H = 28;
 const PATHOGEN_W = 36, PATHOGEN_H = 36;
 const IVIG_TOTAL_WAVES = 2;
 
+// ── SIGNAL SWEEP (IVIG Wave 0) constants ──────────────────────────────────────
+const SS_PLAYER_W   = 60;   // player guide ship width
+const SS_PLAYER_H   = 22;   // player guide ship height
+const SS_PLAYER_Y   = CANVAS_H - 70; // player Y position (near bottom)
+const SS_PULSE_R    = 5;    // calm pulse radius
+const SS_PULSE_SPD  = 7;    // calm pulse upward speed
+const SS_SIGNAL_R   = 14;   // signal particle radius
+const SS_PICKUP_R   = 12;   // antibody pickup radius
+const SS_PROGRESS_GOAL = 40; // signals calmed needed to complete phase
+const SS_COOLDOWN   = 22;   // frames between pulse fires (normal)
+const SS_WIDE_COOLDOWN = 14; // frames between fires (antibody boost: wide)
+const SS_FORMATION_ROWS = 3;
+const SS_FORMATION_COLS = 6;
+
 function drawRoundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
@@ -377,6 +391,55 @@ function buildReceptorGrid() {
 
 function buildIgGProjectiles() { return []; }
 
+// ── SIGNAL SWEEP builders (IVIG Wave 0) ───────────────────────────────────────
+
+// Builds one formation: a grid of signal particles that enter from off-screen top.
+// Each particle has a "home" position in the formation and starts above the canvas.
+// status: "entering" | "formation" | "diving" | "calmed"
+function buildSignalFormation() {
+  const signals = [];
+  const gridW = SS_FORMATION_COLS * 52;
+  const startX = (CANVAS_W - gridW) / 2 + 26;
+  for (let row = 0; row < SS_FORMATION_ROWS; row++) {
+    for (let col = 0; col < SS_FORMATION_COLS; col++) {
+      const homeX = startX + col * 52;
+      const homeY = 80 + row * 48;
+      signals.push({
+        x:      homeX,
+        y:      -40 - row * 48 - Math.random() * 30, // staggered entry
+        homeX,
+        homeY,
+        vx:     0,
+        vy:     0,
+        status: "entering",  // entering | formation | diving | calmed
+        diveTimer: 0,        // counts up; triggers dive at threshold
+        diveVx: 0,
+        diveVy: 0,
+        type:   (row + col) % 3, // visual variety 0/1/2
+        flashTimer: 0,
+      });
+    }
+  }
+  return signals;
+}
+
+// Picks an antibody pickup effect at random.
+function randomPickupEffect() {
+  const effects = ["widePulse", "shield", "fastFire"];
+  return effects[Math.floor(Math.random() * effects.length)];
+}
+
+// Creates one antibody pickup drifting down from the top.
+function spawnAntibodyPickup() {
+  return {
+    x:      40 + Math.random() * (CANVAS_W - 80),
+    y:      -SS_PICKUP_R,
+    vy:     0.7 + Math.random() * 0.5,
+    effect: randomPickupEffect(),
+    alive:  true,
+  };
+}
+
 const WAVE_MESSAGES = ["Wave 1 of 3 — First bacteria", "Wave 2 of 3 — More bacteria present", "Wave 3 of 3 — Final clearance"];
 const WAVE_NARRATION = ["Cubicin is entering the bloodstream and seeking out bacteria.", "Cubicin keeps working — punching through more bacterial membranes.", "Cubicin delivers the final blow — bacteria cannot survive."];
 
@@ -430,6 +493,7 @@ const ROUND_OBJECTIVES = [
   { id: "noMiss",     label: "Let nothing past",         gameTypes: ["vanco"] },
   { id: "breach",     label: "Breach the membrane",      gameTypes: ["dapto"] },
   { id: "flood",      label: "Flood the receptors",      gameTypes: ["ivig"] },
+  { id: "sweep",      label: "Calm the signal field",     gameTypes: ["ivig"] },
   { id: "steady",     label: "Hold steady",              gameTypes: ["breakout","vanco","dapto","ivig"] },
 ];
 
@@ -614,17 +678,44 @@ function InfusionArcade({ initialDrug }) {
           waveTransition: 0,
         };
       } else if (d.gameType === "ivig") {
-        // Pathogens move faster + block spawn rate scales with spawnMult
+        // Wave 0: Signal Sweep — Galaga-inspired formation shooter
+        // Wave 1: Receptor Blockade (unchanged)
         const blockSpawnRate = Math.round(60 / spawnMult);
-        const pathogens = buildIvigPathogens(0).map(p => ({
-          ...p, vx: p.vx * speed, vy: p.vy * speed,
-        }));
         stateRef.current = {
           gameType: "ivig",
           ivigWave: 0, waveTransition: 0, waveTransitionMsg: "",
+
+          // ── Wave 0: Signal Sweep ──────────────────────────────────────────
+          // Player guide ship
+          ssPlayerX: CANVAS_W / 2 - SS_PLAYER_W / 2,
+          ssTargetX: CANVAS_W / 2 - SS_PLAYER_W / 2,
+          ssPlayerSpeed: 5 * speed,
+          // Calm pulses fired by player
+          ssPulses: [],
+          ssCooldown: 0,
+          // Active signal particles (one formation at a time; new spawned when cleared)
+          ssSignals: buildSignalFormation(),
+          ssFormationDir: 1,      // 1 = moving right, -1 = left
+          ssFormationSpeed: 0.6 * speed,
+          ssFormationTimer: 0,    // frames since last formation direction check
+          ssDivePool: [],         // indices of signals currently diving
+          ssDiveTimer: 0,         // countdown to next dive attempt
+          ssDiveInterval: Math.round(180 / speed), // frames between dive attempts
+          // Antibody pickups
+          ssPickups: [],
+          ssPickupTimer: 0,
+          ssPickupInterval: 300,  // frames between pickup spawns
+          // Active boosts
+          ssBoost: null,          // null | { type, framesLeft }
+          ssShieldFlash: 0,       // > 0 = flash when shield absorbs a hit
+          // Progress
+          ssCalmed: 0,            // signals calmed/cleared so far
+          ssGoal: SS_PROGRESS_GOAL,
+          // Wave 1 compat fields (receptor blockade — untouched)
           shooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2,
           targetShooterX: CANVAS_W / 2 - IVIG_SHOOTER_W / 2,
-          projectiles: [], pathogens,
+          projectiles: [],
+          pathogens: [],
           shootCooldown: 0, neutralized: 0, totalPathogens: 21,
           receptors: buildReceptorGrid(),
           igGBalls: [], igGX: CANVAS_W / 2, igGY: CANVAS_H - 80,
@@ -655,8 +746,14 @@ function InfusionArcade({ initialDrug }) {
       else if (s.gameType === "vanco") s.targetVancoX = Math.max(0, Math.min(CANVAS_W - VANCO_W, pos.x - VANCO_W / 2));
       else if (s.gameType === "dapto") { s.targetDaptoX = Math.max(0, Math.min(CANVAS_W - DAPTO_W, pos.x - DAPTO_W / 2)); s.targetDaptoY = Math.max(38, Math.min(MEM_Y - DAPTO_H - 4, pos.y - DAPTO_H / 2)); }
       else if (s.gameType === "ivig") {
-        if (s.ivigWave === 0) s.targetShooterX = Math.max(0, Math.min(CANVAS_W - IVIG_SHOOTER_W, pos.x - IVIG_SHOOTER_W / 2));
-        else { s.targetIgGX = Math.max(20, Math.min(CANVAS_W - 20, pos.x)); s.targetIgGY = Math.max(34, Math.min(CANVAS_H - 20, pos.y)); }
+        if (s.ivigWave === 0) {
+          // Wave 0: Signal Sweep — move player ship left/right only
+          s.ssTargetX = Math.max(0, Math.min(CANVAS_W - SS_PLAYER_W, pos.x - SS_PLAYER_W / 2));
+        } else {
+          // Wave 1: Receptor blockade — free drag
+          s.targetIgGX = Math.max(20, Math.min(CANVAS_W - 20, pos.x));
+          s.targetIgGY = Math.max(34, Math.min(CANVAS_H - 20, pos.y));
+        }
       }
     };
     const onTap = (clientX, clientY) => {
@@ -671,12 +768,19 @@ function InfusionArcade({ initialDrug }) {
         const spd = Math.sqrt(vx * vx + vy * vy);
         s.ball.vx = (vx / spd) * speed; s.ball.vy = (vy / spd) * speed; s.launched = true;
       }
-      // IVIG wave 1: tap fires a projectile
-      if (s.gameType === "ivig" && s.ivigWave === 0 && s.shootCooldown <= 0) {
-        const sx = s.shooterX + IVIG_SHOOTER_W / 2;
-        const sy = CANVAS_H - 52;
-        s.projectiles.push({ x: sx, y: sy, vx: 0, vy: -6, alive: true });
-        s.shootCooldown = 18;
+      // IVIG wave 0: tap fires a calm pulse
+      if (s.gameType === "ivig" && s.ivigWave === 0 && s.ssCooldown <= 0) {
+        const cx = s.ssPlayerX + SS_PLAYER_W / 2;
+        const wide = s.ssBoost && s.ssBoost.type === "widePulse";
+        if (wide) {
+          // Fire three pulses spread slightly
+          s.ssPulses.push({ x: cx - 14, y: SS_PLAYER_Y, vy: -SS_PULSE_SPD, r: SS_PULSE_R, alive: true });
+          s.ssPulses.push({ x: cx,      y: SS_PLAYER_Y, vy: -SS_PULSE_SPD, r: SS_PULSE_R, alive: true });
+          s.ssPulses.push({ x: cx + 14, y: SS_PLAYER_Y, vy: -SS_PULSE_SPD, r: SS_PULSE_R, alive: true });
+        } else {
+          s.ssPulses.push({ x: cx, y: SS_PLAYER_Y, vy: -SS_PULSE_SPD, r: SS_PULSE_R, alive: true });
+        }
+        s.ssCooldown = s.ssBoost && s.ssBoost.type === "fastFire" ? SS_WIDE_COOLDOWN : SS_COOLDOWN;
       }
     };
     const onMouseMove = (e) => onMove(e.clientX, e.clientY);
@@ -1278,125 +1382,288 @@ function InfusionArcade({ initialDrug }) {
         drawWatermark(); return true;
       }
 
-      // ── IVIG Wave 1: Space Invaders (neutralization) ────────────────────────
+      // ── IVIG Wave 0: Signal Sweep (Galaga-inspired formation phase) ──────────
       if (s.ivigWave === 0) {
-        s.shooterX += (s.targetShooterX - s.shooterX) * 0.3;
-        if (s.shootCooldown > 0) s.shootCooldown--;
 
-        // Move pathogens
-        let edgeHit = false;
-        for (const p of s.pathogens) {
-          if (!p.alive) continue;
-          p.x += p.vx;
-          if (p.x < PATHOGEN_W / 2 || p.x > CANVAS_W - PATHOGEN_W / 2) edgeHit = true;
-        }
-        if (edgeHit) {
-          for (const p of s.pathogens) {
-            if (!p.alive) continue;
-            p.vx *= -1; p.y += 14;
-          }
-        }
-        // Randomly fire back (chance per frame)
-        for (const p of s.pathogens) {
-          if (!p.alive) continue;
-          p.vy = Math.max(p.vy, 0.18 + s.neutralized * 0.004);
-          p.y += p.vy;
-          if (p.flash > 0) p.flash--;
-        }
+        // ── Player movement ──────────────────────────────────────────────────
+        s.ssPlayerX += (s.ssTargetX - s.ssPlayerX) * 0.3;
+        if (s.ssCooldown > 0) s.ssCooldown--;
 
-        // Move projectiles
-        for (const proj of s.projectiles) {
-          proj.y += proj.vy;
-          if (proj.y < 34) { proj.alive = false; continue; }
-          // Hit test
-          for (const p of s.pathogens) {
-            if (!p.alive || !proj.alive) continue;
-            const dx = proj.x - p.x, dy = proj.y - p.y;
-            if (Math.sqrt(dx * dx + dy * dy) < PATHOGEN_W / 2 + 6) {
-              proj.alive = false; p.alive = false; s.neutralized++;
-              spawnP(s, p.x, p.y, PATHOGEN_COLORS[p.type], 14, 5);
-              spawnP(s, p.x, p.y, dc, 8, 4);
+        // ── Boost timer tick ─────────────────────────────────────────────────
+        if (s.ssBoost) {
+          s.ssBoost.framesLeft--;
+          if (s.ssBoost.framesLeft <= 0) s.ssBoost = null;
+        }
+        if (s.ssShieldFlash > 0) s.ssShieldFlash--;
+
+        // ── Formation movement ───────────────────────────────────────────────
+        for (const sig of s.ssSignals) {
+          if (sig.status === "calmed") continue;
+          if (sig.flashTimer > 0) sig.flashTimer--;
+
+          if (sig.status === "entering") {
+            sig.y += 2.2; // drift down toward formation
+            if (sig.y >= sig.homeY) { sig.y = sig.homeY; sig.status = "formation"; }
+          } else if (sig.status === "formation") {
+            // Follow formation drift
+            sig.homeX += s.ssFormationSpeed * s.ssFormationDir;
+            sig.x += (sig.homeX - sig.x) * 0.18;
+            sig.y += (sig.homeY - sig.y) * 0.18;
+          } else if (sig.status === "diving") {
+            // Dive toward player
+            sig.x += sig.diveVx;
+            sig.y += sig.diveVy;
+            // If it exits screen: return to formation (soft — no penalty)
+            if (sig.y > CANVAS_H + 20 || sig.x < -30 || sig.x > CANVAS_W + 30) {
+              sig.status = "formation";
+              sig.x = sig.homeX;
+              sig.y = sig.homeY;
+              sig.diveVx = 0; sig.diveVy = 0;
             }
           }
         }
-        s.projectiles = s.projectiles.filter(pr => pr.alive && pr.y > 0);
 
-        // Check if pathogens reached the bottom (player cells)
-        for (const p of s.pathogens) {
-          if (!p.alive) continue;
-          if (p.y > CANVAS_H - 80) { p.alive = false; s.neutralized++; spawnP(s, p.x, p.y, "#ff4444", 10, 4); }
+        // Formation bounce off walls
+        s.ssFormationTimer++;
+        const leftEdge  = s.ssSignals.filter(sig => sig.status === "formation").reduce((m, sig) => Math.min(m, sig.x), Infinity);
+        const rightEdge = s.ssSignals.filter(sig => sig.status === "formation").reduce((m, sig) => Math.max(m, sig.x), -Infinity);
+        if (rightEdge > CANVAS_W - SS_SIGNAL_R - 8) s.ssFormationDir = -1;
+        if (leftEdge  < SS_SIGNAL_R + 8)            s.ssFormationDir =  1;
+
+        // ── Dive attempts ────────────────────────────────────────────────────
+        s.ssDiveTimer--;
+        if (s.ssDiveTimer <= 0) {
+          s.ssDiveTimer = s.ssDiveInterval;
+          // Pick a random formation signal to dive
+          const formationPool = s.ssSignals.filter(sig => sig.status === "formation");
+          if (formationPool.length > 0) {
+            const diver = formationPool[Math.floor(Math.random() * formationPool.length)];
+            diver.status = "diving";
+            // Aim slightly toward player center
+            const targetX = s.ssPlayerX + SS_PLAYER_W / 2;
+            const dx = targetX - diver.x;
+            const dy = SS_PLAYER_Y - diver.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const diveSpd = 2.4 * (s.ssFormationSpeed / 0.6);
+            diver.diveVx = (dx / dist) * diveSpd * 0.6 + (Math.random() - 0.5) * 0.8;
+            diver.diveVy = Math.abs(dy / dist) * diveSpd;
+          }
         }
 
-        const allGone = s.pathogens.every(p => !p.alive);
-        const pct = Math.min(1, s.neutralized / s.totalPathogens) * 0.5; // wave 1 is first half of progress
-        setProgress(pct);
+        // ── Calm pulses vs signals ───────────────────────────────────────────
+        for (const pulse of s.ssPulses) {
+          if (!pulse.alive) continue;
+          pulse.y += pulse.vy;
+          if (pulse.y < 34) { pulse.alive = false; continue; }
+          for (const sig of s.ssSignals) {
+            if (sig.status === "calmed" || !pulse.alive) continue;
+            const dx = pulse.x - sig.x, dy = pulse.y - sig.y;
+            if (Math.sqrt(dx * dx + dy * dy) < SS_SIGNAL_R + pulse.r) {
+              pulse.alive = false;
+              sig.status = "calmed";
+              s.ssCalmed++;
+              spawnP(s, sig.x, sig.y, dc, 12, 4);
+              spawnP(s, sig.x, sig.y, "#a5f3fc", 6, 3);
+              setProgress(Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5));
+            }
+          }
+        }
+        s.ssPulses = s.ssPulses.filter(p => p.alive);
 
-        if (allGone) {
-          // Transition to wave 2
+        // ── Shield: absorb diving signal hits ────────────────────────────────
+        const shieldActive = s.ssBoost && s.ssBoost.type === "shield";
+        for (const sig of s.ssSignals) {
+          if (sig.status !== "diving") continue;
+          const px = s.ssPlayerX + SS_PLAYER_W / 2;
+          const dx = sig.x - px, dy = sig.y - SS_PLAYER_Y;
+          if (Math.sqrt(dx * dx + dy * dy) < SS_PLAYER_W / 2 + SS_SIGNAL_R) {
+            if (shieldActive) {
+              // Shield absorbs: signal calmed, shield flash
+              sig.status = "calmed";
+              s.ssCalmed++;
+              s.ssShieldFlash = 18;
+              spawnP(s, sig.x, sig.y, dc, 8, 3);
+              setProgress(Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5));
+            } else {
+              // No shield: signal passes through (soft fail — no life system, just visual)
+              sig.status = "formation";
+              sig.x = sig.homeX; sig.y = sig.homeY;
+              sig.diveVx = 0; sig.diveVy = 0;
+              spawnP(s, px, SS_PLAYER_Y, "#ff6b6b", 6, 3);
+            }
+          }
+        }
+
+        // ── Antibody pickup spawning + drift ─────────────────────────────────
+        s.ssPickupTimer++;
+        if (s.ssPickupTimer >= s.ssPickupInterval) {
+          s.ssPickupTimer = 0;
+          s.ssPickups.push(spawnAntibodyPickup());
+        }
+        for (const pk of s.ssPickups) {
+          if (!pk.alive) continue;
+          pk.y += pk.vy;
+          if (pk.y > CANVAS_H + 20) { pk.alive = false; continue; }
+          // Collect: player overlaps pickup
+          const px = s.ssPlayerX + SS_PLAYER_W / 2;
+          const dx = px - pk.x, dy = SS_PLAYER_Y - pk.y;
+          if (Math.sqrt(dx * dx + dy * dy) < SS_PLAYER_W / 2 + SS_PICKUP_R) {
+            pk.alive = false;
+            s.ssBoost = { type: pk.effect, framesLeft: 300 }; // ~5 seconds
+            s.ssCalmed = Math.min(s.ssGoal, s.ssCalmed + 2); // small bonus
+            spawnP(s, pk.x, pk.y, "#fbbf24", 16, 5);
+            setProgress(Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5));
+          }
+        }
+        s.ssPickups = s.ssPickups.filter(pk => pk.alive);
+
+        // ── Respawn formation when all calmed ────────────────────────────────
+        const allCalmed = s.ssSignals.every(sig => sig.status === "calmed");
+        if (allCalmed && s.ssCalmed < s.ssGoal) {
+          // Spawn a fresh formation — slightly faster each wave
+          s.ssSignals = buildSignalFormation();
+          s.ssFormationSpeed = Math.min(2.0, s.ssFormationSpeed + 0.1);
+          s.ssDiveInterval  = Math.max(90, s.ssDiveInterval - 15);
+        }
+
+        const pct = Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5);
+
+        // ── Phase complete: transition to Wave 1 ─────────────────────────────
+        if (s.ssCalmed >= s.ssGoal) {
           s.ivigWave = 1;
           s.waveTransition = 160;
           return true;
         }
 
-        // ── Draw wave 1 ──────────────────────────────────────────────────────
+        // ── Draw Signal Sweep ────────────────────────────────────────────────
         drawBg();
 
-        // Subtle grid lines suggesting bloodstream
-        ctx.save(); ctx.strokeStyle = dc + "11"; ctx.lineWidth = 1;
-        for (let x = 0; x < CANVAS_W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 34); ctx.lineTo(x, CANVAS_H - 35); ctx.stroke(); }
+        // Subtle field grid
+        ctx.save(); ctx.strokeStyle = dc + "0d"; ctx.lineWidth = 1;
+        for (let x = 0; x < CANVAS_W; x += 44) { ctx.beginPath(); ctx.moveTo(x, 52); ctx.lineTo(x, CANVAS_H - 30); ctx.stroke(); }
+        for (let y = 55; y < CANVAS_H - 30; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke(); }
         ctx.restore();
 
-        // Draw pathogens
-        for (const p of s.pathogens) {
-          if (!p.alive) continue;
-          const pCol = PATHOGEN_COLORS[p.type];
+        // ── Draw signal particles ────────────────────────────────────────────
+        for (const sig of s.ssSignals) {
+          if (sig.status === "calmed") continue;
+          const glow = sig.status === "diving" ? "#ff9f43" : (sig.type === 0 ? "#a78bfa" : sig.type === 1 ? "#67e8f9" : "#f472b6");
           ctx.save();
-          if (p.flash > 0) { ctx.shadowBlur = 20; ctx.shadowColor = "#fff"; }
-          else { ctx.shadowBlur = 10; ctx.shadowColor = pCol; }
-          drawPathogen(ctx, p.x, p.y, PATHOGEN_W / 2, pCol, 8 + p.type * 2);
+          ctx.shadowBlur = sig.flashTimer > 0 ? 22 : (sig.status === "diving" ? 18 : 10);
+          ctx.shadowColor = sig.flashTimer > 0 ? "#fff" : glow;
+          // Outer ring
+          ctx.strokeStyle = glow;
+          ctx.lineWidth = sig.status === "diving" ? 2.5 : 1.8;
+          ctx.fillStyle = glow + "22";
+          ctx.beginPath(); ctx.arc(sig.x, sig.y, SS_SIGNAL_R, 0, Math.PI * 2);
+          ctx.fill(); ctx.stroke();
+          // Inner pulsing core
+          const coreR = SS_SIGNAL_R * (0.38 + 0.18 * Math.sin(Date.now() / 180 + sig.homeX));
+          ctx.fillStyle = glow + "88";
+          ctx.beginPath(); ctx.arc(sig.x, sig.y, coreR, 0, Math.PI * 2); ctx.fill();
+          // Dive arrow on diving signals
+          if (sig.status === "diving") {
+            ctx.fillStyle = "#ff9f43"; ctx.font = `bold 10px ${SANS}`;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText("▼", sig.x, sig.y);
+          }
           ctx.restore();
-          ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = `bold 7px ${SANS}`;
-          ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.fillText(PATHOGEN_LABELS[p.type], p.x, p.y);
         }
 
-        // Draw projectiles (Y-shaped IgG)
-        for (const proj of s.projectiles) {
-          ctx.save(); ctx.shadowBlur = 14; ctx.shadowColor = dc;
-          drawYShape(ctx, proj.x, proj.y, 18, dc);
+        // ── Draw calm pulses ─────────────────────────────────────────────────
+        for (const pulse of s.ssPulses) {
+          ctx.save();
+          ctx.shadowBlur = 16; ctx.shadowColor = dc;
+          ctx.fillStyle = dc + "cc";
+          // Wide boost: draw as ring
+          if (s.ssBoost && s.ssBoost.type === "widePulse") {
+            ctx.strokeStyle = dc; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(pulse.x, pulse.y, pulse.r + 3, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.beginPath(); ctx.arc(pulse.x, pulse.y, pulse.r, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
 
-        // Draw shooter (IgG dispenser)
-        const sx = s.shooterX, sy = CANVAS_H - 52;
-        ctx.save(); ctx.shadowBlur = 20; ctx.shadowColor = dc;
-        const sg = ctx.createLinearGradient(sx, sy, sx, sy + IVIG_SHOOTER_H);
-        sg.addColorStop(0, dc); sg.addColorStop(1, dc + "99");
-        drawRoundRect(ctx, sx, sy, IVIG_SHOOTER_W, IVIG_SHOOTER_H, 8);
-        ctx.fillStyle = sg; ctx.fill();
-        ctx.strokeStyle = "#fff4"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
-        ctx.fillStyle = "#000"; ctx.font = `bold 8px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("IgG Antibodies", sx + IVIG_SHOOTER_W / 2, sy + IVIG_SHOOTER_H / 2);
-        // Draw Y icon on shooter
-        drawYShape(ctx, sx + IVIG_SHOOTER_W / 2, sy - 18, 14, dc);
+        // ── Draw antibody pickups ─────────────────────────────────────────────
+        for (const pk of s.ssPickups) {
+          if (!pk.alive) continue;
+          const pkColor = pk.effect === "widePulse" ? "#fbbf24" : pk.effect === "shield" ? "#4ade80" : "#c084fc";
+          ctx.save();
+          ctx.shadowBlur = 14; ctx.shadowColor = pkColor;
+          ctx.fillStyle = pkColor + "33";
+          ctx.strokeStyle = pkColor;
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(pk.x, pk.y, SS_PICKUP_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          drawYShape(ctx, pk.x, pk.y, SS_PICKUP_R * 1.1, pkColor);
+          ctx.restore();
+          // Effect label
+          const label = pk.effect === "widePulse" ? "WIDE" : pk.effect === "shield" ? "SHIELD" : "FAST";
+          ctx.fillStyle = pkColor; ctx.font = `bold 7px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+          ctx.fillText(label, pk.x, pk.y + SS_PICKUP_R + 10);
+        }
 
-        // Bottom cell barrier
-        ctx.save(); ctx.fillStyle = dc + "18"; ctx.fillRect(0, CANVAS_H - 35, CANVAS_W, 35);
-        ctx.strokeStyle = dc + "44"; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(0, CANVAS_H - 35); ctx.lineTo(CANVAS_W, CANVAS_H - 35); ctx.stroke(); ctx.setLineDash([]); ctx.restore();
-        ctx.fillStyle = dc + "88"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("Your cells — protect them", CANVAS_W / 2, CANVAS_H - 22);
+        // ── Draw player ship ─────────────────────────────────────────────────
+        const px = s.ssPlayerX;
+        const py = SS_PLAYER_Y;
+        const shieldOn = (s.ssBoost && s.ssBoost.type === "shield") || s.ssShieldFlash > 0;
+        ctx.save();
+        ctx.shadowBlur = 22; ctx.shadowColor = shieldOn ? "#4ade80" : dc;
+        // Hull
+        const shipGrad = ctx.createLinearGradient(px, py, px, py + SS_PLAYER_H);
+        shipGrad.addColorStop(0, shieldOn ? "#4ade80" : dc);
+        shipGrad.addColorStop(1, shieldOn ? "#4ade8099" : dc + "88");
+        ctx.fillStyle = shipGrad;
+        // Ship body (pointed top)
+        ctx.beginPath();
+        ctx.moveTo(px + SS_PLAYER_W / 2, py - 10);        // nose
+        ctx.lineTo(px + SS_PLAYER_W, py + SS_PLAYER_H);   // bottom-right
+        ctx.lineTo(px + SS_PLAYER_W * 0.65, py + SS_PLAYER_H - 4); // right notch
+        ctx.lineTo(px + SS_PLAYER_W / 2, py + SS_PLAYER_H + 2);    // center bottom
+        ctx.lineTo(px + SS_PLAYER_W * 0.35, py + SS_PLAYER_H - 4); // left notch
+        ctx.lineTo(px, py + SS_PLAYER_H);                 // bottom-left
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = shieldOn ? "#4ade80" : "#fff4"; ctx.lineWidth = 1.5; ctx.stroke();
+        // Shield ring
+        if (shieldOn) {
+          ctx.globalAlpha = s.ssShieldFlash > 0 ? 0.9 : 0.45;
+          ctx.strokeStyle = "#4ade80"; ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(px + SS_PLAYER_W / 2, py + SS_PLAYER_H / 2, SS_PLAYER_W * 0.7, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+        // Label
+        ctx.fillStyle = "#000a"; ctx.font = `bold 7px ${SANS}`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("IgG", px + SS_PLAYER_W / 2, py + SS_PLAYER_H / 2 + 2);
 
-        drawP(s); tickP(s);
-
-        ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.font = `11px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
-        ctx.fillText("Slide to aim · Tap to fire IgG antibodies", CANVAS_W / 2, CANVAS_H - 38);
+        // ── Active boost indicator ────────────────────────────────────────────
+        if (s.ssBoost) {
+          const boostLabels = { widePulse: "⟵ WIDE PULSE ⟶", shield: "✦ SHIELD ACTIVE", fastFire: "▸▸ FAST FIRE" };
+          const boostColors = { widePulse: "#fbbf24", shield: "#4ade80", fastFire: "#c084fc" };
+          const bLabel = boostLabels[s.ssBoost.type];
+          const bColor = boostColors[s.ssBoost.type];
+          const bPct = s.ssBoost.framesLeft / 300;
+          ctx.save();
+          // Boost bar
+          const bx = 60, by = CANVAS_H - 36, bw = CANVAS_W - 120;
+          ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.fillRect(bx, by, bw, 5);
+          ctx.fillStyle = bColor + "cc"; ctx.fillRect(bx, by, bw * bPct, 5);
+          ctx.fillStyle = bColor; ctx.font = `bold 9px ${SANS}`;
+          ctx.textAlign = "center"; ctx.fillText(bLabel, CANVAS_W / 2, by - 4);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.font = `11px ${SANS}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+          ctx.fillText("Slide to aim · Tap to fire calm pulses", CANVAS_W / 2, CANVAS_H - 36);
+        }
 
         // Wave badge
         ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "right";
-        ctx.fillText(IVIG_WAVE_TITLES[0], CANVAS_W - 10, 52);
+        ctx.fillText("Signal Sweep — Stabilize the Field", CANVAS_W - 10, 52);
 
-        drawHUD(pct, `Neutralized: ${s.neutralized}/${s.totalPathogens}`);
+        drawP(s); tickP(s);
+        drawHUD(pct, `Stability: ${Math.round((s.ssCalmed / s.ssGoal) * 100)}%`);
         return true;
       }
 
@@ -1651,8 +1918,8 @@ function InfusionArcade({ initialDrug }) {
           <div style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${col}22`, borderRadius: 10, padding: "12px 16px", marginBottom: 18 }}>
             <div style={{ fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.4)", marginBottom: 6, textTransform: "uppercase" }}>How to play</div>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: 0, lineHeight: 1.7 }}>
-              <strong style={{ color: col }}>Wave 1:</strong> Slide to aim, tap to fire IgG antibodies at incoming pathogens.<br />
-              <strong style={{ color: col }}>Wave 2:</strong> Drag your IgG ball across receptor sites to occupy them before autoimmune signals do.
+              <strong style={{ color: col }}>Phase 1 — Signal Sweep:</strong> Slide to aim your immune guide. Tap to fire calm pulses at chaotic signal particles entering in formation. Collect glowing antibody pickups for boosts.<br />
+              <strong style={{ color: col }}>Phase 2 — Balance Field:</strong> Drag your IgG across the receptor field to occupy sites before autoimmune signals do.
             </p>
           </div>
         )}
