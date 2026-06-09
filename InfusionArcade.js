@@ -1112,10 +1112,10 @@ function InfusionArcade({ initialDrug }) {
         if (zone.stage === "inserting" || zone.stage === "clustering") {
           const dotSpacing = 14, totalDots = DAPTO_INSERTIONS_NEEDED;
           const dotsStartX = cx - ((totalDots - 1) * dotSpacing) / 2;
-          for (let d = 0; d < totalDots; d++) {
+          for (let di = 0; di < totalDots; di++) {
             ctx.beginPath();
-            ctx.arc(dotsStartX + d * dotSpacing, cy - 4, 5, 0, Math.PI * 2);
-            ctx.fillStyle = d < zone.insertions ? dc : "rgba(255,255,255,0.15)"; ctx.fill();
+            ctx.arc(dotsStartX + di * dotSpacing, cy - 4, 5, 0, Math.PI * 2);
+            ctx.fillStyle = di < zone.insertions ? dc : "rgba(255,255,255,0.15)"; ctx.fill();
           }
         }
 
