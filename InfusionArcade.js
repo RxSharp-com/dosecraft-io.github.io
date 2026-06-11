@@ -1,6 +1,31 @@
 // Hooks are provided globally by the React CDN + game.html preamble
 // (useState, useEffect, useRef, useCallback are declared at the top of game.html)
 
+// ── AUDIO ─────────────────────────────────────────────────────────────────────
+const SFX = {
+  _cache: {},
+  load(name, src) {
+    const a = new Audio(src);
+    a.preload = "auto";
+    this._cache[name] = a;
+  },
+  play(name) {
+    const src = this._cache[name];
+    if (!src) return;
+    const clone = src.cloneNode();
+    clone.volume = 0.65;
+    clone.play().catch(() => {});
+  },
+};
+window.addEventListener("DOMContentLoaded", () => {
+  SFX.load("beta_wall_hit",   "audio/beta_wall_hit.webm");
+  SFX.load("dapto_collect",   "audio/dapto_collect.webm");
+  SFX.load("level_complete",  "audio/level_complete.wav");
+  SFX.load("vanco_intercept", "audio/vanco_intercept.webm");
+  SFX.load("wall_destroyed",  "audio/wall_destroyed.wav");
+  SFX.load("wall_hit",        "audio/wall_hit.wav");
+});
+
 const CANVAS_W = 480;
 const CANVAS_H = 560;
 const SERIF = "Georgia, 'Times New Roman', serif";
@@ -633,6 +658,7 @@ function InfusionArcade({ initialDrug }) {
   // Called when an arcade round finishes — NEVER resets the infusion timer.
   function handleRoundComplete() {
     cancelAnimationFrame(animRef.current);
+    SFX.play("level_complete");
     setRoundCount(c => c + 1);
     // Always go to the round-complete screen; companion data shown there.
     setScreen("roundComplete");
@@ -952,6 +978,7 @@ function InfusionArcade({ initialDrug }) {
             else { s.ball.vy = Math.abs(s.ball.vy); s.ball.y = brick.y + brick.h + BALL_R; }
             brick.alive = false; s.clearedBricks++;
             const pct = s.clearedBricks / s.totalBricks; setProgress(pct);
+            SFX.play("beta_wall_hit");
             spawnP(s, brick.x + brick.w / 2, brick.y + brick.h / 2, dc, 10, 5); break;
           }
         }
@@ -1003,6 +1030,7 @@ function InfusionArcade({ initialDrug }) {
         if (pre.x < s.vancoX + VANCO_W && pre.x + PRECURSOR_W > s.vancoX && pre.y < s.vancoY + VANCO_H && pre.y + PRECURSOR_H > s.vancoY) {
           pre.bound = true; s.blocked++;
           setProgress(Math.min(1, s.blocked / s.goal));
+          SFX.play("vanco_intercept");
           spawnP(s, pre.x + PRECURSOR_W / 2, pre.y + PRECURSOR_H / 2, dc, 12, 5);
         }
         if (pre.y > wallY && !pre.bound && !pre.missed) { pre.missed = true; spawnP(s, pre.x + PRECURSOR_W / 2, wallY, "rgba(255,100,100,0.8)", 4, 2); }
@@ -1076,6 +1104,7 @@ function InfusionArcade({ initialDrug }) {
         if (Math.sqrt(dx*dx+dy*dy) < DAPTO_W/2 + ca.r && !ca.collected && s.charge < DAPTO_MAX_CHARGE) {
           ca.collected = true;
           s.charge++;
+          SFX.play("dapto_collect");
           spawnP(s, ca.x, ca.y, "#fef08a", 8, 3);
         }
       }
