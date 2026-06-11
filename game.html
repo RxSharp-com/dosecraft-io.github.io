@@ -17,30 +17,44 @@
     }
   </style>
 <script>
-  const SFX = {
-    _cache: {},
-    _muted: false,
+  // ── AUDIO (Web Audio API — handles rapid-fire plays correctly) ────────────
+  const SFX = (() => {
+    let ctx = null;
+    const buffers = {};
 
-    load(name, src) {
-      const audio = new Audio(src);
-      audio.preload = 'auto';
-      this._cache[name] = audio;
-    },
+    function getCtx() {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      return ctx;
+    }
 
-    play(name) {
-      if (this._muted) return;
-      const src = this._cache[name];
-      if (!src) return;
-      // Clone so rapid-fire plays don't cut each other off
-      const clone = src.cloneNode();
-      clone.volume = 0.6;
-      clone.play().catch(() => {});
-    },
+    async function load(name, src) {
+      try {
+        const res = await fetch(src);
+        const raw = await res.arrayBuffer();
+        const ac = getCtx();
+        buffers[name] = await ac.decodeAudioData(raw);
+      } catch (e) {
+        console.warn('SFX load failed:', name, e);
+      }
+    }
 
-    mute(val) { this._muted = val; }
-  };
+    function play(name) {
+      const buf = buffers[name];
+      if (!buf) return;
+      const ac = getCtx();
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const gain = ac.createGain();
+      gain.gain.value = 0.65;
+      src.connect(gain);
+      gain.connect(ac.destination);
+      src.start(0);
+    }
 
-  // Preload all files on page load
+    return { load, play };
+  })();
+
   window.addEventListener('DOMContentLoaded', () => {
     SFX.load('beta_wall_hit',   'audio/beta_wall_hit.webm');
     SFX.load('dapto_collect',   'audio/dapto_collect.webm');
