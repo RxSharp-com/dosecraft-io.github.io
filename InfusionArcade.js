@@ -1,30 +1,6 @@
 // Hooks are provided globally by the React CDN + game.html preamble
 // (useState, useEffect, useRef, useCallback are declared at the top of game.html)
-
-// ── AUDIO ─────────────────────────────────────────────────────────────────────
-const SFX = {
-  _cache: {},
-  load(name, src) {
-    const a = new Audio(src);
-    a.preload = "auto";
-    this._cache[name] = a;
-  },
-  play(name) {
-    const src = this._cache[name];
-    if (!src) return;
-    const clone = src.cloneNode();
-    clone.volume = 0.65;
-    clone.play().catch(() => {});
-  },
-};
-window.addEventListener("DOMContentLoaded", () => {
-  SFX.load("beta_wall_hit",   "audio/beta_wall_hit.webm");
-  SFX.load("dapto_collect",   "audio/dapto_collect.webm");
-  SFX.load("level_complete",  "audio/level_complete.wav");
-  SFX.load("vanco_intercept", "audio/vanco_intercept.webm");
-  SFX.load("wall_destroyed",  "audio/wall_destroyed.wav");
-  SFX.load("wall_hit",        "audio/wall_hit.wav");
-});
+// SFX is declared and loaded in game.html — available globally here.
 
 const CANVAS_W = 480;
 const CANVAS_H = 560;
