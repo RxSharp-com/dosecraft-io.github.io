@@ -16,7 +16,40 @@
       overflow-y: auto;
     }
   </style>
+<script>
+  const SFX = {
+    _cache: {},
+    _muted: false,
 
+    load(name, src) {
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      this._cache[name] = audio;
+    },
+
+    play(name) {
+      if (this._muted) return;
+      const src = this._cache[name];
+      if (!src) return;
+      // Clone so rapid-fire plays don't cut each other off
+      const clone = src.cloneNode();
+      clone.volume = 0.6;
+      clone.play().catch(() => {});
+    },
+
+    mute(val) { this._muted = val; }
+  };
+
+  // Preload all files on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    SFX.load('beta_wall_hit',   'audio/beta_wall_hit.webm');
+    SFX.load('dapto_collect',   'audio/dapto_collect.webm');
+    SFX.load('level_complete',  'audio/level_complete.wav');
+    SFX.load('vanco_intercept', 'audio/vanco_intercept.webm');
+    SFX.load('wall_destroyed',  'audio/wall_destroyed.wav');
+    SFX.load('wall_hit',        'audio/wall_hit.wav');
+  });
+</script>
   <!-- React + ReactDOM via CDN (production builds) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
