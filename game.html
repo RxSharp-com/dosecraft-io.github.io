@@ -60,37 +60,48 @@
     SFX.load('dapto_collect',   'audio/dapto_collect.webm');
     SFX.load('level_complete',  'audio/level_complete.wav');
     SFX.load('vanco_intercept', 'audio/vanco_intercept.webm');
-    SFX.load('wall_destroyed',  'audio/wall_destroyed.wav');
-    SFX.load('wall_hit',        'audio/wall_hit.wav');
+    // wall_destroyed and wall_hit reserved — not wired to any game event yet
   });
 </script>
 
 <script>
   // ── MUSIC MANAGER ─────────────────────────────────────────────────────────
   // Uses HTMLAudioElement for looping background music.
-  // Kept entirely separate from SFX (Web Audio API).
+  // Tracks ALL live elements in a Set to prevent stacking on rapid transitions.
   const MUSIC = (() => {
     const TRACKS = {
-      menu:      { ogg: 'audio/menu_loop_soft_arcade.ogg',      mp3: 'audio/menu_loop_soft_arcade.mp3' },
-      intro:     { ogg: 'audio/intro_loop_micro_mission.ogg',   mp3: 'audio/intro_loop_micro_mission.mp3' },
+      menu:      { ogg: 'audio/menu_loop_soft_arcade.ogg',        mp3: 'audio/menu_loop_soft_arcade.mp3' },
+      intro:     { ogg: 'audio/intro_loop_micro_mission.ogg',     mp3: 'audio/intro_loop_micro_mission.mp3' },
       companion: { ogg: 'audio/companion_loop_infusion_calm.ogg', mp3: 'audio/companion_loop_infusion_calm.mp3' },
     };
 
-    const VOLUME       = 0.28;   // gentle default
-    const FADE_STEP_MS = 50;     // fade tick interval
-    const FADE_STEPS   = 16;     // total steps per fade (~800ms)
+    const VOLUME       = 0.28;
+    const FADE_STEP_MS = 60;
+    const FADE_STEPS   = 14;
 
-    let current    = null;       // currently playing HTMLAudioElement
-    let currentKey = null;       // track name key
+    // ALL live audio elements tracked here — prevents anything playing undetected
+    const liveEls = new Set();
+
+    let currentEl  = null;
+    let currentKey = null;
     let enabled    = true;
     let unlocked   = false;
-    let fadeTimer  = null;
+    let pendingKey = null;  // track requested before first user gesture
 
-    // Persist preference
     try {
       const saved = localStorage.getItem('dosecraftMusicEnabled');
       if (saved !== null) enabled = saved === 'true';
     } catch (e) {}
+
+    // Stop and destroy every tracked element immediately — no callbacks, no races
+    function _killAll() {
+      liveEls.forEach(el => {
+        try { el.pause(); el.src = ''; } catch(e) {}
+      });
+      liveEls.clear();
+      currentEl  = null;
+      currentKey = null;
+    }
 
     function _makeEl(key) {
       const t = TRACKS[key];
@@ -98,102 +109,70 @@
       const el = document.createElement('audio');
       el.loop = true;
       el.volume = 0;
-      // ogg first, mp3 fallback
       const s1 = document.createElement('source'); s1.src = t.ogg; s1.type = 'audio/ogg';
       const s2 = document.createElement('source'); s2.src = t.mp3; s2.type = 'audio/mpeg';
-      el.appendChild(s1); el.appendChild(s2);
-      el.onerror = () => {}; // silence missing-file errors silently
+      el.appendChild(s1);
+      el.appendChild(s2);
+      el.onerror = () => {};
       return el;
     }
 
-    function _clearFade() {
-      if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
-    }
-
-    function _fadeOut(el, onDone) {
-      _clearFade();
-      if (!el) { if (onDone) onDone(); return; }
-      const step = el.volume / FADE_STEPS;
-      fadeTimer = setInterval(() => {
-        el.volume = Math.max(0, el.volume - step);
-        if (el.volume <= 0) {
-          _clearFade();
-          el.pause();
-          el.src = '';
-          if (onDone) onDone();
-        }
-      }, FADE_STEP_MS);
-    }
-
-    function _fadeIn(el) {
-      _clearFade();
-      el.volume = 0;
-      const target = VOLUME;
-      const step = target / FADE_STEPS;
-      fadeTimer = setInterval(() => {
-        el.volume = Math.min(target, el.volume + step);
-        if (el.volume >= target) _clearFade();
-      }, FADE_STEP_MS);
-    }
-
     function _startTrack(key) {
+      _killAll();  // always wipe everything before starting a new track
+
       const el = _makeEl(key);
       if (!el) return;
-      current    = el;
+
+      currentEl  = el;
       currentKey = key;
-      el.volume  = 0;
+      liveEls.add(el);
+
       const p = el.play();
-      if (p && p.catch) p.catch(() => {}); // absorb autoplay rejection silently
-      _fadeIn(el);
+      if (p && p.catch) p.catch(() => {});
+
+      // Fade in without a shared timer — each element owns its own interval
+      let step = 0;
+      const timer = setInterval(() => {
+        step++;
+        el.volume = Math.min(VOLUME, (step / FADE_STEPS) * VOLUME);
+        if (step >= FADE_STEPS) clearInterval(timer);
+      }, FADE_STEP_MS);
     }
 
-    // Called on first user gesture — unlocks audio context for mobile
+    function fadeToTrack(key) {
+      if (!enabled) return;
+      if (!unlocked) { pendingKey = key; return; }
+      if (currentKey === key && currentEl && !currentEl.paused) return;
+      _startTrack(key);
+    }
+
     function unlockAudio() {
       if (unlocked) return;
       unlocked = true;
-      if (enabled && !current) {
-        // Will be called with the right track by the React layer immediately after
+      if (enabled && pendingKey) {
+        _startTrack(pendingKey);
+        pendingKey = null;
       }
-    }
-
-    // Switch to a track. No-op if that track is already playing.
-    function fadeToTrack(key) {
-      if (!enabled) return;
-      if (!unlocked) return;            // wait for user gesture
-      if (currentKey === key && current && !current.paused) return; // already playing
-      const old = current;
-      current    = null;
-      currentKey = null;
-      _fadeOut(old, () => _startTrack(key));
     }
 
     function stopMusic() {
-      _clearFade();
-      if (current) {
-        current.pause();
-        current.src = '';
-        current    = null;
-        currentKey = null;
-      }
+      pendingKey = null;
+      _killAll();
     }
 
     function setEnabled(val) {
       enabled = val;
       try { localStorage.setItem('dosecraftMusicEnabled', String(val)); } catch(e) {}
-      if (!val) {
-        stopMusic();
-      }
+      if (!val) stopMusic();
     }
 
     function getEnabled() { return enabled; }
 
-    function getCurrentKey() { return currentKey; }
-
-    return { unlockAudio, fadeToTrack, stopMusic, setEnabled, getEnabled, getCurrentKey };
+    return { unlockAudio, fadeToTrack, stopMusic, setEnabled, getEnabled };
   })();
 
-  // Unlock audio on first interaction anywhere on the page
-  ['click','touchstart','keydown'].forEach(evt =>
+  // Unlock on first interaction anywhere on the page
+  ['click', 'touchstart', 'keydown'].forEach(evt =>
     document.addEventListener(evt, () => MUSIC.unlockAudio(), { once: true, passive: true })
   );
 </script>
