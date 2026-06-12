@@ -532,6 +532,26 @@ function InfusionArcade({ initialDrug }) {
   const [infusionLogoUrl, setInfusionLogoUrl] = useState(null);
   const [sharprxLogoUrl, setSharprxLogoUrl] = useState(null);
 
+  // ── MUSIC STATE ───────────────────────────────────────────────────────────
+  // Mirrors MUSIC.getEnabled() so the toggle button re-renders correctly.
+  const [musicEnabled, setMusicEnabledState] = useState(() => MUSIC.getEnabled());
+
+  function toggleMusic() {
+    const next = !MUSIC.getEnabled();
+    MUSIC.setEnabled(next);
+    setMusicEnabledState(next);
+    // If turning on, immediately start the right track for the current screen
+    if (next) {
+      MUSIC.unlockAudio();
+      const trackFor = {
+        menu: "menu", intro: "intro", howToPlay: "intro",
+        roundComplete: "intro", companion: "companion", complete: "companion", playing: "intro",
+      };
+      const key = trackFor[screen];
+      if (key) MUSIC.fadeToTrack(key);
+    }
+  }
+
   // ── INFUSION SESSION STATE ────────────────────────────────────────────────
   // Separated from game round state — infusion timer persists across rounds.
   // localStorage keys: dc_startTime, dc_durationMins, dc_endTime
@@ -630,6 +650,23 @@ function InfusionArcade({ initialDrug }) {
     return () => clearInterval(infusionTickRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── MUSIC: switch track when screen changes ───────────────────────────────
+  // Track map: menu → menu loop | intro/howToPlay/roundComplete → intro loop
+  //            companion/complete → companion loop | playing → intro loop (quieter)
+  useEffect(() => {
+    const trackFor = {
+      menu:          "menu",
+      intro:         "intro",
+      howToPlay:     "intro",
+      roundComplete: "intro",
+      companion:     "companion",
+      complete:      "companion",
+      playing:       "intro",
+    };
+    const key = trackFor[screen];
+    if (key) MUSIC.fadeToTrack(key);
+  }, [screen]);
 
   // Called when an arcade round finishes — NEVER resets the infusion timer.
   function handleRoundComplete() {
@@ -1892,6 +1929,36 @@ function InfusionArcade({ initialDrug }) {
     </div>
   );
 
+  // Music toggle — visible, touch-friendly, accessible
+  const MusicToggle = () => (
+    <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+      <button
+        aria-label={musicEnabled ? "Music on — tap to mute" : "Music off — tap to unmute"}
+        onClick={toggleMusic}
+        style={{
+          background: musicEnabled ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.25)",
+          border: musicEnabled ? `1.5px solid rgba(255,255,255,0.25)` : "1.5px solid rgba(255,255,255,0.1)",
+          color: musicEnabled ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)",
+          borderRadius: 10,
+          padding: "10px 20px",
+          fontSize: 15,
+          fontFamily: SANS,
+          cursor: "pointer",
+          touchAction: "manipulation",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minHeight: 44,
+          minWidth: 140,
+          justifyContent: "center",
+        }}
+      >
+        <span style={{ fontSize: 18 }}>{musicEnabled ? "🎵" : "🔇"}</span>
+        <span>{musicEnabled ? "Music on" : "Music off"}</span>
+      </button>
+    </div>
+  );
+
   const BigBtn = ({ label, onClick, primary = false }) => (
     <button onClick={onClick} style={{
       background: primary ? col : "rgba(255,255,255,0.1)",
@@ -1955,6 +2022,7 @@ function InfusionArcade({ initialDrug }) {
             </div>
           ))}
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
+          <MusicToggle />
           <SharpRXBadge />
         </div>
       </div>
@@ -2088,6 +2156,7 @@ function InfusionArcade({ initialDrug }) {
             />
             <BigBtn label="← Back" onClick={() => window.location.href = "index.html"} />
           </div>
+          <MusicToggle />
           <SharpRXBadge />
         </div>
       </div>
@@ -2202,6 +2271,7 @@ function InfusionArcade({ initialDrug }) {
           <div style={{ marginTop: 12 }}>
             <BigBtn label="← Back" onClick={() => setScreen("intro")} />
           </div>
+          <MusicToggle />
           <SharpRXBadge />
         </div>
       </div>
@@ -2338,6 +2408,7 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
 
+          <MusicToggle />
           <SharpRXBadge />
         </div>
       </div>
@@ -2454,6 +2525,7 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
 
+          <MusicToggle />
           <SharpRXBadge />
         </div>
       </div>
@@ -2511,6 +2583,7 @@ function InfusionArcade({ initialDrug }) {
         )}
       </div>
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: 2, textTransform: "uppercase" }}>SharpRX Interactive</div>
+      <MusicToggle />
     </div>
   );
 }

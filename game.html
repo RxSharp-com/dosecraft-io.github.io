@@ -64,6 +64,139 @@
     SFX.load('wall_hit',        'audio/wall_hit.wav');
   });
 </script>
+
+<script>
+  // ── MUSIC MANAGER ─────────────────────────────────────────────────────────
+  // Uses HTMLAudioElement for looping background music.
+  // Kept entirely separate from SFX (Web Audio API).
+  const MUSIC = (() => {
+    const TRACKS = {
+      menu:      { ogg: 'audio/menu_loop_soft_arcade.ogg',      mp3: 'audio/menu_loop_soft_arcade.mp3' },
+      intro:     { ogg: 'audio/intro_loop_micro_mission.ogg',   mp3: 'audio/intro_loop_micro_mission.mp3' },
+      companion: { ogg: 'audio/companion_loop_infusion_calm.ogg', mp3: 'audio/companion_loop_infusion_calm.mp3' },
+    };
+
+    const VOLUME       = 0.28;   // gentle default
+    const FADE_STEP_MS = 50;     // fade tick interval
+    const FADE_STEPS   = 16;     // total steps per fade (~800ms)
+
+    let current    = null;       // currently playing HTMLAudioElement
+    let currentKey = null;       // track name key
+    let enabled    = true;
+    let unlocked   = false;
+    let fadeTimer  = null;
+
+    // Persist preference
+    try {
+      const saved = localStorage.getItem('dosecraftMusicEnabled');
+      if (saved !== null) enabled = saved === 'true';
+    } catch (e) {}
+
+    function _makeEl(key) {
+      const t = TRACKS[key];
+      if (!t) return null;
+      const el = document.createElement('audio');
+      el.loop = true;
+      el.volume = 0;
+      // ogg first, mp3 fallback
+      const s1 = document.createElement('source'); s1.src = t.ogg; s1.type = 'audio/ogg';
+      const s2 = document.createElement('source'); s2.src = t.mp3; s2.type = 'audio/mpeg';
+      el.appendChild(s1); el.appendChild(s2);
+      el.onerror = () => {}; // silence missing-file errors silently
+      return el;
+    }
+
+    function _clearFade() {
+      if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
+    }
+
+    function _fadeOut(el, onDone) {
+      _clearFade();
+      if (!el) { if (onDone) onDone(); return; }
+      const step = el.volume / FADE_STEPS;
+      fadeTimer = setInterval(() => {
+        el.volume = Math.max(0, el.volume - step);
+        if (el.volume <= 0) {
+          _clearFade();
+          el.pause();
+          el.src = '';
+          if (onDone) onDone();
+        }
+      }, FADE_STEP_MS);
+    }
+
+    function _fadeIn(el) {
+      _clearFade();
+      el.volume = 0;
+      const target = VOLUME;
+      const step = target / FADE_STEPS;
+      fadeTimer = setInterval(() => {
+        el.volume = Math.min(target, el.volume + step);
+        if (el.volume >= target) _clearFade();
+      }, FADE_STEP_MS);
+    }
+
+    function _startTrack(key) {
+      const el = _makeEl(key);
+      if (!el) return;
+      current    = el;
+      currentKey = key;
+      el.volume  = 0;
+      const p = el.play();
+      if (p && p.catch) p.catch(() => {}); // absorb autoplay rejection silently
+      _fadeIn(el);
+    }
+
+    // Called on first user gesture — unlocks audio context for mobile
+    function unlockAudio() {
+      if (unlocked) return;
+      unlocked = true;
+      if (enabled && !current) {
+        // Will be called with the right track by the React layer immediately after
+      }
+    }
+
+    // Switch to a track. No-op if that track is already playing.
+    function fadeToTrack(key) {
+      if (!enabled) return;
+      if (!unlocked) return;            // wait for user gesture
+      if (currentKey === key && current && !current.paused) return; // already playing
+      const old = current;
+      current    = null;
+      currentKey = null;
+      _fadeOut(old, () => _startTrack(key));
+    }
+
+    function stopMusic() {
+      _clearFade();
+      if (current) {
+        current.pause();
+        current.src = '';
+        current    = null;
+        currentKey = null;
+      }
+    }
+
+    function setEnabled(val) {
+      enabled = val;
+      try { localStorage.setItem('dosecraftMusicEnabled', String(val)); } catch(e) {}
+      if (!val) {
+        stopMusic();
+      }
+    }
+
+    function getEnabled() { return enabled; }
+
+    function getCurrentKey() { return currentKey; }
+
+    return { unlockAudio, fadeToTrack, stopMusic, setEnabled, getEnabled, getCurrentKey };
+  })();
+
+  // Unlock audio on first interaction anywhere on the page
+  ['click','touchstart','keydown'].forEach(evt =>
+    document.addEventListener(evt, () => MUSIC.unlockAudio(), { once: true, passive: true })
+  );
+</script>
   <!-- React + ReactDOM via CDN (production builds) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
