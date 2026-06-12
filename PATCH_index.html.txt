@@ -1,0 +1,58 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  FILE: index.html  (EXISTING FILE — paste these tags inside <head>)
+  ════════════════════════════════════════════════════════════════════
+
+  index.html is the drug-selection homepage. It needs the same PWA
+  tags so that the install prompt works correctly from either page
+  and the splash screen / icon appear on iOS Home Screen.
+
+  ── 1. PWA Manifest ─────────────────────────────────────────────────
+-->
+<link rel="manifest" href="/manifest.json">
+
+<!--
+  ── 2. iOS / Safari PWA meta tags ───────────────────────────────────
+-->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Infusion Arcade">
+
+<!--
+  ── 3. iOS Home Screen icon ─────────────────────────────────────────
+-->
+<link rel="apple-touch-icon" href="/icon-192x192.png">
+
+<!--
+  ── 4. Theme color ──────────────────────────────────────────────────
+-->
+<meta name="theme-color" content="#0a1628">
+
+<!--
+  ── 5. Mobile viewport ───────────────────────────────────────────────
+  Merge with existing viewport tag if one is already present.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+<!-- ▼▼▼ PASTE BELOW BLOCK JUST BEFORE </body> IN index.html ▼▼▼ -->
+<script>
+  /**
+   * Service Worker registration — index.html copy.
+   * Identical to the game.html registration; registering from either
+   * page with scope '/' ensures the same SW instance covers both.
+   */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          console.log('[SW] Registered from index, scope:', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('[SW] Registration skipped:', err.message);
+        });
+    });
+  }
+</script>
+<!-- ▲▲▲ END OF BLOCK TO PASTE BEFORE </body> IN index.html ▲▲▲ -->

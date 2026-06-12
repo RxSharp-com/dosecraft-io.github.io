@@ -1,0 +1,135 @@
+<!--
+  ════════════════════════════════════════════════════════════════════
+  FILE: game.html  (EXISTING FILE — paste these tags inside <head>)
+  ════════════════════════════════════════════════════════════════════
+
+  ── 1. PWA Manifest ─────────────────────────────────────────────────
+  Links to manifest.json (new file, repo root).
+-->
+<link rel="manifest" href="/manifest.json">
+
+<!--
+  ── 2. iOS / Safari PWA meta tags ───────────────────────────────────
+  These are required for "Add to Home Screen" on iPhone to behave
+  like a standalone app instead of opening in Safari chrome.
+-->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Infusion Arcade">
+
+<!--
+  ── 3. iOS Home Screen icon ─────────────────────────────────────────
+  Safari ignores manifest icons; this separate tag is required.
+  icon-192x192.png is used for both — iOS will scale it.
+-->
+<link rel="apple-touch-icon" href="/icon-192x192.png">
+
+<!--
+  ── 4. Theme color (Android Chrome toolbar + iOS tint) ──────────────
+-->
+<meta name="theme-color" content="#0a1628">
+
+<!--
+  ── 5. Mobile viewport ───────────────────────────────────────────────
+  viewport-fit=cover extends into the iPhone notch area.
+  NOTE: If this tag already exists in your <head>, merge these
+  attributes into the existing tag rather than duplicating it.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+<!--
+  ── 6. Prevent scroll-chaining / accidental page scroll during play ─
+  Added here as a <style> block so it loads before any JS.
+  The canvas element receives touch-action: none via the JS patch below.
+-->
+<style>
+  /* Prevent bounce-scroll on iOS and overscroll on Android
+     while keeping the React root scrollable if content overflows */
+  html, body {
+    overscroll-behavior: none;
+    overflow: hidden;          /* game is always full-viewport */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Allow the React mount point to scroll internally if needed */
+  #root, #game-root {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+</style>
+
+<!--
+  ── 7. Service Worker registration ──────────────────────────────────
+  Place this <script> block just before </body> (not in <head>).
+  It is shown here for reference — see the note at the bottom.
+
+  GITHUB PAGES SAFETY NOTE:
+  The SW registration is wrapped in a feature-detect + try/catch.
+  If the SW fetch fails (e.g. 404 on first deploy before sw.js is
+  committed), the game continues to function normally — the SW is
+  purely additive. No gameplay logic is affected.
+
+  Paste the block below into game.html just before </body>:
+-->
+
+<!-- ▼▼▼ PASTE BELOW BLOCK JUST BEFORE </body> IN game.html ▼▼▼ -->
+<script>
+  /**
+   * Service Worker registration for Infusion Arcade PWA.
+   *
+   * Safe-registration pattern:
+   *   - Feature-detect: skip silently if browser has no SW support.
+   *   - Scoped to '/': covers both /game.html and /index.html.
+   *   - try/catch: a missing sw.js (e.g. branch not yet deployed)
+   *     logs a warning and never blocks the game from loading.
+   *
+   * COMPANION MODE TIMER SAFETY:
+   *   The session timer (sessionStartTime, sessionActive) lives in
+   *   localStorage and React component state — not in network state.
+   *   Registering or updating a SW does NOT touch localStorage and
+   *   cannot cause the timer to reset. The SW only caches file bytes.
+   */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((reg) => {
+          console.log('[SW] Registered, scope:', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('[SW] Registration skipped:', err.message);
+          // Game continues normally — SW is enhancement-only.
+        });
+    });
+  }
+
+  /**
+   * Prevent accidental page scroll / pull-to-refresh during canvas gameplay.
+   * This targets the canvas element specifically, leaving other scrollable
+   * UI (drug-select lists, companion mode panels) unaffected.
+   *
+   * touch-action: none is also set in CSS above; this JS patch ensures the
+   * canvas element receives it even if React re-renders replace its attributes.
+   */
+  document.addEventListener('DOMContentLoaded', () => {
+    function patchCanvas() {
+      const canvases = document.querySelectorAll('canvas');
+      canvases.forEach((c) => {
+        c.style.touchAction = 'none';
+      });
+    }
+
+    // Run once on load…
+    patchCanvas();
+
+    // …and re-run whenever React mounts a new canvas (e.g. new round).
+    const observer = new MutationObserver(patchCanvas);
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+</script>
+<!-- ▲▲▲ END OF BLOCK TO PASTE BEFORE </body> ▲▲▲ -->
