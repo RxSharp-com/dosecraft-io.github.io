@@ -2154,7 +2154,7 @@ function InfusionArcade({ initialDrug }) {
                   setSessionActive(true);
                   startInfusionClock(now, infusionDurationMinutes);
                 }
-                setScreen("playing");
+                setScreen("howToPlay");
               }}
               primary
             />
