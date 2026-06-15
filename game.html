@@ -2,18 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+  <!--
+    PWA / mobile viewport
+    • viewport-fit=cover: extends into iPhone notch / Dynamic Island
+    • user-scalable=no: prevents pinch-zoom from accidentally resizing the canvas
+    • maximum-scale=1.0: belt-and-suspenders for older iOS WebKit
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
   <title>Dosecraft · Playing</title>
+
+  <!-- ── PWA: manifest ──────────────────────────────────────────────────────
+       manifest.json lives at the repo root (same level as game.html).
+       It sets display:standalone, start_url:/game.html, theme/background.
+  -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- ── PWA: iOS / Safari "Add to Home Screen" support ────────────────────
+       Safari does not read manifest icons — these tags are required separately.
+       apple-mobile-web-app-capable enables standalone mode on iOS.
+       black-translucent status bar extends the dark background behind the
+       system status bar for a full-bleed look on iPhone.
+  -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Infusion Arcade" />
+  <link rel="apple-touch-icon" href="/icon-192x192.png" />
+
+  <!-- ── PWA: Android Chrome toolbar / task-switcher tint ─────────────────
+       Matches the dark navy used throughout the UI.
+  -->
+  <meta name="theme-color" content="#030812" />
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /*
+      Scroll-lock for the game page.
+      • position:fixed + overflow:hidden on html/body stops iOS bounce-scroll
+        and Android pull-to-refresh from firing during gameplay swipes.
+      • The React root (#root) is allowed to overflow internally so that
+        the companion strip and buttons below the canvas remain reachable
+        by the user scrolling within the app, not the browser page.
+      • overscroll-behavior:none is the CSS-only guard; the JS MutationObserver
+        below adds touch-action:none directly to every <canvas> element so
+        that pointer events inside the game area are never intercepted by the
+        browser scroll handler.
+    */
+    html, body {
+      overscroll-behavior: none;
+      overflow: hidden;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      /* safe-area-inset accounts for iPhone notch / home bar */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    #root {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     body {
       background: #030812;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      overflow-y: auto;
     }
   </style>
 <script>
@@ -215,6 +275,69 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+  </script>
+
+  <!--
+    ── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
+    FILE INVOLVED: sw.js  (new file, repo root — same level as game.html)
+
+    Why this is placed just before </body>:
+      • Registering after the page loads (window 'load' event) avoids competing
+        with React/Babel for network bandwidth on first paint.
+      • The feature-detect + try/catch means the game works normally if sw.js
+        is missing (e.g. first deploy before the file is committed to GitHub).
+
+    COMPANION MODE TIMER SAFETY:
+      The session timer (dc_startTime, dc_durationMins, dc_endTime) lives in
+      localStorage and React state — not in any network request. A service
+      worker only intercepts fetch() calls for static file bytes; it cannot
+      read or write localStorage. Installing, updating, or even unregistering
+      the SW cannot cause the infusion timer to reset.
+
+    GITHUB PAGES NOTE:
+      sw.js must be committed to the repo root. GitHub Pages and Netlify both
+      serve it automatically with the correct Content-Type. No build step needed.
+      If your repo is served from a subpath (e.g. rxsharp22.github.io/dosecraft/)
+      instead of a custom domain, change '/sw.js' → '/dosecraft/sw.js' and
+      scope '/' → '/dosecraft/' below AND in manifest.json's start_url/scope.
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
+          .then(function (reg) {
+            console.log('[Dosecraft SW] Registered. Scope:', reg.scope);
+          })
+          .catch(function (err) {
+            // Safe fallback — game continues normally without the SW.
+            console.warn('[Dosecraft SW] Registration skipped:', err.message);
+          });
+      });
+    }
+
+    /*
+      Canvas touch-action patch
+      Adds touch-action:none to every <canvas> element so that iOS does not
+      interpret in-game finger drags as page-scroll gestures (which would cause
+      the paddle/controls to jerk or lose input).
+
+      We run it once on DOMContentLoaded and again via MutationObserver so that
+      canvases React mounts dynamically (new rounds, game resets) are also covered.
+      This is display-only; it does not touch any game state or the timer.
+    */
+    document.addEventListener('DOMContentLoaded', function () {
+      function patchCanvases() {
+        document.querySelectorAll('canvas').forEach(function (c) {
+          c.style.touchAction = 'none';
+        });
+      }
+      patchCanvases();
+      new MutationObserver(patchCanvases).observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    });
   </script>
 </body>
 </html>

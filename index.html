@@ -2,8 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!--
+    PWA / mobile viewport — matches game.html.
+    maximum-scale=1.0 + user-scalable=no prevents accidental pinch-zoom
+    on the drug-selection list while keeping it finger-friendly.
+    viewport-fit=cover extends into the iPhone notch area.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
   <title>Dosecraft · Infusion Arcade</title>
+
+  <!-- ── PWA: manifest ──────────────────────────────────────────────────────
+       Registering the manifest on index.html too means Chrome/Android will
+       show the install prompt whether the user lands here or on game.html.
+  -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- ── PWA: iOS / Safari "Add to Home Screen" ───────────────────────────
+       Safari ignores the manifest's icons array; these tags are required.
+  -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Infusion Arcade" />
+  <link rel="apple-touch-icon" href="/icon-192x192.png" />
+
+  <!-- ── PWA: Chrome / Android toolbar tint ───────────────────────────────
+       Dark teal matches the top ticker bar on the homepage.
+  -->
+  <meta name="theme-color" content="#000000" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -230,5 +257,32 @@ function selectHTML() {
 
 render('attract');
 </script>
+
+  <!--
+    ── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
+    FILE INVOLVED: sw.js  (new file, repo root)
+
+    Registering from index.html too ensures the SW activates even when a user
+    bookmarks / navigates directly to the drug-selection homepage. The browser
+    deduplicates: registering the same scope from two pages does not create two
+    workers — the existing registration is reused.
+
+    The try/catch fallback means the page works normally if sw.js hasn't been
+    committed yet (safe for incremental deploys).
+  -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
+          .then(function (reg) {
+            console.log('[Dosecraft SW] Registered from index. Scope:', reg.scope);
+          })
+          .catch(function (err) {
+            console.warn('[Dosecraft SW] Registration skipped:', err.message);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
