@@ -826,8 +826,12 @@ function InfusionArcade({ initialDrug }) {
         };
       }
       setProgress(0);
-      // Show how-to-play before jumping to the game
-      setScreen("howToPlay");
+      // Route to intro so the duration picker is shown on first round.
+      // If a session is already active, intro detects alreadyActive=true and
+      // hides the picker — the user just taps "Play a round →" to continue.
+      // This is the ONLY place setScreen("intro") is called from startDrug;
+      // the timer is started (or skipped) inside the intro screen's button handler.
+      setScreen("intro");
     });
   }, [showSplashThen, roundCount]);
 
@@ -2154,7 +2158,8 @@ function InfusionArcade({ initialDrug }) {
               }}
               primary
             />
-            <BigBtn label="← Back" onClick={() => window.location.href = "index.html"} />
+            {/* Back stays inside game.html — navigating to index.html would destroy React state and lose the session */}
+            <BigBtn label="← Back" onClick={() => setScreen("menu")} />
           </div>
           <MusicToggle />
           <SharpRXBadge />
@@ -2390,9 +2395,10 @@ function InfusionArcade({ initialDrug }) {
                 </p>
               </div>
             )}
+            {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
             <BigBtn
               label="← Back to medication menu"
-              onClick={() => window.location.href = "index.html"}
+              onClick={() => setScreen("menu")}
             />
             {sessionActive && (
               <button
@@ -2507,10 +2513,9 @@ function InfusionArcade({ initialDrug }) {
                 </p>
               </div>
             )}
-            <BigBtn label="← Back to medication menu" onClick={() => {
-              endInfusionSession();
-              window.location.href = "index.html";
-            }} />
+            {/* setScreen("menu") keeps us inside game.html and does NOT call endInfusionSession —
+                the session timer keeps running. Only "End infusion session" below clears it. */}
+            <BigBtn label="← Back to medication menu" onClick={() => setScreen("menu")} />
             {!isComplete && (
               <button
                 onClick={() => {
@@ -2565,8 +2570,9 @@ function InfusionArcade({ initialDrug }) {
 
       <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
         <button
-          onClick={() => { cancelAnimationFrame(animRef.current); window.location.href = "index.html"; }}
+          onClick={() => { cancelAnimationFrame(animRef.current); setScreen("menu"); }}
           style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
+          {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
           ← Menu
         </button>
         <button
