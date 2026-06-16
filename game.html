@@ -21,10 +21,12 @@
 
   <!-- ── PWA: iOS / Safari "Add to Home Screen" support ────────────────────
        Safari does not read manifest icons — these tags are required separately.
-       apple-mobile-web-app-capable enables standalone mode on iOS.
+       mobile-web-app-capable (without "apple-") is the current standard.
+       apple-mobile-web-app-capable still works but is deprecated as of iOS 17.
        black-translucent status bar extends the dark background behind the
        system status bar for a full-bleed look on iPhone.
   -->
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Infusion Arcade" />
