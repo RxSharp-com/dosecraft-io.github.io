@@ -241,8 +241,10 @@
   <!-- React + ReactDOM via CDN (production builds) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel standalone so JSX works without a build step -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Babel standalone — pinned to 7.23.9 (known good, tested with this codebase).
+       Do NOT remove the version pin. Unpinned @babel/standalone will auto-update
+       to whatever unpkg considers "latest", which can break JSX compilation silently. -->
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
