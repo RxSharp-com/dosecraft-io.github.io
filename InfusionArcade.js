@@ -593,7 +593,22 @@ function InfusionArcade({ initialDrug }) {
   const [infusionProgress, setInfusionProgress] = useState(0);
   const infusionTickRef = useRef(null);
 
-  // ── ROUND VARIATION STATE ─────────────────────────────────────────────────
+  // ── TUTORIAL OVERLAY STATE ────────────────────────────────────────────────
+  // showTutorial: true = overlay visible on top of the playing screen.
+  // Keyed per gameType so each game type only shows once per device.
+  // The overlay can also be re-opened any time via the "How to Play" button.
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  function getTutorialKey(gameType) {
+    return `dosecraft_tutorial_seen_${(gameType || "").replace(/[^a-z0-9]/gi, "_")}`;
+  }
+
+  function openTutorial() { setShowTutorial(true); }
+
+  function closeTutorial(gameType) {
+    try { localStorage.setItem(getTutorialKey(gameType), "true"); } catch (e) {}
+    setShowTutorial(false);
+  }
   // roundCount: how many rounds have been completed this session (drives ramp)
   // roundSetup: the pattern + objective chosen at the start of each round
   const [roundCount, setRoundCount] = useState(0);
@@ -668,6 +683,18 @@ function InfusionArcade({ initialDrug }) {
     if (key) MUSIC.fadeToTrack(key);
   }, [screen]);
 
+  // Show tutorial overlay automatically the first time each game type is played.
+  // Checks localStorage so it only fires once per device per game type.
+  // Does not affect session timer, round state, or drug state.
+  useEffect(() => {
+    if (screen !== "playing") return;
+    const key = getTutorialKey(drug.gameType);
+    let seen = false;
+    try { seen = localStorage.getItem(key) === "true"; } catch (e) {}
+    if (!seen) setShowTutorial(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
+
   // Called when an arcade round finishes — NEVER resets the infusion timer.
   function handleRoundComplete() {
     cancelAnimationFrame(animRef.current);
@@ -713,16 +740,13 @@ function InfusionArcade({ initialDrug }) {
   const startDrug = useCallback((idx) => {
     setDrugIdx(idx);
     stateRef.current = null;
-    showSplashThen(() => {
-      const d = DRUGS[idx];
 
-      // Pick a random pattern + objective for this round and store in state
-      // so the intro screen and HUD can display it.
-      const setup = pickRoundSetup(d.gameType, roundCount);
-      setRoundSetup(setup);
+    const d = DRUGS[idx];
+    const setup = pickRoundSetup(d.gameType, roundCount);
+    setRoundSetup(setup);
 
-      const { spawnMult, speedMult } = setup.pattern;
-      const speed = speedMult * setup.rampMult; // combined speed multiplier
+    const { spawnMult, speedMult } = setup.pattern;
+    const speed = speedMult * setup.rampMult; // combined speed multiplier
 
       if (d.gameType === "breakout") {
         // Ball speed scales with the speed multiplier (base 4.8 → up to ~6)
@@ -826,14 +850,11 @@ function InfusionArcade({ initialDrug }) {
         };
       }
       setProgress(0);
-      // Route to intro so the duration picker is shown on first round.
-      // If a session is already active, intro detects alreadyActive=true and
-      // hides the picker — the user just taps "Play a round →" to continue.
-      // This is the ONLY place setScreen("intro") is called from startDrug;
-      // the timer is started (or skipped) inside the intro screen's button handler.
+      // Go directly to intro — no splash here.
+      // Splash fires from the intro button, just before entering playing.
+      // This means intro is always reachable instantly when selecting a drug.
       setScreen("intro");
-    });
-  }, [showSplashThen, roundCount]);
+  }, [roundCount]);
 
   // Pointer control
   useEffect(() => {
@@ -2154,7 +2175,9 @@ function InfusionArcade({ initialDrug }) {
                   setSessionActive(true);
                   startInfusionClock(now, infusionDurationMinutes);
                 }
-                setScreen("howToPlay");
+                // Splash transition fires HERE — between intro and playing,
+                // not before intro. This is the correct patient-flow placement.
+                showSplashThen(() => setScreen("playing"));
               }}
               primary
             />
@@ -2539,11 +2562,81 @@ function InfusionArcade({ initialDrug }) {
 
   // ── PLAYING SCREEN — canvas + prominent infusion companion strip ──────────
   // Phase 5: strip is larger and clearly readable during play.
+
+  // Tutorial content per game type — 2-3 lines max, no jargon.
+  const TUTORIAL_CONTENT = {
+    breakout: {
+      what: "Slide left or right to move the paddle. Bounce the dose into the bacterial wall.",
+      why:  "Breaking the wall shows how this antibiotic weakens the bacteria's outer layer.",
+    },
+    vanco: {
+      what: "Move the paddle to intercept falling wall-building blocks before they stack up.",
+      why:  "This shows how vancomycin blocks bacteria from building strong cell walls.",
+    },
+    dapto: {
+      what: "Collect calcium ions to charge up, then strike the glowing membrane zones.",
+      why:  "This shows how daptomycin uses calcium to punch holes in bacterial membranes.",
+    },
+    ivig: {
+      what: "Move and tap Fire to calm the signals. Then flood the receptor grid.",
+      why:  "This shows how IVIG helps calm and redirect overactive immune signals.",
+    },
+  };
+  const tut = TUTORIAL_CONTENT[drug.gameType] || { what: "Play the game!", why: "Watch your medication work." };
+
   return (
-    <div style={{ ...pageStyle, padding: 8 }}>
-      <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
+    <div style={{ ...pageStyle, padding: 8, position: "relative" }}>
+      <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }
+@keyframes tutIn { from { opacity:0; transform:scale(0.93); } to { opacity:1; transform:scale(1); } }`}</style>
+
       <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
         style={{ display: "block", borderRadius: 14, border: `2px solid ${col}33`, boxShadow: `0 0 40px ${col}22`, maxWidth: "100%", touchAction: "none" }} />
+
+      {/* ── TUTORIAL OVERLAY ─────────────────────────────────────────────────
+          Appears on top of the canvas on first play of each game type.
+          Keyed per gameType — "Got it" sets a localStorage flag so it never
+          auto-shows again for that game type on this device.
+          Does NOT pause the game loop or reset any state. */}
+      {showTutorial && (
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(3,8,18,0.88)", display: "flex", alignItems: "center",
+          justifyContent: "center", zIndex: 50, borderRadius: 14,
+          animation: "tutIn 0.25s ease forwards",
+        }}>
+          <div style={{
+            maxWidth: 340, width: "90%", background: "#0d1a2e",
+            border: `2px solid ${col}88`, borderRadius: 16, padding: "28px 24px",
+            textAlign: "center", fontFamily: SANS,
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>
+              {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡" }[drug.gameType] || "🎮"}
+            </div>
+            <div style={{ fontSize: 13, letterSpacing: 3, color: col + "99", textTransform: "uppercase", marginBottom: 16 }}>How to play</div>
+
+            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", marginBottom: 12, textAlign: "left" }}>
+              <div style={{ fontSize: 12, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 6 }}>What to do</div>
+              <p style={{ fontSize: 15, color: "rgba(255,255,255,0.9)", lineHeight: 1.6, margin: 0 }}>{tut.what}</p>
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", marginBottom: 22, textAlign: "left" }}>
+              <div style={{ fontSize: 12, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 6 }}>Why it matters</div>
+              <p style={{ fontSize: 15, color: "rgba(255,255,255,0.9)", lineHeight: 1.6, margin: 0 }}>{tut.why}</p>
+            </div>
+
+            <button
+              onClick={() => closeTutorial(drug.gameType)}
+              style={{
+                background: col + "33", border: `2px solid ${col}`, color: col,
+                padding: "14px 36px", borderRadius: 10, fontSize: 16, fontWeight: 700,
+                cursor: "pointer", fontFamily: SANS, touchAction: "manipulation",
+                width: "100%",
+              }}>
+              Got it — let's play
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Infusion companion strip — Phase 5: larger, prominent, always visible when session active */}
       {sessionActive && (
@@ -2575,6 +2668,14 @@ function InfusionArcade({ initialDrug }) {
           {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
           ← Menu
         </button>
+
+        {/* How to Play — always available, reopens the tutorial overlay without resetting anything */}
+        <button
+          onClick={openTutorial}
+          style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
+          How to Play
+        </button>
+
         <button
           onClick={() => { cancelAnimationFrame(animRef.current); setScreen("intro"); }}
           style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
