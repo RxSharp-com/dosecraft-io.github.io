@@ -529,8 +529,6 @@ function InfusionArcade({ initialDrug }) {
   const [drugIdx, setDrugIdx] = useState(initialIdx);
   const [progress, setProgress] = useState(0);
   const [splashVisible, setSplashVisible] = useState(false);
-  const [infusionLogoUrl, setInfusionLogoUrl] = useState(null);
-  const [sharprxLogoUrl, setSharprxLogoUrl] = useState(null);
 
   // ── MUSIC STATE ───────────────────────────────────────────────────────────
   // Mirrors MUSIC.getEnabled() so the toggle button re-renders correctly.
@@ -723,13 +721,7 @@ function InfusionArcade({ initialDrug }) {
   const drug = DRUGS[drugIdx];
   const col = drug.drugColor;
 
-  const INFUSION_LOGO_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AADy+0lEQVR42uz9d7gl13XeCf/WrqoTbuy+nQO6kRqRAAgiEsyURIlKpmxJtiRaGtmyZVseaexxGqfx+LM9/mYsezwOM5LnURxJtjJFiSIpZpAESYAEARA5NBqd080nVdhr/ai6955TZ1c4F5Cmvuepi6ef...";
-  const SHARPRX_LOGO_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAEAAElEQVR42uz9d7gl13XeCf/WrqoTbuy+nQO6kRqRAAgiEsyURIlKpmxJtiRaGtmyZVseaexxGqfx+LM9/mYsezwOM5LnURxJtjJFiSIpZpAESYAEARA5NBqd080nVdhr/ai6955TZ1c4F5Cmvuepi6ef...";
-
-  useEffect(() => {
-    setInfusionLogoUrl(INFUSION_LOGO_DATA);
-    setSharprxLogoUrl(SHARPRX_LOGO_DATA);
-  }, []);
+  // (Logo image URLs removed — not currently rendered in any screen)
 
   const showSplashThen = useCallback((cb) => {
     setSplashVisible(true);
