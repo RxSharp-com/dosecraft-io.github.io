@@ -1208,10 +1208,10 @@ function InfusionArcade({ initialDrug }) {
       // ── Per-zone logic ───────────────────────────────────────────────────────
       const playerCX     = s.daptoX + DAPTO_W / 2;
       const playerBottom = s.daptoY + DAPTO_H;
-      let playerOnZone   = null;
+      let playerOnZone   = null;  // declared here so draw section can always read it
 
-      for (const zone of s.zones) {
-        if (zone.flashTimer > 0) zone.flashTimer--;
+      if (!frozen) {
+      for (const zone of s.zones) {        if (zone.flashTimer > 0) zone.flashTimer--;
 
         // Repair patch ticks down; if it fully elapses it removes one insertion
         if (zone.repairTimer > 0) {

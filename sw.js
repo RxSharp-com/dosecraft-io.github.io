@@ -13,7 +13,7 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.3';
+const CACHE_VERSION = 'v1.0.5';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
 // ─── Core files to pre-cache on install ──────────────────────────────────────
@@ -86,23 +86,32 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => caches.match(request)) // Offline fallback
+        .catch(() => caches.match(request).then(c => c || new Response('Offline', { status: 503 })))
     );
     return;
   }
 
   // ── Static assets (JS, CSS, images, fonts): Cache-first ──
-  // Game logic (InfusionArcade.js) and icons load instantly on repeat visits.
+  // Audio files are excluded from caching — browsers fetch them with range
+  // requests (status 206) which cache.put() rejects. Let audio load direct.
+  const isAudio = request.url.match(/\.(mp3|ogg|wav|webm|aac|m4a)(\?|$)/i);
+  if (isAudio) return; // let the browser handle audio natively
+
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
 
       return fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.ok) {
+        // Only cache complete responses (status 200). Skip 206 partial content.
+        if (networkResponse && networkResponse.ok && networkResponse.status === 200) {
           const clone = networkResponse.clone();
           caches.open(CACHE_NAME).then((c) => c.put(request, clone));
         }
         return networkResponse;
+      }).catch(() => {
+        // Network failed and no cache hit — return nothing gracefully.
+        // This prevents the unhandled rejection noise in the console.
+        return new Response('', { status: 503, statusText: 'Offline' });
       });
     })
   );
