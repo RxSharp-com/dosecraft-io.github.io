@@ -2599,7 +2599,6 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
           document.addEventListener("DOMContentLoaded", () => {
-  const feedbackBtn = document.getElementById("feedbackButton");
 }
           <MusicToggle />
           <SharpRXBadge />
