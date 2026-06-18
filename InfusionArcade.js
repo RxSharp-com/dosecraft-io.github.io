@@ -2601,7 +2601,13 @@ function InfusionArcade({ initialDrug }) {
           </div>
           <MusicToggle />
           <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
-          <SharpRXBadge /> — canvas + prominent infusion companion strip ──────────
+          <SharpRXBadge />
+        </div>
+      </div>
+    );
+  }
+
+  // ── PLAYING SCREEN — canvas + prominent infusion companion strip ──────────
   // Phase 5: strip is larger and clearly readable during play.
 
   // ── TUTORIAL CONTENT ────────────────────────────────────────────────────────
