@@ -19,18 +19,14 @@
   -->
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- ── PWA: iOS / Safari "Add to Home Screen" ───────────────────────────
-       Safari ignores the manifest's icons array; these tags are required.
-  -->
+  <!-- ── PWA: iOS / Safari "Add to Home Screen" ─────────────────────────── -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Infusion Arcade" />
   <link rel="apple-touch-icon" href="/icon-192x192.png" />
 
-  <!-- ── PWA: Chrome / Android toolbar tint ───────────────────────────────
-       Dark teal matches the top ticker bar on the homepage.
-  -->
   <meta name="theme-color" content="#000000" />
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -58,6 +54,7 @@
     #side-r { position: fixed; right: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, transparent, #00d4c8, #c084fc, #f59e0b, transparent); pointer-events: none; z-index: 10; animation: sideGlow 3s ease-in-out infinite 1.5s; }
   </style>
 </head>
+
 <body>
 
 <div id="crt"></div>
@@ -88,201 +85,36 @@
 
 <script>
 const DRUGS = [
-  { name:"Zosyn",      generic:"Piperacillin-Tazobactam",          color:"#00d4c8", group:"Penicillin",     mode:"WALL BREAKER",    tagline:"Breach the wall" },
-  { name:"Ancef",      generic:"Cefazolin",                        color:"#4f8ef7", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Demolish defenses" },
-  { name:"Rocephin",   generic:"Ceftriaxone",                      color:"#6366f1", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Destroy and clear" },
-  { name:"Maxipime",   generic:"Cefepime",                         color:"#818cf8", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Broad spectrum strike" },
-  { name:"Invanz",     generic:"Ertapenem",                        color:"#f59e0b", group:"Carbapenem",     mode:"WALL BREAKER",    tagline:"Deep penetrator" },
-  { name:"Merrem",     generic:"Meropenem",                        color:"#fb923c", group:"Carbapenem",     mode:"WALL BREAKER",    tagline:"Maximum firepower" },
-  { name:"Vancomycin", generic:"Vancomycin",                       color:"#c084fc", group:"Vancomycin",     mode:"BLOCK ATTACK",    tagline:"Block construction" },
-  { name:"Cubicin",    generic:"Daptomycin",                       color:"#eab308", group:"Daptomycin",     mode:"MEMBRANE BREACH", tagline:"Punch through membranes" },
-  { name:"Bivigam",    generic:"Immune Globulin IV 10%",           color:"#f4a261", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Reinforce immunity" },
-  { name:"Panzyga",    generic:"Immune Globulin IV 10%",           color:"#e76f51", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Flood and rebalance" },
-  { name:"Octagam",    generic:"Immune Globulin IV 5%/10%",        color:"#e9c46a", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Dual-action defense" },
-  { name:"Hyqvia",     generic:"SCIG + Recombinant Hyaluronidase", color:"#2a9d8f", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Steady absorption" },
+  { name:"Zosyn", generic:"Piperacillin-Tazobactam", color:"#00d4c8", group:"Penicillin", mode:"WALL BREAKER", tagline:"Breach the wall" },
+  { name:"Ancef", generic:"Cefazolin", color:"#4f8ef7", group:"Cephalosporin", mode:"WALL BREAKER", tagline:"Demolish defenses" },
+  { name:"Rocephin", generic:"Ceftriaxone", color:"#6366f1", group:"Cephalosporin", mode:"WALL BREAKER", tagline:"Destroy and clear" },
+  { name:"Maxipime", generic:"Cefepime", color:"#818cf8", group:"Cephalosporin", mode:"WALL BREAKER", tagline:"Broad spectrum strike" },
+  { name:"Invanz", generic:"Ertapenem", color:"#f59e0b", group:"Carbapenem", mode:"WALL BREAKER", tagline:"Deep penetrator" },
+  { name:"Merrem", generic:"Meropenem", color:"#fb923c", group:"Carbapenem", mode:"WALL BREAKER", tagline:"Maximum firepower" },
+  { name:"Vancomycin", generic:"Vancomycin", color:"#c084fc", group:"Vancomycin", mode:"BLOCK ATTACK", tagline:"Block construction" },
+  { name:"Cubicin", generic:"Daptomycin", color:"#eab308", group:"Daptomycin", mode:"MEMBRANE BREACH", tagline:"Punch through membranes" },
+  { name:"Bivigam", generic:"Immune Globulin IV 10%", color:"#f4a261", group:"Immunoglobulin", mode:"IMMUNE DEFENSE", tagline:"Reinforce immunity" },
+  { name:"Panzyga", generic:"Immune Globulin IV 10%", color:"#e76f51", group:"Immunoglobulin", mode:"IMMUNE DEFENSE", tagline:"Flood and rebalance" },
+  { name:"Octagam", generic:"Immune Globulin IV 5%/10%", color:"#e9c46a", group:"Immunoglobulin", mode:"IMMUNE DEFENSE", tagline:"Dual-action defense" },
+  { name:"Hyqvia", generic:"SCIG + Recombinant Hyaluronidase", color:"#2a9d8f", group:"Immunoglobulin", mode:"IMMUNE DEFENSE", tagline:"Steady absorption" },
 ];
 
 const GROUPS = [
-  { label:"Penicillin",     color:"#00d4c8" },
-  { label:"Cephalosporin",  color:"#6366f1" },
-  { label:"Carbapenem",     color:"#f59e0b" },
-  { label:"Vancomycin",     color:"#c084fc" },
-  { label:"Daptomycin",     color:"#eab308" },
+  { label:"Penicillin", color:"#00d4c8" },
+  { label:"Cephalosporin", color:"#6366f1" },
+  { label:"Carbapenem", color:"#f59e0b" },
+  { label:"Vancomycin", color:"#c084fc" },
+  { label:"Daptomycin", color:"#eab308" },
   { label:"Immunoglobulin", color:"#f4a261" },
 ];
 
 const TILES = [
-  { label:"Wall Breaker",    icon:"🧱", color:"#00d4c8", desc:"Cell wall antibiotics" },
-  { label:"Block Attack",    icon:"🔒", color:"#c084fc", desc:"Vancomycin" },
+  { label:"Wall Breaker", icon:"🧱", color:"#00d4c8", desc:"Cell wall antibiotics" },
+  { label:"Block Attack", icon:"🔒", color:"#c084fc", desc:"Vancomycin" },
   { label:"Membrane Breach", icon:"💥", color:"#eab308", desc:"Daptomycin" },
-  { label:"Immune Defense",  icon:"🛡", color:"#f4a261", desc:"IVIG / SCIG" },
+  { label:"Immune Defense", icon:"🛡", color:"#f4a261", desc:"IVIG / SCIG" },
 ];
-
-// Build animated logo
-(function() {
-  const el = document.getElementById('logo');
-  const colors  = ['#00d4c8','#c084fc','#f59e0b'];
-  const shadows  = ['0 0 10px #00d4c8,0 0 30px #00d4c855','0 0 10px #c084fc,0 0 30px #c084fc55','0 0 10px #f59e0b,0 0 30px #f59e0b55'];
-  'DOSECRAFT'.split('').forEach((l, i) => {
-    const s = document.createElement('span');
-    s.textContent = l;
-    const ci = i % 3;
-    s.style.cssText = `display:inline-block;color:${colors[ci]};text-shadow:${shadows[ci]};`
-      + `animation:letterBob ${1.2+i*0.1}s ease-in-out ${i*0.07}s infinite alternate;`;
-    el.appendChild(s);
-  });
-})();
-
-// Blinking prompt
-let blinkOn = true;
-setInterval(() => {
-  const el = document.getElementById('blink');
-  if (el) { blinkOn = !blinkOn; el.style.opacity = blinkOn ? '1' : '0'; }
-}, 650);
-
-function goToGame(drugName) {
-  window.location.href = 'game.html?drug=' + encodeURIComponent(drugName);
-}
-
-function render(phase) {
-  const app = document.getElementById('app');
-  const div = document.createElement('div');
-  div.className = 'phase';
-  div.innerHTML = phase === 'attract' ? attractHTML() : selectHTML();
-  app.innerHTML = '';
-  app.appendChild(div);
-}
-
-function attractHTML() {
-  const tiles = TILES.map(g => `
-    <div class="game-tile" style="border:1px solid ${g.color}33;background:${g.color}0a;">
-      <div style="font-size:22px;margin-bottom:7px;">${g.icon}</div>
-      <div style="font-size:10px;font-weight:700;color:${g.color};letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">${g.label}</div>
-      <div style="font-size:9px;color:rgba(255,255,255,0.28);">${g.desc}</div>
-    </div>`).join('');
-
-  return `
-    <div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:16px;
-      border-top:1px solid rgba(255,255,255,0.1);border-bottom:1px solid rgba(255,255,255,0.1);
-      padding:16px 0;margin:0 24px 28px;">
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#00d4c8;text-shadow:0 0 10px #00d4c888;">12</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Medications</div>
-      </div>
-      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#c084fc;text-shadow:0 0 10px #c084fc88;">4</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Game Modes</div>
-      </div>
-      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#f59e0b;text-shadow:0 0 10px #f59e0b88;">6</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Drug Classes</div>
-      </div>
-    </div>
-
-    <div style="text-align:center;padding:4px 0 28px;">
-      <span id="blink" onclick="render('select')"
-        style="font-size:clamp(13px,3.5vw,20px);letter-spacing:0.3em;color:#f59e0b;
-               text-shadow:0 0 12px #f59e0b;text-transform:uppercase;cursor:pointer;">
-        ▶ SELECT YOUR MEDICATION ◀
-      </span>
-    </div>
-
-    <div style="text-align:center;padding:0 24px 36px;max-width:440px;margin:0 auto;">
-      <p style="font-size:clamp(11px,2.5vw,14px);line-height:2;color:rgba(255,255,255,0.38);letter-spacing:0.06em;">
-        You're receiving your infusion right now.<br>
-        Watch your medication work — in real time.
-      </p>
-    </div>
-
-    <div style="display:flex;justify-content:center;gap:10px;padding:0 16px 44px;flex-wrap:wrap;">
-      ${tiles}
-    </div>
-
-    <div style="text-align:center;padding:0 0 28px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
-      SharpRX Interactive · dosecraft.io
-    </div>`;
-}
-
-function selectHTML() {
-  const chips = ['WALL BREAKER','BLOCK ATTACK','MEMBRANE BREACH','IMMUNE DEFENSE'].map(m =>
-    `<span style="font-size:9px;letter-spacing:0.15em;color:rgba(255,255,255,0.28);
-      background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-      border-radius:4px;padding:3px 8px;">${m}</span>`).join('');
-
-  const groups = GROUPS.map(grp => {
-    const drugs = DRUGS.filter(d => d.group === grp.label);
-    if (!drugs.length) return '';
-    const cards = drugs.map(d => `
-      <button class="drug-btn" style="border:1.5px solid ${d.color}44;"
-        onmouseenter="this.style.background='linear-gradient(135deg,${d.color}22,${d.color}0d)';this.style.borderColor='${d.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 20px ${d.color}33';"
-        onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='${d.color}44';this.style.transform='none';this.style.boxShadow='none';"
-        onclick="goToGame('${d.name}')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-              <div style="width:8px;height:8px;border-radius:50%;background:${d.color};box-shadow:0 0 6px ${d.color};flex-shrink:0;"></div>
-              <span style="font-size:15px;font-weight:900;color:${d.color};letter-spacing:0.06em;">${d.name}</span>
-            </div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.38);padding-left:16px;margin-bottom:3px;">${d.generic}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.22);padding-left:16px;letter-spacing:0.1em;">${d.tagline}</div>
-          </div>
-          <span style="background:${d.color}1a;border:1px solid ${d.color}44;border-radius:4px;padding:3px 7px;font-size:8px;letter-spacing:0.1em;color:${d.color}cc;text-transform:uppercase;white-space:nowrap;flex-shrink:0;">${d.mode}</span>
-        </div>
-      </button>`).join('');
-
-    return `
-      <div style="display:flex;align-items:center;gap:10px;margin-top:20px;margin-bottom:10px;">
-        <div style="height:1px;width:14px;background:${grp.color}88;"></div>
-        <div style="font-size:9px;letter-spacing:0.35em;color:${grp.color}99;text-transform:uppercase;white-space:nowrap;">${grp.label}</div>
-        <div style="flex:1;height:1px;background:linear-gradient(to right,${grp.color}44,transparent);"></div>
-      </div>
-      <div style="display:grid;gap:7px;">${cards}</div>`;
-  }).join('');
-
-  return `
-    <div style="text-align:center;padding:4px 16px 16px;font-size:11px;letter-spacing:0.25em;color:rgba(255,255,255,0.3);text-transform:uppercase;">
-      Select your medication
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:0 16px 18px;">${chips}</div>
-    <div style="max-width:540px;margin:0 auto;padding:0 14px;">${groups}</div>
-    <div style="text-align:center;padding:28px 0 16px;">
-      <button class="back-btn" onclick="render('attract')">← Back</button>
-    </div>
-    <div style="text-align:center;padding:0 0 32px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
-      SharpRX Interactive · dosecraft.io
-    </div>`;
-}
-
-render('attract');
 </script>
 
-  <!--
-    ── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
-    FILE INVOLVED: sw.js  (new file, repo root)
-
-    Registering from index.html too ensures the SW activates even when a user
-    bookmarks / navigates directly to the drug-selection homepage. The browser
-    deduplicates: registering the same scope from two pages does not create two
-    workers — the existing registration is reused.
-
-    The try/catch fallback means the page works normally if sw.js hasn't been
-    committed yet (safe for incremental deploys).
-  -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker
-          .register('/sw.js', { scope: '/' })
-          .then(function (reg) {
-            console.log('[Dosecraft SW] Registered from index. Scope:', reg.scope);
-          })
-          .catch(function (err) {
-            console.warn('[Dosecraft SW] Registration skipped:', err.message);
-          });
-      });
-    }
-  </script>
 </body>
 </html>
