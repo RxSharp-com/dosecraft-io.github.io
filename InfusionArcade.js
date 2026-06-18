@@ -1506,7 +1506,7 @@ function InfusionArcade({ initialDrug }) {
 
       // ── Clustering hint: show if player is on a clustering zone ─────────────
       const onClustering = playerOnZone && playerOnZone.stage === "clustering";
-      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `12px ${SANS}`;
+      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `15px ${SANS}`;
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       if (onClustering)
         ctx.fillText("Hold here — Cubicin is clustering…", CANVAS_W/2, CANVAS_H - 36);
