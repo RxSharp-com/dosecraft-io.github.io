@@ -2022,7 +2022,6 @@ function InfusionArcade({ initialDrug }) {
       onMouseLeave={e => e.currentTarget.style.opacity = "1"}
     >{label}</button>
   );
-  );
 
   const ShareNotif = () => shareNotif ? (
     <div style={{
