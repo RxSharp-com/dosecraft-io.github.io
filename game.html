@@ -70,6 +70,20 @@
       -webkit-overflow-scrolling: touch;
     }
 
+    /*
+      game-active: applied to <body> only while screen === "playing".
+      Prevents page scroll and pull-to-refresh during gameplay touch drags.
+      Removed automatically on all other screens so menus/companion can scroll.
+    */
+    body.game-active {
+      overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
     body {
       background: #030812;
       display: flex;

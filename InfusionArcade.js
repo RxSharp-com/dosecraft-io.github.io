@@ -519,6 +519,9 @@ function InfusionArcade({ initialDrug }) {
   const animRef = useRef(null);
   const pointerRef = useRef({ x: CANVAS_W / 2, y: CANVAS_H / 2 });
   const splashTimerRef = useRef(null);
+  // gameplayFrozenRef: read by the RAF loop (closure can't read React state).
+  // Kept in sync with isPaused || showTutorial via useEffect below.
+  const gameplayFrozenRef = useRef(false);
 
   // If a drug name was passed via URL param, find its index (default 0)
   const initialIdx = initialDrug
@@ -591,20 +594,35 @@ function InfusionArcade({ initialDrug }) {
   const [infusionProgress, setInfusionProgress] = useState(0);
   const infusionTickRef = useRef(null);
 
+  // ── PAUSE STATE ───────────────────────────────────────────────────────────
+  // isPaused: true = game frozen, pause overlay visible.
+  // pausePanel: which sub-panel is shown inside the overlay.
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausePanel, setPausePanel] = useState("main"); // "main" | "about" | "howToPlay"
+
   // ── TUTORIAL OVERLAY STATE ────────────────────────────────────────────────
   // showTutorial: true = overlay visible on top of the playing screen.
-  // Keyed per gameType so each game type only shows once per device.
-  // The overlay can also be re-opened any time via the "How to Play" button.
+  // Keyed per gameType+wave so IVIG wave 0 and wave 1 each show once.
+  // The overlay can also be re-opened any time via the pause menu.
   const [showTutorial, setShowTutorial] = useState(false);
 
-  function getTutorialKey(gameType) {
-    return `dosecraft_tutorial_seen_${(gameType || "").replace(/[^a-z0-9]/gi, "_")}`;
+  // Sync the ref the RAF loop reads — runs after every render where either changes.
+  useEffect(() => {
+    gameplayFrozenRef.current = isPaused || showTutorial;
+  }, [isPaused, showTutorial]);
+
+  // Returns a localStorage key for the tutorial. For IVIG, includes the
+  // current wave so Wave 0 seen ≠ Wave 1 seen.
+  function getTutorialKey(gameType, wave) {
+    const waveSuffix = (gameType === "ivig" && wave !== undefined && wave !== null)
+      ? `_wave${wave}` : "";
+    return `dosecraft_tutorial_seen_${(gameType || "").replace(/[^a-z0-9]/gi, "_")}${waveSuffix}`;
   }
 
   function openTutorial() { setShowTutorial(true); }
 
-  function closeTutorial(gameType) {
-    try { localStorage.setItem(getTutorialKey(gameType), "true"); } catch (e) {}
+  function closeTutorial(gameType, wave) {
+    try { localStorage.setItem(getTutorialKey(gameType, wave), "true"); } catch (e) {}
     setShowTutorial(false);
   }
   // roundCount: how many rounds have been completed this session (drives ramp)
@@ -681,17 +699,33 @@ function InfusionArcade({ initialDrug }) {
     if (key) MUSIC.fadeToTrack(key);
   }, [screen]);
 
+  // ── MOBILE SCROLL LOCK ────────────────────────────────────────────────────
+  // Add .game-active to <body> only while playing so that touch drags control
+  // the game instead of scrolling the page. Removed on every other screen so
+  // menus and companion can scroll normally.
+  useEffect(() => {
+    if (screen === "playing") {
+      document.body.classList.add("game-active");
+    } else {
+      document.body.classList.remove("game-active");
+    }
+    return () => document.body.classList.remove("game-active");
+  }, [screen]);
+
   // Show tutorial overlay automatically the first time each game type is played.
-  // Checks localStorage so it only fires once per device per game type.
+  // For IVIG, also re-shows when the wave advances (wave 0 seen ≠ wave 1 seen).
+  // Checks localStorage so it only fires once per device per game type+wave.
   // Does not affect session timer, round state, or drug state.
+  const currentIvigWave = stateRef.current?.ivigWave ?? 0;
   useEffect(() => {
     if (screen !== "playing") return;
-    const key = getTutorialKey(drug.gameType);
+    const wave = drug.gameType === "ivig" ? (stateRef.current?.ivigWave ?? 0) : undefined;
+    const key = getTutorialKey(drug.gameType, wave);
     let seen = false;
     try { seen = localStorage.getItem(key) === "true"; } catch (e) {}
     if (!seen) setShowTutorial(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen]);
+  }, [screen, currentIvigWave]);
 
   // Called when an arcade round finishes — NEVER resets the infusion timer.
   function handleRoundComplete() {
@@ -981,7 +1015,8 @@ function InfusionArcade({ initialDrug }) {
     }
 
     // ── BREAKOUT ──────────────────────────────────────────────────────────────
-    function tickBreakout(s) {
+    function tickBreakout(s, frozen) {
+      if (!frozen) {
       s.paddle.x += (s.targetPaddleX - s.paddle.x) * 0.28;
       if (!s.launched) { s.ball.x = s.paddle.x + PADDLE_W / 2; s.ball.y = s.paddle.y - BALL_R - 3; }
       else {
@@ -1014,7 +1049,8 @@ function InfusionArcade({ initialDrug }) {
         }
         tickP(s);
       }
-      if (s.bricks.every(b => !b.alive)) { handleRoundComplete(); return false; }
+      } // end if (!frozen)
+      if (!frozen && s.bricks.every(b => !b.alive)) { handleRoundComplete(); return false; }
       const pct = s.clearedBricks / s.totalBricks;
       drawBg();
       for (const brick of s.bricks) {
@@ -1043,7 +1079,8 @@ function InfusionArcade({ initialDrug }) {
     }
 
     // ── VANCOMYCIN ────────────────────────────────────────────────────────────
-    function tickVanco(s) {
+    function tickVanco(s, frozen) {
+      if (!frozen) {
       s.vancoX += (s.targetVancoX - s.vancoX) * 0.3;
       s.spawnTimer++;
       // Spawn indefinitely until the goal is reached — no hard cap
@@ -1069,6 +1106,7 @@ function InfusionArcade({ initialDrug }) {
       tickP(s);
       // Win when the player has intercepted enough precursors to fill the bar
       if (s.blocked >= s.goal) { handleRoundComplete(); return false; }
+      } // end if (!frozen)
       const pct = Math.min(1, s.blocked / s.goal);
       drawBg();
       ctx.save(); ctx.fillStyle = "rgba(255,80,80,0.07)"; ctx.fillRect(0, CANVAS_H - 90, CANVAS_W, 90);
@@ -1093,10 +1131,10 @@ function InfusionArcade({ initialDrug }) {
     }
 
     // ── DAPTOMYCIN — phase-based: insertion -> oligomerization -> pore -> depolarization
-    function tickDapto(s) {
+    function tickDapto(s, frozen) {
 
-      // Wave transition overlay (compat)
-      if (s.waveTransition > 0) {
+      // Wave transition overlay (compat) — skip tick count during freeze
+      if (!frozen && s.waveTransition > 0) {
         s.waveTransition--;
         drawBg();
         ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -1107,6 +1145,7 @@ function InfusionArcade({ initialDrug }) {
         drawWatermark(); return true;
       }
 
+      if (!frozen) {
       // ── Move player ──────────────────────────────────────────────────────────
       s.daptoX += (s.targetDaptoX - s.daptoX) * 0.3;
       s.daptoY += (s.targetDaptoY - s.daptoY) * 0.3;
@@ -1277,11 +1316,14 @@ function InfusionArcade({ initialDrug }) {
       }
 
       tickP(s);
+      } // end if (!frozen)
 
       // ── Progress: depolarization meter drives win condition ──────────────────
       const pct = Math.min(1, 1 - s.membranePotential);
-      setProgress(pct);
-      if (s.membranePotential <= 0) { handleRoundComplete(); return false; }
+      if (!frozen) {
+        setProgress(pct);
+        if (s.membranePotential <= 0) { handleRoundComplete(); return false; }
+      }
 
       // ════════════════════════════════════════════════════════════════════════
       // DRAW
@@ -1478,9 +1520,9 @@ function InfusionArcade({ initialDrug }) {
     }
 
     // ── IVIG ─────────────────────────────────────────────────────────────────
-    function tickIvig(s) {
+    function tickIvig(s, frozen) {
       // ── Wave transition screen ──────────────────────────────────────────────
-      if (s.waveTransition > 0) {
+      if (!frozen && s.waveTransition > 0) {
         s.waveTransition--;
         drawBg();
         ctx.fillStyle = "rgba(0,0,0,0.72)"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -1506,6 +1548,7 @@ function InfusionArcade({ initialDrug }) {
       // ── IVIG Wave 0: Signal Sweep (Galaga-inspired formation phase) ──────────
       if (s.ivigWave === 0) {
 
+        if (!frozen) {
         // ── Player movement ──────────────────────────────────────────────────
         s.ssPlayerX += (s.ssTargetX - s.ssPlayerX) * 0.3;
         if (s.ssCooldown > 0) s.ssCooldown--;
@@ -1650,11 +1693,12 @@ function InfusionArcade({ initialDrug }) {
         const pct = Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5);
 
         // ── Phase complete: transition to Wave 1 ─────────────────────────────
-        if (s.ssCalmed >= s.ssGoal) {
+        if (!frozen && s.ssCalmed >= s.ssGoal) {
           s.ivigWave = 1;
           s.waveTransition = 160;
           return true;
         }
+        } // end if (!frozen) wave 0 update
 
         // ── Draw Signal Sweep ────────────────────────────────────────────────
         drawBg();
@@ -1783,13 +1827,15 @@ function InfusionArcade({ initialDrug }) {
         ctx.fillStyle = "rgba(255,255,255,0.15)"; ctx.font = `bold 9px ${SANS}`; ctx.textAlign = "right";
         ctx.fillText("Signal Sweep — Stabilize the Field", CANVAS_W - 10, 52);
 
-        drawP(s); tickP(s);
-        drawHUD(pct, `Stability: ${Math.round((s.ssCalmed / s.ssGoal) * 100)}%`);
+        drawP(s); if (!frozen) tickP(s);
+        const wave0pct = Math.min(0.5, s.ssCalmed / s.ssGoal * 0.5);
+        drawHUD(wave0pct, `Stability: ${Math.round((s.ssCalmed / s.ssGoal) * 100)}%`);
         return true;
       }
 
       // ── IVIG Wave 2: Receptor Blockade (grid flood-fill) ──────────────────
       if (s.ivigWave === 1) {
+        if (!frozen) {
         s.igGX += (s.targetIgGX - s.igGX) * 0.3;
         s.igGY += (s.targetIgGY - s.igGY) * 0.3;
 
@@ -1848,11 +1894,14 @@ function InfusionArcade({ initialDrug }) {
         }
 
         tickP(s);
+        } // end if (!frozen) wave 1 update
 
-        // ── Draw wave 2 ──────────────────────────────────────────────────────
+        // ── Draw wave 1 (Receptor Blockade) ─────────────────────────────────
+        const occupiedCount = s.receptors.filter(r => r.state === "occupied").length;
+        const blockedCount  = s.receptors.filter(r => r.state === "blocked").length;
+        const pct = 0.5 + Math.min(0.5, (occupiedCount / s.totalReceptors) * 0.5);
+
         drawBg();
-
-        // Background label
         ctx.fillStyle = "rgba(255,255,255,0.2)"; ctx.font = `10px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
         ctx.fillText("Immune receptor field — occupy sites before autoimmune signals do", CANVAS_W / 2, 52);
 
@@ -1888,13 +1937,13 @@ function InfusionArcade({ initialDrug }) {
             ctx.fillText(label, cx, cy);
           }
 
-          // Draw Y symbol if occupied
           if (r.state === "occupied") {
             drawYShape(ctx, cx, cy, rr * 0.8, dc + "cc");
           }
         }
 
         // Draw player IgG ball
+        const BALL_R2 = 18;
         ctx.save(); ctx.shadowBlur = 28; ctx.shadowColor = dc;
         const igG = ctx.createRadialGradient(s.igGX, s.igGY, 2, s.igGX, s.igGY, BALL_R2);
         igG.addColorStop(0, dc); igG.addColorStop(1, dc + "55");
@@ -1922,12 +1971,17 @@ function InfusionArcade({ initialDrug }) {
 
     const loop = () => {
       const s = stateRef.current; if (!s) return;
+      // gameplayFrozen: pause overlay OR tutorial overlay is open.
+      // When frozen: draw current state but skip all update/collision/spawn logic.
+      // The real infusion timer runs in a setInterval and is unaffected.
+      const frozen = gameplayFrozenRef.current;
       let cont;
-      if (s.gameType === "breakout") cont = tickBreakout(s);
-      else if (s.gameType === "vanco") cont = tickVanco(s);
-      else if (s.gameType === "dapto") cont = tickDapto(s);
-      else cont = tickIvig(s);
-      if (cont !== false) animRef.current = requestAnimationFrame(loop);
+      if (s.gameType === "breakout") cont = tickBreakout(s, frozen);
+      else if (s.gameType === "vanco")    cont = tickVanco(s, frozen);
+      else if (s.gameType === "dapto")    cont = tickDapto(s, frozen);
+      else                                cont = tickIvig(s, frozen);
+      // When frozen, always keep looping (cont may be undefined from draw-only path)
+      if (frozen || cont !== false) animRef.current = requestAnimationFrame(loop);
     };
     animRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animRef.current);
@@ -2555,52 +2609,113 @@ function InfusionArcade({ initialDrug }) {
   // ── PLAYING SCREEN — canvas + prominent infusion companion strip ──────────
   // Phase 5: strip is larger and clearly readable during play.
 
-  // Tutorial content per game type — 2-3 lines max, no jargon.
+  // ── TUTORIAL CONTENT ────────────────────────────────────────────────────────
+  // Keyed by gameType; IVIG has per-wave entries.
+  // "what" = what to do. "why" = why it matters. Keep to 2–3 sentences max.
   const TUTORIAL_CONTENT = {
     breakout: {
       what: "Slide left or right to move the paddle. Bounce the dose into the bacterial wall.",
       why:  "Breaking the wall shows how this antibiotic weakens the bacteria's outer layer.",
     },
     vanco: {
-      what: "Move the paddle to intercept falling wall-building blocks before they stack up.",
+      what: "Move the paddle to intercept the falling wall-building blocks before they reach the wall.",
       why:  "This shows how vancomycin blocks bacteria from building strong cell walls.",
     },
     dapto: {
-      what: "Collect calcium ions to charge up, then strike the glowing membrane zones.",
-      why:  "This shows how daptomycin uses calcium to punch holes in bacterial membranes.",
+      what: "First, collect the calcium ions (Ca²⁺) floating in the bloodstream. Then move daptomycin onto a glowing membrane zone and hold it there until the circle fills completely — that creates a pore.",
+      why:  "This shows how daptomycin uses calcium to punch holes in bacterial membranes, causing the bacteria to lose the ions they need to survive.",
     },
-    ivig: {
-      what: "Move and tap Fire to calm the signals. Then flood the receptor grid.",
-      why:  "This shows how IVIG helps calm and redirect overactive immune signals.",
+    ivig_wave0: {
+      what: "Move and tap Fire to calm the immune signals sweeping across the screen.",
+      why:  "This represents IVIG helping redirect an overactive immune response.",
+    },
+    ivig_wave1: {
+      what: "Guide the IgG ball to touch open receptor sites before autoimmune signals block them. Occupy at least 70% of the grid to complete the round.",
+      why:  "IVIG helps calm and redirect immune activity by flooding receptors — rather than simply attacking one target.",
     },
   };
-  const tut = TUTORIAL_CONTENT[drug.gameType] || { what: "Play the game!", why: "Watch your medication work." };
+
+  // Pick the right tutorial entry. IVIG uses wave-aware keys.
+  function getTutContent() {
+    if (drug.gameType === "ivig") {
+      const wave = stateRef.current?.ivigWave ?? 0;
+      return TUTORIAL_CONTENT[wave === 0 ? "ivig_wave0" : "ivig_wave1"]
+        || { what: "Play the game!", why: "Watch your medication work." };
+    }
+    return TUTORIAL_CONTENT[drug.gameType]
+      || { what: "Play the game!", why: "Watch your medication work." };
+  }
+  const tut = getTutContent();
+
+  // About text — use drug's own plain-language explanation from the Truth Layer.
+  const aboutText = drug.howItWorks || drug.description || "Medication information not available for this drug.";
+
+  // Shared overlay wrapper style
+  const overlayWrap = {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    background: "rgba(3,8,18,0.92)", display: "flex", alignItems: "center",
+    justifyContent: "center", zIndex: 50, borderRadius: 14,
+    animation: "tutIn 0.25s ease forwards",
+    // Prevent touch events on the overlay from reaching the canvas
+    touchAction: "none",
+  };
+  const overlayCard = {
+    maxWidth: 340, width: "90%", background: "#0d1a2e",
+    border: `2px solid ${col}88`, borderRadius: 16, padding: "24px 20px",
+    textAlign: "center", fontFamily: SANS,
+    maxHeight: "90vh", overflowY: "auto",
+  };
+  const overlayBtn = (accent) => ({
+    display: "block", width: "100%",
+    background: (accent ? col : "rgba(255,255,255,0.08)") + (accent ? "33" : ""),
+    border: `2px solid ${accent ? col : "rgba(255,255,255,0.2)"}`,
+    color: accent ? col : "rgba(255,255,255,0.8)",
+    padding: "14px 20px", borderRadius: 10, fontSize: 16, fontWeight: 700,
+    cursor: "pointer", fontFamily: SANS, touchAction: "manipulation",
+    marginBottom: 10,
+  });
+  const overlayBtnSm = {
+    display: "block", width: "100%",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.15)",
+    color: "rgba(255,255,255,0.6)",
+    padding: "11px 20px", borderRadius: 9, fontSize: 14, fontWeight: 600,
+    cursor: "pointer", fontFamily: SANS, touchAction: "manipulation",
+    marginBottom: 8,
+  };
+
+  // ── PAUSE HANDLERS ───────────────────────────────────────────────────────
+  function handlePause() { setIsPaused(true); setPausePanel("main"); }
+  function handleResume() { setIsPaused(false); setPausePanel("main"); }
+  function handlePauseAbout() { setIsPaused(true); setPausePanel("about"); }
+  function handlePauseHowToPlay() { setIsPaused(true); setPausePanel("howToPlay"); }
+  function handleReturnToCompanion() {
+    // Leaves the current round but preserves the infusion session entirely.
+    setIsPaused(false);
+    setScreen(sessionActive ? "companion" : "menu");
+  }
+  function handleEndRound() {
+    // Ends only the arcade round. Session timer continues.
+    setIsPaused(false);
+    setScreen(sessionActive ? "companion" : "menu");
+  }
 
   return (
     <div style={{ ...pageStyle, padding: 8, position: "relative" }}>
-      <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }
-@keyframes tutIn { from { opacity:0; transform:scale(0.93); } to { opacity:1; transform:scale(1); } }`}</style>
+      <style>{`
+        @keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }
+        @keyframes tutIn { from { opacity:0; transform:scale(0.93); } to { opacity:1; transform:scale(1); } }
+      `}</style>
 
       <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
         style={{ display: "block", borderRadius: 14, border: `2px solid ${col}33`, boxShadow: `0 0 40px ${col}22`, maxWidth: "100%", touchAction: "none" }} />
 
-      {/* ── TUTORIAL OVERLAY ─────────────────────────────────────────────────
-          Appears on top of the canvas on first play of each game type.
-          Keyed per gameType — "Got it" sets a localStorage flag so it never
-          auto-shows again for that game type on this device.
-          Does NOT pause the game loop or reset any state. */}
-      {showTutorial && (
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(3,8,18,0.88)", display: "flex", alignItems: "center",
-          justifyContent: "center", zIndex: 50, borderRadius: 14,
-          animation: "tutIn 0.25s ease forwards",
-        }}>
-          <div style={{
-            maxWidth: 340, width: "90%", background: "#0d1a2e",
-            border: `2px solid ${col}88`, borderRadius: 16, padding: "28px 24px",
-            textAlign: "center", fontFamily: SANS,
-          }}>
+      {/* ── TUTORIAL OVERLAY ────────────────────────────────────────────────
+          Game is frozen (gameplayFrozenRef = true) while this is visible.
+          "Got it" marks seen in localStorage and unfreezes gameplay.       */}
+      {showTutorial && !isPaused && (
+        <div style={overlayWrap}>
+          <div style={overlayCard}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>
               {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡" }[drug.gameType] || "🎮"}
             </div>
@@ -2617,24 +2732,82 @@ function InfusionArcade({ initialDrug }) {
             </div>
 
             <button
-              onClick={() => closeTutorial(drug.gameType)}
-              style={{
-                background: col + "33", border: `2px solid ${col}`, color: col,
-                padding: "14px 36px", borderRadius: 10, fontSize: 16, fontWeight: 700,
-                cursor: "pointer", fontFamily: SANS, touchAction: "manipulation",
-                width: "100%",
-              }}>
+              onClick={() => {
+                const wave = drug.gameType === "ivig" ? (stateRef.current?.ivigWave ?? 0) : undefined;
+                closeTutorial(drug.gameType, wave);
+              }}
+              style={{ ...overlayBtn(true), marginBottom: 0 }}>
               Got it — let's play
             </button>
           </div>
         </div>
       )}
 
-      {/* Infusion companion strip — Phase 5: larger, prominent, always visible when session active */}
+      {/* ── PAUSE OVERLAY ───────────────────────────────────────────────────
+          Game is frozen while this is visible. Infusion timer keeps running.
+          Three sub-panels: main | about | howToPlay                        */}
+      {isPaused && (
+        <div style={overlayWrap}>
+          <div style={overlayCard}>
+
+            {/* ── MAIN PAUSE PANEL ── */}
+            {pausePanel === "main" && (<>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>⏸</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Game paused</div>
+              {sessionActive && (
+                <div style={{ fontSize: 12, color: col + "99", marginBottom: 20 }}>Your infusion timer is still running.</div>
+              )}
+              {!sessionActive && <div style={{ marginBottom: 20 }} />}
+
+              <button style={overlayBtn(true)} onClick={handleResume}>▶ Resume</button>
+              <button style={overlayBtnSm} onClick={handlePauseAbout}>About this drug</button>
+              <button style={overlayBtnSm} onClick={handlePauseHowToPlay}>How to Play</button>
+              {sessionActive && (
+                <button style={overlayBtnSm} onClick={handleReturnToCompanion}>Return to Companion</button>
+              )}
+              <button style={{ ...overlayBtnSm, marginBottom: 0, color: "rgba(255,100,100,0.7)", borderColor: "rgba(255,100,100,0.25)" }}
+                onClick={handleEndRound}>End Round</button>
+            </>)}
+
+            {/* ── ABOUT PANEL ── */}
+            {pausePanel === "about" && (<>
+              <div style={{ fontSize: 14, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 12 }}>About this drug</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: col, marginBottom: 14 }}>{drug.name}</div>
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.88)", lineHeight: 1.65, margin: 0 }}>{aboutText}</p>
+              </div>
+              <button style={overlayBtnSm} onClick={() => setPausePanel("main")}>← Back to pause menu</button>
+              <button style={{ ...overlayBtn(true), marginBottom: 0 }} onClick={handleResume}>▶ Resume</button>
+            </>)}
+
+            {/* ── HOW TO PLAY PANEL ── */}
+            {pausePanel === "howToPlay" && (<>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>
+                {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡" }[drug.gameType] || "🎮"}
+              </div>
+              <div style={{ fontSize: 14, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 16 }}>How to Play</div>
+
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", marginBottom: 12, textAlign: "left" }}>
+                <div style={{ fontSize: 12, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 6 }}>What to do</div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", lineHeight: 1.6, margin: 0 }}>{tut.what}</p>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 10, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+                <div style={{ fontSize: 12, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 6 }}>Why it matters</div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", lineHeight: 1.6, margin: 0 }}>{tut.why}</p>
+              </div>
+
+              <button style={overlayBtnSm} onClick={() => setPausePanel("main")}>← Back to pause menu</button>
+              <button style={{ ...overlayBtn(true), marginBottom: 0 }} onClick={handleResume}>▶ Resume</button>
+            </>)}
+
+          </div>
+        </div>
+      )}
+
+      {/* Infusion companion strip */}
       {sessionActive && (
         <div style={{ marginTop: 12, maxWidth: CANVAS_W, width: "100%", background: col + "0f", border: `1px solid ${col}33`, borderRadius: 10, padding: "10px 14px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Mini IV bag SVG */}
             <IVBagSVG pct={infusionProgress} size={34} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
@@ -2653,34 +2826,21 @@ function InfusionArcade({ initialDrug }) {
         </div>
       )}
 
-      <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+      {/* ── SINGLE PAUSE BUTTON ── replaces all old in-game nav buttons */}
+      <div style={{ marginTop: 10, display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
         <button
-          onClick={() => { cancelAnimationFrame(animRef.current); setScreen("menu"); }}
-          style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)", padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
-          {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
-          ← Menu
+          onClick={handlePause}
+          style={{
+            background: "rgba(255,255,255,0.1)", border: `2px solid ${col}66`,
+            color: col, padding: "13px 36px", borderRadius: 10,
+            fontSize: 16, fontWeight: 700, cursor: "pointer",
+            fontFamily: SANS, touchAction: "manipulation",
+            minWidth: 140, letterSpacing: 1,
+          }}>
+          ⏸ Pause
         </button>
-
-        {/* How to Play — always available, reopens the tutorial overlay without resetting anything */}
-        <button
-          onClick={openTutorial}
-          style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
-          How to Play
-        </button>
-
-        <button
-          onClick={() => { cancelAnimationFrame(animRef.current); setScreen("intro"); }}
-          style={{ background: "rgba(255,255,255,0.1)", border: `1px solid ${col}44`, color: col, padding: "12px 20px", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
-          ℹ About {drug.name}
-        </button>
-        {sessionActive && (
-          <button
-            onClick={() => { cancelAnimationFrame(animRef.current); setScreen("companion"); }}
-            style={{ background: col + "22", border: `1px solid ${col}66`, color: col, padding: "12px 20px", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation" }}>
-            💧 Session
-          </button>
-        )}
       </div>
+
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: 2, textTransform: "uppercase" }}>SharpRX Interactive</div>
       <MusicToggle />
     </div>
