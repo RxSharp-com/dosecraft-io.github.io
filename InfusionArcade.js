@@ -2010,16 +2010,18 @@ function InfusionArcade({ initialDrug }) {
 
   const ShareBtn = ({ label = "▶ SHARE DOSECRAFT" }) => (
     <button onClick={handleShare} style={{
-      background: "transparent",
-      border: "1.5px solid rgba(255,255,255,0.22)",
-      color: "rgba(255,255,255,0.55)",
-      padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 700,
+      background: "rgba(255,255,255,0.1)",
+      color: "rgba(255,255,255,0.9)",
+      border: "2px solid rgba(255,255,255,0.28)",
+      padding: "18px 36px", borderRadius: 14, fontSize: 18, fontWeight: 700,
       fontFamily: SANS, cursor: "pointer", touchAction: "manipulation",
-      letterSpacing: 1, width: "100%", marginTop: 10,
+      boxShadow: "none", letterSpacing: 0.5,
+      width: "100%", minHeight: 56,
     }}
-      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"}
-      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"}
+      onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
+      onMouseLeave={e => e.currentTarget.style.opacity = "1"}
     >{label}</button>
+  );
   );
 
   const ShareNotif = () => shareNotif ? (
