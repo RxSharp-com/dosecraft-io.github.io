@@ -2598,8 +2598,6 @@ function InfusionArcade({ initialDrug }) {
               </button>
             )}
           </div>
-          document.addEventListener("DOMContentLoaded", () => {
-}
           <MusicToggle />
           <SharpRXBadge />
         </div>
