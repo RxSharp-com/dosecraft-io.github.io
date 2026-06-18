@@ -136,6 +136,19 @@
     SFX.load('dapto_collect',   'audio/dapto_collect.webm');
     SFX.load('level_complete',  'audio/level_complete.wav');
     SFX.load('vanco_intercept', 'audio/vanco_intercept.webm');
+  window.addEventListener("error", function (e) {
+  const overlay = document.getElementById("debug-overlay");
+  if (overlay) {
+    overlay.style.display = "block";
+    overlay.innerText =
+      "JS ERROR:\n" +
+      e.message +
+      "\n\nFile: " +
+      (e.filename || "unknown") +
+      "\nLine: " +
+      (e.lineno || "unknown");
+  }
+});
     // wall_destroyed and wall_hit reserved — not wired to any game event yet
   });
 </script>
