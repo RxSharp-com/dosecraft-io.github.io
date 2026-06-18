@@ -2094,6 +2094,7 @@ function InfusionArcade({ initialDrug }) {
           ))}
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
           <MusicToggle />
+          <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
           <SharpRXBadge />
         </div>
       </div>
@@ -2599,13 +2600,8 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
           <MusicToggle />
-          <SharpRXBadge />
-        </div>
-      </div>
-    );
-  }
-
-  // ── PLAYING SCREEN — canvas + prominent infusion companion strip ──────────
+          <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
+          <SharpRXBadge /> — canvas + prominent infusion companion strip ──────────
   // Phase 5: strip is larger and clearly readable during play.
 
   // ── TUTORIAL CONTENT ────────────────────────────────────────────────────────
