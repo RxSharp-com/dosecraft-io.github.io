@@ -1080,6 +1080,8 @@ function InfusionArcade({ initialDrug }) {
 
     // ── VANCOMYCIN ────────────────────────────────────────────────────────────
     function tickVanco(s, frozen) {
+      const wallY = CANVAS_H - 90;
+      
       if (!frozen) {
       s.vancoX += (s.targetVancoX - s.vancoX) * 0.3;
       s.spawnTimer++;
@@ -1090,7 +1092,6 @@ function InfusionArcade({ initialDrug }) {
         const px = Math.max(4, Math.min(CANVAS_W - PRECURSOR_W - 4, lane + (Math.random() - 0.5) * 20));
         s.precursors.push({ x: px, y: -PRECURSOR_H, speed: s.speed + (Math.random() - 0.5) * 0.25, bound: false, missed: false, flash: 0, opacity: 1 });
       }
-      const wallY = CANVAS_H - 90;
       for (const pre of s.precursors) {
         if (pre.bound || pre.missed) { pre.opacity -= 0.045; continue; }
         pre.y += pre.speed; if (pre.flash > 0) pre.flash--;
@@ -1132,6 +1133,9 @@ function InfusionArcade({ initialDrug }) {
 
     // ── DAPTOMYCIN — phase-based: insertion -> oligomerization -> pore -> depolarization
     function tickDapto(s, frozen) {
+      const playerCX = s.daptoX + DAPTO_W / 2;
+  const playerBottom = s.daptoY + DAPTO_H;
+  let playerOnZone = null;
 
       // Wave transition overlay (compat) — skip tick count during freeze
       if (!frozen && s.waveTransition > 0) {
@@ -1206,9 +1210,6 @@ function InfusionArcade({ initialDrug }) {
       }
 
       // ── Per-zone logic ───────────────────────────────────────────────────────
-      const playerCX     = s.daptoX + DAPTO_W / 2;
-      const playerBottom = s.daptoY + DAPTO_H;
-      let playerOnZone   = null;  // declared here so draw section can always read it
 
       for (const zone of s.zones) {        if (zone.flashTimer > 0) zone.flashTimer--;
 
