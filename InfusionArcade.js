@@ -2600,15 +2600,6 @@ function InfusionArcade({ initialDrug }) {
           </div>
           document.addEventListener("DOMContentLoaded", () => {
   const feedbackBtn = document.getElementById("feedbackButton");
-
-  if (feedbackBtn) {
-    feedbackBtn.addEventListener("click", () => {
-      window.open("https://forms.gle/p3a8bxjyhZxxT2gH9", "_blank");
-    });
-  }
-});
-    function openFeedbackForm() {
-  window.open("https://forms.gle/p3a8bxjyhZxxT2gH9", "_blank");
 }
           <MusicToggle />
           <SharpRXBadge />
