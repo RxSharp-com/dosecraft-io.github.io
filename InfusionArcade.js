@@ -629,6 +629,7 @@ function InfusionArcade({ initialDrug }) {
   // roundSetup: the pattern + objective chosen at the start of each round
   const [roundCount, setRoundCount] = useState(0);
   const [roundSetup, setRoundSetup] = useState(null);
+  const [shareNotif, setShareNotif] = useState(false);
 
   // Milestone message derived from infusion progress (0–1)
   function getMilestoneMessage(pct) {
@@ -1994,6 +1995,46 @@ function InfusionArcade({ initialDrug }) {
     fontFamily: SANS, color: "#f0f4ff", padding: "20px 16px",
   };
 
+  const SHARE_URL  = "https://dosecraft.io";
+  const SHARE_TEXT = "I'm trying Dosecraft, an arcade-style game designed for infusion patients.\n\nThe project is still being developed, and feedback from players helps improve it for future patients.\n\nTry it here: https://dosecraft.io\nFeedback: https://forms.gle/p3a8bxjyhZxxT2gH9\n\nIf you have a few minutes, play a game and share your feedback.";
+
+  function handleShare() {
+    if (navigator.share) {
+      navigator.share({ title: "Dosecraft", text: SHARE_TEXT, url: SHARE_URL }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(SHARE_URL).catch(() => {});
+      setShareNotif(true);
+      setTimeout(() => setShareNotif(false), 3500);
+    }
+  }
+
+  const ShareBtn = ({ label = "▶ SHARE DOSECRAFT" }) => (
+    <button onClick={handleShare} style={{
+      background: "transparent",
+      border: "1.5px solid rgba(255,255,255,0.22)",
+      color: "rgba(255,255,255,0.55)",
+      padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 700,
+      fontFamily: SANS, cursor: "pointer", touchAction: "manipulation",
+      letterSpacing: 1, width: "100%", marginTop: 10,
+    }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"}
+      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"}
+    >{label}</button>
+  );
+
+  const ShareNotif = () => shareNotif ? (
+    <div style={{
+      position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+      background: "rgba(6,10,20,0.97)", border: "1px solid rgba(255,255,255,0.18)",
+      borderRadius: 10, padding: "14px 22px", textAlign: "center",
+      fontFamily: SANS, zIndex: 9999, pointerEvents: "none",
+      boxShadow: "0 0 18px rgba(0,200,255,0.15)",
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 2, color: "#00d4c8", marginBottom: 4 }}>LINK COPIED TO CLIPBOARD</div>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", letterSpacing: 0.5 }}>SHARE WITH FRIENDS, FAMILY, OR OTHER PATIENTS</div>
+    </div>
+  ) : null;
+
   const SharpRXBadge = () => (
     <div style={{ marginTop: 24, textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
       SharpRX Interactive
@@ -2094,8 +2135,10 @@ function InfusionArcade({ initialDrug }) {
           ))}
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
           <MusicToggle />
+          <ShareBtn />
           <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
           <SharpRXBadge />
+          <ShareNotif />
         </div>
       </div>
     );
@@ -2600,8 +2643,10 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
           <MusicToggle />
+          <ShareBtn label="▶ SHARE WITH OTHERS" />
           <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
           <SharpRXBadge />
+          <ShareNotif />
         </div>
       </div>
     );
