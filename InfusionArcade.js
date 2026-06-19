@@ -732,6 +732,7 @@ function InfusionArcade({ initialDrug }) {
   function handleRoundComplete() {
     cancelAnimationFrame(animRef.current);
     SFX.play("level_complete");
+    trackEvent('level_completed', { level: roundCount + 1, medication: DRUGS[drugIdx].name });
     setRoundCount(c => c + 1);
     // Always go to the round-complete screen; companion data shown there.
     setScreen("roundComplete");
@@ -769,6 +770,7 @@ function InfusionArcade({ initialDrug }) {
     stateRef.current = null;
 
     const d = DRUGS[idx];
+    trackEvent('medication_selected', { medication: d.name });
     const setup = pickRoundSetup(d.gameType, roundCount);
     setRoundSetup(setup);
 
@@ -1506,7 +1508,7 @@ function InfusionArcade({ initialDrug }) {
 
       // ── Clustering hint: show if player is on a clustering zone ─────────────
       const onClustering = playerOnZone && playerOnZone.stage === "clustering";
-      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `15px ${SANS}`;
+      ctx.fillStyle = "rgba(255,255,255,0.65)"; ctx.font = `12px ${SANS}`;
       ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       if (onClustering)
         ctx.fillText("Hold here — Cubicin is clustering…", CANVAS_W/2, CANVAS_H - 36);
@@ -1999,6 +2001,7 @@ function InfusionArcade({ initialDrug }) {
   const SHARE_TEXT = "I'm trying Dosecraft, an arcade-style game designed for infusion patients.\n\nThe project is still being developed, and feedback from players helps improve it for future patients.\n\nTry it here: https://dosecraft.io\nFeedback: https://forms.gle/p3a8bxjyhZxxT2gH9\n\nIf you have a few minutes, play a game and share your feedback.";
 
   function handleShare() {
+    trackEvent('share_click');
     if (navigator.share) {
       navigator.share({ title: "Dosecraft", text: SHARE_TEXT, url: SHARE_URL }).catch(() => {});
     } else {
@@ -2008,18 +2011,23 @@ function InfusionArcade({ initialDrug }) {
     }
   }
 
+  function handleFeedback() {
+    trackEvent('feedback_click');
+    trackEvent('feedback_form_opened');
+    window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank");
+  }
+
   const ShareBtn = ({ label = "▶ SHARE DOSECRAFT" }) => (
     <button onClick={handleShare} style={{
-      background: "rgba(255,255,255,0.1)",
-      color: "rgba(255,255,255,0.9)",
-      border: "2px solid rgba(255,255,255,0.28)",
-      padding: "18px 36px", borderRadius: 14, fontSize: 18, fontWeight: 700,
+      background: "transparent",
+      border: "1.5px solid rgba(255,255,255,0.22)",
+      color: "rgba(255,255,255,0.55)",
+      padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 700,
       fontFamily: SANS, cursor: "pointer", touchAction: "manipulation",
-      boxShadow: "none", letterSpacing: 0.5,
-      width: "100%", minHeight: 56,
+      letterSpacing: 1, width: "100%", marginTop: 10,
     }}
-      onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-      onMouseLeave={e => e.currentTarget.style.opacity = "1"}
+      onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"}
+      onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"}
     >{label}</button>
   );
 
@@ -2137,7 +2145,7 @@ function InfusionArcade({ initialDrug }) {
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
           <MusicToggle />
           <ShareBtn />
-          <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
+          <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
           <SharpRXBadge />
           <ShareNotif />
         </div>
@@ -2499,7 +2507,7 @@ function InfusionArcade({ initialDrug }) {
             {sessionActive && !isSessionComplete && (
               <BigBtn
                 label="💧 Infusion companion"
-                onClick={() => setScreen("companion")}
+                onClick={() => { trackEvent('companion_mode_opened'); setScreen("companion"); }}
               />
             )}
             {isSessionComplete && (
@@ -2645,7 +2653,7 @@ function InfusionArcade({ initialDrug }) {
           </div>
           <MusicToggle />
           <ShareBtn label="▶ SHARE WITH OTHERS" />
-          <BigBtn label="💬 Share feedback" onClick={() => window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank")} />
+          <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
           <SharpRXBadge />
           <ShareNotif />
         </div>
