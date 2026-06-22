@@ -1,0 +1,28 @@
+---
+description: Dosecraft / Infusion Arcade patient companion game constraints
+alwaysApply: true
+---
+
+# Dosecraft project rules
+
+Dosecraft is a patient-facing infusion companion game, not a quiz app.
+
+## Preserve core flows
+
+- Preserve Companion Mode and infusion timer persistence (`dc_startTime`, `dc_durationMins`, `dc_endTime` in localStorage).
+- Preserve intro → howToPlay → playing flow.
+- Do not rewrite existing drug games.
+
+## Implementation preferences
+
+- Prefer reusing existing game mechanics before creating new ones.
+- Keep language patient-friendly.
+- Do not add dosing advice, cure claims, efficacy claims, or patient-specific medical advice.
+- Avoid broad architecture changes unless explicitly requested.
+
+## Adding a drug
+
+When adding a drug, list:
+
+1. Changed files
+2. Pharmacist-review items (description, howItWorks, encouragement, winMessage, intro/how-to-play copy)
