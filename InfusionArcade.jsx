@@ -1,3 +1,4 @@
+// STALE — not loaded by game.html. Runtime source: drugCatalog.js + InfusionArcade.js
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const CANVAS_W = 480;

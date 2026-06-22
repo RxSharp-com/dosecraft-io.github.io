@@ -303,13 +303,14 @@
   </script>
 
   <!--
-    InfusionArcade.js is the single source of truth for the game.
-    Edit only that file — game.html just loads and mounts it.
+    drugCatalog.js is the single source of truth for drug metadata.
+    InfusionArcade.js contains game logic and UI; game.html loads and mounts it.
 
     Note: Babel processes both script blocks as a combined bundle,
     so the hooks declared above are available inside InfusionArcade.js.
     Both scripts must be type="text/babel" for this to work.
   -->
+  <script src="drugCatalog.js"></script>
   <script type="text/babel" src="InfusionArcade.js"></script>
 
   <script type="text/babel">
