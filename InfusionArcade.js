@@ -2693,7 +2693,7 @@ function InfusionArcade({ initialDrug }) {
     },
     vanco: {
       what: "Move the paddle to intercept the falling wall-building blocks before they reach the wall.",
-      why:  "This shows how vancomycin blocks bacteria from building strong cell walls.",
+      why:  "This shows how this antibiotic blocks bacteria from building strong cell walls.",
     },
     dapto: {
       what: "First, collect the calcium ions (Ca²⁺) floating in the bloodstream. Then move daptomycin onto a glowing membrane zone and hold it there until the circle fills completely — that creates a pore.",
