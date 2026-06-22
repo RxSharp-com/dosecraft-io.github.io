@@ -13,7 +13,7 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.14';
+const CACHE_VERSION = 'v1.0.15';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
 // ─── Core files to pre-cache on install ──────────────────────────────────────
