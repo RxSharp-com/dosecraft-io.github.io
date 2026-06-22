@@ -167,6 +167,7 @@ const DRUGS = [
   {
     id: 7, gameType: "vanco", name: "Vancomycin", generic: "Vancomycin",
     drugColor: "#c084fc", bgGradient: ["#0e0a1a", "#1a0d2e"],
+    paddleLabel: "VANCOMYCIN",
     description: "Vancomycin is used to treat serious infections caused by gram-positive bacteria, including MRSA — a type of staph infection resistant to many other antibiotics.",
     howItWorks: "Vancomycin latches onto the building blocks that bacteria use to construct their outer wall, blocking construction entirely. Without new wall material, bacteria weaken and die.",
     encouragement: "Your vancomycin infusion is blocking bacterial construction right now.",
@@ -216,6 +217,24 @@ const DRUGS = [
     encouragement: "Your Hyqvia dose is steadily absorbing and building your antibody levels right now.",
     winMessage: "Antibodies successfully absorbed. Hyqvia has steadily reinforced your immune defenses.",
     ivigNote: "Hyqvia is given subcutaneously (under the skin), not into a vein. The enzyme it contains temporarily opens tissue pathways so a full therapeutic dose can absorb gradually — a gentler process than traditional IV infusion.",
+  },
+  {
+    id: 13, gameType: "breakout", name: "Penicillin G", generic: "Penicillin G Potassium",
+    drugColor: "#1ee0d4", bgGradient: ["#011a19", "#033330"],
+    paddleLabel: "PENICILLIN G",
+    description: "Penicillin G is a foundational penicillin antibiotic used to treat many types of bacterial infections, including certain bloodstream, bone, joint, and soft tissue infections.",
+    howItWorks: "Penicillin G interferes with bacterial cell-wall construction by targeting penicillin-binding proteins involved in peptidoglycan cross-linking. Without those links, the wall cannot hold together and bacteria die.",
+    encouragement: "Your Penicillin G infusion is disrupting bacterial wall construction right now.",
+    brickLabel: "Wall Section", winMessage: "Bacterial walls weakened. Penicillin G is working.",
+  },
+  {
+    id: 14, gameType: "vanco", name: "Dalvance", generic: "dalbavancin",
+    drugColor: "#a78bfa", bgGradient: ["#0c0818", "#160d28"],
+    paddleLabel: "DALVANCE",
+    description: "Dalvance (dalbavancin) is a lipoglycopeptide antibiotic used for certain serious bacterial skin infections.",
+    howItWorks: "Dalvance attaches to the wall-building pieces bacteria use to make their outer shell. By grabbing those pieces before they can link together, it helps stop the wall from locking into place — so bacteria cannot build a strong, complete wall.",
+    encouragement: "Your Dalvance infusion is stopping bacterial walls from locking together right now.",
+    winMessage: "Wall cross-linking blocked. Dalvance is working.",
   },
 ];
 
@@ -1128,7 +1147,7 @@ function InfusionArcade({ initialDrug }) {
       const vg = ctx.createLinearGradient(s.vancoX, s.vancoY, s.vancoX, s.vancoY + VANCO_H);
       vg.addColorStop(0, dc); vg.addColorStop(1, dc + "bb");
       drawRoundRect(ctx, s.vancoX, s.vancoY, VANCO_W, VANCO_H, 10); ctx.fillStyle = vg; ctx.fill(); ctx.strokeStyle = "#fff4"; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
-      ctx.fillStyle = "#1a003a"; ctx.font = `bold 10px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("VANCOMYCIN", s.vancoX + VANCO_W / 2, s.vancoY + VANCO_H / 2);
+      ctx.fillStyle = "#1a003a"; ctx.font = `bold 10px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(d.paddleLabel || d.name.toUpperCase(), s.vancoX + VANCO_W / 2, s.vancoY + VANCO_H / 2);
       ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.font = `12px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       ctx.fillText("Slide to intercept building blocks before they reach the wall", CANVAS_W / 2, CANVAS_H - 38);
       drawHUD(pct, `Infection clearing: ${Math.round(pct * 100)}%`); return true;
@@ -2107,10 +2126,10 @@ function InfusionArcade({ initialDrug }) {
 
   if (screen === "menu") {
     const groups = [
-      { label: "Penicillin Antibiotics", color: "#00d4c8", drugs: [DRUGS[0]] },
+      { label: "Penicillin Antibiotics", color: "#00d4c8", drugs: [DRUGS[0], DRUGS[12]] },
       { label: "Cephalosporin Antibiotics", color: "#6366f1", drugs: [DRUGS[1], DRUGS[2], DRUGS[3]] },
       { label: "Carbapenem Antibiotics", color: "#f59e0b", drugs: [DRUGS[4], DRUGS[5]] },
-      { label: "Vancomycin", color: "#c084fc", drugs: [DRUGS[6]] },
+      { label: "Glycopeptide Antibiotics", color: "#c084fc", drugs: [DRUGS[6], DRUGS[13]] },
       { label: "Cubicin (Daptomycin)", color: "#eab308", drugs: [DRUGS[7]] },
       { label: "Immunoglobulin Therapy (IVIG / SCIG)", color: "#f4a261", drugs: [DRUGS[8], DRUGS[9], DRUGS[10], DRUGS[11]] },
     ];
@@ -2674,7 +2693,7 @@ function InfusionArcade({ initialDrug }) {
     },
     vanco: {
       what: "Move the paddle to intercept the falling wall-building blocks before they reach the wall.",
-      why:  "This shows how vancomycin blocks bacteria from building strong cell walls.",
+      why:  "This shows how this antibiotic blocks bacteria from building strong cell walls.",
     },
     dapto: {
       what: "First, collect the calcium ions (Ca²⁺) floating in the bloodstream. Then move daptomycin onto a glowing membrane zone and hold it there until the circle fills completely — that creates a pore.",

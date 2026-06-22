@@ -97,13 +97,15 @@
 
 <script>
 const DRUGS = [
-  { name:"Zosyn",      generic:"Piperacillin-Tazobactam",          color:"#00d4c8", group:"Penicillin",     mode:"WALL BREAKER",    tagline:"Breach the wall" },
+  { name:"Zosyn",        generic:"Piperacillin-Tazobactam",          color:"#00d4c8", group:"Penicillin",     mode:"WALL BREAKER",    tagline:"Breach the wall" },
+  { name:"Penicillin G", generic:"Penicillin G Potassium",           color:"#1ee0d4", group:"Penicillin",     mode:"WALL BREAKER",    tagline:"Break the cross-links" },
   { name:"Ancef",      generic:"Cefazolin",                        color:"#4f8ef7", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Demolish defenses" },
   { name:"Rocephin",   generic:"Ceftriaxone",                      color:"#6366f1", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Destroy and clear" },
   { name:"Maxipime",   generic:"Cefepime",                         color:"#818cf8", group:"Cephalosporin",  mode:"WALL BREAKER",    tagline:"Broad spectrum strike" },
   { name:"Invanz",     generic:"Ertapenem",                        color:"#f59e0b", group:"Carbapenem",     mode:"WALL BREAKER",    tagline:"Deep penetrator" },
   { name:"Merrem",     generic:"Meropenem",                        color:"#fb923c", group:"Carbapenem",     mode:"WALL BREAKER",    tagline:"Maximum firepower" },
-  { name:"Vancomycin", generic:"Vancomycin",                       color:"#c084fc", group:"Vancomycin",     mode:"BLOCK ATTACK",    tagline:"Block construction" },
+  { name:"Vancomycin", generic:"Vancomycin",                       color:"#c084fc", group:"Glycopeptides",     mode:"BLOCK ATTACK",    tagline:"Block construction" },
+  { name:"Dalvance",   generic:"dalbavancin",                      color:"#a78bfa", group:"Glycopeptides",     mode:"BLOCK ATTACK",    tagline:"Stop the wall from locking" },
   { name:"Cubicin",    generic:"Daptomycin",                       color:"#eab308", group:"Daptomycin",     mode:"MEMBRANE BREACH", tagline:"Punch through membranes" },
   { name:"Bivigam",    generic:"Immune Globulin IV 10%",           color:"#f4a261", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Reinforce immunity" },
   { name:"Panzyga",    generic:"Immune Globulin IV 10%",           color:"#e76f51", group:"Immunoglobulin", mode:"IMMUNE DEFENSE",  tagline:"Flood and rebalance" },
@@ -115,7 +117,7 @@ const GROUPS = [
   { label:"Penicillin",     color:"#00d4c8" },
   { label:"Cephalosporin",  color:"#6366f1" },
   { label:"Carbapenem",     color:"#f59e0b" },
-  { label:"Vancomycin",     color:"#c084fc" },
+  { label:"Glycopeptides",     color:"#c084fc" },
   { label:"Daptomycin",     color:"#eab308" },
   { label:"Immunoglobulin", color:"#f4a261" },
 ];
