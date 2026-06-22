@@ -217,6 +217,15 @@ const DRUGS = [
     winMessage: "Antibodies successfully absorbed. Hyqvia has steadily reinforced your immune defenses.",
     ivigNote: "Hyqvia is given subcutaneously (under the skin), not into a vein. The enzyme it contains temporarily opens tissue pathways so a full therapeutic dose can absorb gradually — a gentler process than traditional IV infusion.",
   },
+  {
+    id: 13, gameType: "breakout", name: "Penicillin G", generic: "Penicillin G Potassium",
+    drugColor: "#1ee0d4", bgGradient: ["#011a19", "#033330"],
+    paddleLabel: "PENICILLIN G",
+    description: "Penicillin G is a foundational penicillin antibiotic used to treat many types of bacterial infections, including certain bloodstream, bone, joint, and soft tissue infections.",
+    howItWorks: "Penicillin G interferes with bacterial cell-wall construction by targeting penicillin-binding proteins involved in peptidoglycan cross-linking. Without those links, the wall cannot hold together and bacteria die.",
+    encouragement: "Your Penicillin G infusion is disrupting bacterial wall construction right now.",
+    brickLabel: "Wall Section", winMessage: "Bacterial walls weakened. Penicillin G is working.",
+  },
 ];
 
 // ── BRICK LAYOUTS ─────────────────────────────────────────────────────────────
@@ -2107,7 +2116,7 @@ function InfusionArcade({ initialDrug }) {
 
   if (screen === "menu") {
     const groups = [
-      { label: "Penicillin Antibiotics", color: "#00d4c8", drugs: [DRUGS[0]] },
+      { label: "Penicillin Antibiotics", color: "#00d4c8", drugs: [DRUGS[0], DRUGS[12]] },
       { label: "Cephalosporin Antibiotics", color: "#6366f1", drugs: [DRUGS[1], DRUGS[2], DRUGS[3]] },
       { label: "Carbapenem Antibiotics", color: "#f59e0b", drugs: [DRUGS[4], DRUGS[5]] },
       { label: "Vancomycin", color: "#c084fc", drugs: [DRUGS[6]] },
