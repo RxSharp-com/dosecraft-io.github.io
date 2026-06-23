@@ -109,134 +109,13 @@ function drawReceptor(ctx, cx, cy, r, fillColor, strokeColor) {
   ctx.restore();
 }
 
-const DRUGS = [
-  {
-    id: 1, gameType: "breakout", name: "Zosyn", generic: "Piperacillin-Tazobactam",
-    drugColor: "#00d4c8", bgGradient: ["#021a18", "#04302c"],
-    paddleLabel: "ZOSYN",
-    description: "Zosyn is a powerful antibiotic used to treat serious infections of the lungs, abdomen, skin, kidneys, and bloodstream — especially when a single antibiotic may not be enough.",
-    howItWorks: "Zosyn travels through your bloodstream and attacks the outer wall of bacteria, causing it to collapse. Without their protective wall, the bacteria cannot survive.",
-    encouragement: "Your Zosyn infusion is actively fighting the infection right now.",
-    brickLabel: "Wall Section", winMessage: "Bacterial walls have collapsed. Infection is being cleared.",
-  },
-  {
-    id: 2, gameType: "breakout", name: "Ancef", generic: "Cefazolin",
-    drugColor: "#4f8ef7", bgGradient: ["#020d1f", "#041830"],
-    paddleLabel: "ANCEF",
-    description: "Ancef (cefazolin) is commonly used to treat skin and soft tissue infections, bone infections, and to prevent infections around surgery.",
-    howItWorks: "Ancef targets and destroys the structural wall that bacteria need to survive. As each wall section breaks down, the bacteria can no longer maintain their shape and die.",
-    encouragement: "Your Ancef infusion is breaking down bacterial defenses right now.",
-    brickLabel: "Wall Section", winMessage: "Bacterial walls destroyed. Your infection is clearing.",
-  },
-  {
-    id: 3, gameType: "breakout", name: "Rocephin", generic: "Ceftriaxone",
-    drugColor: "#6366f1", bgGradient: ["#07041f", "#0e0830"],
-    paddleLabel: "ROCEPHIN",
-    description: "Rocephin (ceftriaxone) is widely used to treat pneumonia, meningitis, urinary tract infections, Lyme disease, and many bloodstream infections.",
-    howItWorks: "Rocephin circulates through your body and disrupts the construction of bacterial cell walls. Bacteria cannot repair or rebuild their walls and are eliminated.",
-    encouragement: "Your Rocephin infusion is working to clear your infection.",
-    brickLabel: "Wall Section", winMessage: "Infection clearing. Rocephin has done its work.",
-  },
-  {
-    id: 4, gameType: "breakout", name: "Maxipime", generic: "Cefepime",
-    drugColor: "#818cf8", bgGradient: ["#05041f", "#0a0830"],
-    paddleLabel: "MAXIPIME",
-    description: "Maxipime (cefepime) is a broad-spectrum antibiotic used for serious infections of the lungs, urinary tract, skin, and bloodstream.",
-    howItWorks: "Maxipime targets and dismantles the cell walls that protect bacteria. Once the wall is gone, bacteria cannot survive and the infection begins to clear.",
-    encouragement: "Your Maxipime infusion is actively clearing the infection.",
-    brickLabel: "Wall Section", winMessage: "Bacterial walls cleared. Maxipime is working.",
-  },
-  {
-    id: 5, gameType: "breakout", name: "Invanz", generic: "Ertapenem",
-    drugColor: "#f59e0b", bgGradient: ["#1a0f00", "#2e1a00"],
-    paddleLabel: "INVANZ",
-    description: "Invanz (ertapenem) is a once-daily antibiotic used to treat complicated infections of the abdomen, pelvis, lungs, skin, and urinary tract.",
-    howItWorks: "Invanz penetrates deep into infected tissue and destroys the protective outer walls of bacteria. Once compromised, bacteria cannot survive.",
-    encouragement: "Your Invanz infusion is penetrating the infection and destroying bacteria.",
-    brickLabel: "Wall Section", winMessage: "Deep infection clearing. Invanz is working.",
-  },
-  {
-    id: 6, gameType: "breakout", name: "Merrem", generic: "Meropenem",
-    drugColor: "#fb923c", bgGradient: ["#1a0800", "#2e1000"],
-    paddleLabel: "MERREM",
-    description: "Merrem (meropenem) is used for serious infections including pneumonia, meningitis, abdominal infections, and infections caused by resistant bacteria.",
-    howItWorks: "Merrem rapidly targets and collapses the protective walls of bacteria throughout your body. It is one of the most powerful antibiotics available.",
-    encouragement: "Your Merrem infusion is fighting hard against your infection right now.",
-    brickLabel: "Wall Section", winMessage: "Serious infection being cleared. Merrem is working.",
-  },
-  {
-    id: 7, gameType: "vanco", name: "Vancomycin", generic: "Vancomycin",
-    drugColor: "#c084fc", bgGradient: ["#0e0a1a", "#1a0d2e"],
-    paddleLabel: "VANCOMYCIN",
-    description: "Vancomycin is used to treat serious infections caused by gram-positive bacteria, including MRSA — a type of staph infection resistant to many other antibiotics.",
-    howItWorks: "Vancomycin latches onto the building blocks that bacteria use to construct their outer wall, blocking construction entirely. Without new wall material, bacteria weaken and die.",
-    encouragement: "Your vancomycin infusion is blocking bacterial construction right now.",
-    winMessage: "Bacterial wall construction blocked. Infection is clearing.",
-  },
-  {
-    id: 8, gameType: "dapto", name: "Cubicin", generic: "Daptomycin",
-    drugColor: "#eab308", bgGradient: ["#0f0a00", "#1e1400"],
-    description: "Cubicin (daptomycin) is used to treat serious skin infections and bloodstream infections caused by gram-positive bacteria, including MRSA and VRE.",
-    howItWorks: "Cubicin works by punching holes in the outer membrane of bacteria, causing them to lose the ions they need to survive. This rapidly kills the bacteria without harming your own cells.",
-    encouragement: "Your Cubicin infusion is punching through bacterial membranes right now.",
-    winMessage: "Bacterial membranes breached. Infection is being eliminated.",
-  },
-  // ── IVIG / SCIG ───────────────────────────────────────────────────────────
-  {
-    id: 9, gameType: "ivig", name: "Bivigam", generic: "Immune Globulin Intravenous (Human) 10%",
-    drugColor: "#f4a261", bgGradient: ["#1a0e00", "#2e1a04"],
-    description: "Bivigam is an intravenous immunoglobulin (IVIG) therapy used primarily for people whose immune systems cannot produce enough antibodies on their own — a condition called primary immunodeficiency. By infusing concentrated antibodies from healthy donors, Bivigam gives your immune system the tools it needs to fight infections.",
-    howItWorks: "Bivigam delivers a concentrated supply of IgG antibodies — the same antibodies healthy immune systems produce — directly into your bloodstream. These borrowed antibodies neutralize pathogens and help calm immune responses that may be misfiring. Because the dose must be large enough to flood your entire system, the infusion takes several hours.",
-    encouragement: "The antibodies in your Bivigam infusion are actively protecting you right now.",
-    winMessage: "Your immune system has been reinforced. Bivigam's borrowed antibodies are neutralizing threats and restoring balance.",
-    ivigNote: "Bivigam is given directly into a vein (intravenously), allowing antibodies to reach your bloodstream quickly and in high concentration.",
-  },
-  {
-    id: 10, gameType: "ivig", name: "Panzyga", generic: "Immune Globulin Intravenous (Human) 10%",
-    drugColor: "#e76f51", bgGradient: ["#1a0800", "#2e1000"],
-    description: "Panzyga is an IVIG therapy used for primary immunodeficiency and certain autoimmune conditions. It provides high-concentration IgG antibodies sourced from thousands of healthy plasma donors, giving your immune system a powerful borrowed defense.",
-    howItWorks: "Panzyga floods your bloodstream with IgG antibodies that do two important jobs: they neutralize bacteria, viruses, and toxins that your own immune system may not be able to handle, and they help regulate an overactive immune response by occupying receptors that would otherwise trigger autoimmune attacks on your own tissues.",
-    encouragement: "Your Panzyga infusion is reinforcing your immune system as you sit here.",
-    winMessage: "Pathogens neutralized and immune signals rebalanced. Panzyga has done its work.",
-    ivigNote: "Panzyga is given intravenously. The slow infusion rate is intentional — it gives your body time to adjust to the incoming antibodies safely.",
-  },
-  {
-    id: 11, gameType: "ivig", name: "Octagam", generic: "Immune Globulin Intravenous (Human) 5% / 10%",
-    drugColor: "#e9c46a", bgGradient: ["#1a1400", "#2e2200"],
-    description: "Octagam is an IVIG therapy used for primary immunodeficiency and certain autoimmune conditions. It delivers purified IgG antibodies to strengthen your immune response and help regulate immune activity that may be harming your own tissues.",
-    howItWorks: "Octagam works in two ways. First, it provides antibodies your immune system is missing, allowing your body to recognize and destroy pathogens. Second, the high concentration of IgG floods immune receptors, crowding out the signals that cause the immune system to mistakenly attack the body's own cells.",
-    encouragement: "Your Octagam infusion is working on two fronts — protecting and rebalancing your immune system.",
-    winMessage: "Immune system strengthened and autoimmune signals crowded out. Octagam has completed its work.",
-    ivigNote: "Octagam is available in two concentrations (5% and 10%). Your care team has selected the right formulation and rate for you specifically.",
-  },
-  {
-    id: 12, gameType: "ivig", name: "Hyqvia", generic: "Immune Globulin 10% with Recombinant Human Hyaluronidase",
-    drugColor: "#2a9d8f", bgGradient: ["#001a18", "#002e2a"],
-    description: "Hyqvia is a unique subcutaneous immunoglobulin (SCIG) therapy. Unlike traditional IVIG given through a vein, Hyqvia is given under the skin. It contains both IgG antibodies and an enzyme (hyaluronidase) that temporarily opens pathways in the tissue, allowing a large dose of antibodies to be absorbed steadily into the bloodstream.",
-    howItWorks: "The hyaluronidase enzyme in Hyqvia gently loosens the tissue under your skin, creating space for the antibodies to spread and absorb gradually. This slow, steady absorption means the antibodies enter your bloodstream over a longer period — mimicking how your immune system would naturally maintain antibody levels.",
-    encouragement: "Your Hyqvia dose is steadily absorbing and building your antibody levels right now.",
-    winMessage: "Antibodies successfully absorbed. Hyqvia has steadily reinforced your immune defenses.",
-    ivigNote: "Hyqvia is given subcutaneously (under the skin), not into a vein. The enzyme it contains temporarily opens tissue pathways so a full therapeutic dose can absorb gradually — a gentler process than traditional IV infusion.",
-  },
-  {
-    id: 13, gameType: "breakout", name: "Penicillin G", generic: "Penicillin G Potassium",
-    drugColor: "#1ee0d4", bgGradient: ["#011a19", "#033330"],
-    paddleLabel: "PENICILLIN G",
-    description: "Penicillin G is a foundational penicillin antibiotic used to treat many types of bacterial infections, including certain bloodstream, bone, joint, and soft tissue infections.",
-    howItWorks: "Penicillin G interferes with bacterial cell-wall construction by targeting penicillin-binding proteins involved in peptidoglycan cross-linking. Without those links, the wall cannot hold together and bacteria die.",
-    encouragement: "Your Penicillin G infusion is disrupting bacterial wall construction right now.",
-    brickLabel: "Wall Section", winMessage: "Bacterial walls weakened. Penicillin G is working.",
-  },
-  {
-    id: 14, gameType: "vanco", name: "Dalvance", generic: "dalbavancin",
-    drugColor: "#a78bfa", bgGradient: ["#0c0818", "#160d28"],
-    paddleLabel: "DALVANCE",
-    description: "Dalvance (dalbavancin) is a lipoglycopeptide antibiotic used for certain serious bacterial skin infections.",
-    howItWorks: "Dalvance attaches to the wall-building pieces bacteria use to make their outer shell. By grabbing those pieces before they can link together, it helps stop the wall from locking into place — so bacteria cannot build a strong, complete wall.",
-    encouragement: "Your Dalvance infusion is stopping bacterial walls from locking together right now.",
-    winMessage: "Wall cross-linking blocked. Dalvance is working.",
-  },
-];
+const DRUGS = window.DOSECRAFT_DRUGS || [];
+const DRUG_GROUPS = window.DOSECRAFT_DRUG_GROUPS || [];
+
+function drugsForGroup(group) {
+  return group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
+}
+
 
 // ── BRICK LAYOUTS ─────────────────────────────────────────────────────────────
 // Each layout function returns an array of brick objects.
@@ -2125,14 +2004,11 @@ function InfusionArcade({ initialDrug }) {
   );
 
   if (screen === "menu") {
-    const groups = [
-      { label: "Penicillin Antibiotics", color: "#00d4c8", drugs: [DRUGS[0], DRUGS[12]] },
-      { label: "Cephalosporin Antibiotics", color: "#6366f1", drugs: [DRUGS[1], DRUGS[2], DRUGS[3]] },
-      { label: "Carbapenem Antibiotics", color: "#f59e0b", drugs: [DRUGS[4], DRUGS[5]] },
-      { label: "Glycopeptide Antibiotics", color: "#c084fc", drugs: [DRUGS[6], DRUGS[13]] },
-      { label: "Cubicin (Daptomycin)", color: "#eab308", drugs: [DRUGS[7]] },
-      { label: "Immunoglobulin Therapy (IVIG / SCIG)", color: "#f4a261", drugs: [DRUGS[8], DRUGS[9], DRUGS[10], DRUGS[11]] },
-    ];
+    const groups = DRUG_GROUPS.map(grp => ({
+      label: grp.label,
+      color: grp.color,
+      drugs: drugsForGroup(grp),
+    }));
     return (
       <div style={{ background: "linear-gradient(160deg,#060a14,#0a0814)", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: SANS, color: "#f0f4ff", padding: "24px 16px" }}>
         <div style={{ maxWidth: 500, width: "100%" }}>
@@ -2145,7 +2021,7 @@ function InfusionArcade({ initialDrug }) {
               <div style={{ fontSize: 12, letterSpacing: 3, color: grp.color + "cc", marginBottom: 12, textTransform: "uppercase", borderBottom: `1px solid ${grp.color}30`, paddingBottom: 8 }}>{grp.label}</div>
               <div style={{ display: "grid", gap: 10 }}>
                 {grp.drugs.map(d => (
-                  <button key={d.id} onClick={() => startDrug(DRUGS.indexOf(d))} style={{ background: "rgba(255,255,255,0.06)", border: `1.5px solid ${d.drugColor}44`, color: "#ffffff", padding: "18px 20px", borderRadius: 12, cursor: "pointer", textAlign: "left", fontFamily: SANS, touchAction: "manipulation", minHeight: 72 }}
+                  <button key={d.id} onClick={() => startDrug(DRUGS.findIndex(x => x.id === d.id))} style={{ background: "rgba(255,255,255,0.06)", border: `1.5px solid ${d.drugColor}44`, color: "#ffffff", padding: "18px 20px", borderRadius: 12, cursor: "pointer", textAlign: "left", fontFamily: SANS, touchAction: "manipulation", minHeight: 72 }}
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
                     onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
                   >
@@ -2333,7 +2209,7 @@ function InfusionArcade({ initialDrug }) {
         icon: "🔒",
         title: "Block the Builders",
         steps: [
-          { icon: "👆", text: "Slide your finger left or right to move the Vancomycin blocker." },
+          { icon: "👆", text: "Slide your finger left or right to move your medication blocker." },
           { icon: "🧱", text: "Building blocks will fall from above. Move your blocker to intercept them before they reach the bacterial wall at the bottom." },
           { icon: "✦",  text: "Block enough building blocks to complete the round." },
         ],

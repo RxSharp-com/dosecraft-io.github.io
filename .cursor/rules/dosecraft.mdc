@@ -22,6 +22,8 @@ Dosecraft is a patient-facing infusion companion game, not a quiz app.
 
 ## Adding a drug
 
+Edit `drugCatalog.js` only — add the drug object and include its `id` in the appropriate `DOSECRAFT_DRUG_GROUPS` entry.
+
 When adding a drug, list:
 
 1. Changed files
