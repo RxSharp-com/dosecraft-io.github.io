@@ -19,6 +19,7 @@ Homepage (`index.html`) and game (`game.html` → `InfusionArcade.js`) load the 
 2. If uncommitted changes exist, stop and report them.
 3. Create branch: `feature/add-<drug-slug>` (lowercase, e.g. `feature/add-cefazolin-iv`).
 4. Read `drugCatalog.js` and `docs/add-drug-checklist.md`.
+5. If already on an add-drug feature branch, do not create a nested branch.
 
 ## Scope rules
 
@@ -63,7 +64,7 @@ drug({
   genericName: "generic name",
   brandName: "Brand Name",
   className: "Drug class",
-  groupName: "Penicillin",  // match DOSECRAFT_DRUG_GROUPS.label/homepageLabel where practical
+  groupName: "Penicillin Antibiotics",  // match DOSECRAFT_DRUG_GROUPS.label/homepageLabel where practical
   gameType: "breakout",
   mechanicTemplate: "breakout",
   drugColor: "#00d4c8",
