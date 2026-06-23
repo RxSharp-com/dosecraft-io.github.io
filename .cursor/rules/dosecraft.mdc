@@ -22,7 +22,7 @@ Dosecraft is a patient-facing infusion companion game, not a quiz app.
 
 ## Adding a drug
 
-Edit `drugCatalog.js` only — add the drug object and include its `id` in the appropriate `DOSECRAFT_DRUG_GROUPS` entry.
+Edit `drugCatalog.js` only — add the drug object and include its `id` in the appropriate `DOSECRAFT_DRUG_GROUPS` entry. Follow `.cursor/skills/add-dosecraft-drug/SKILL.md` and `docs/add-drug-checklist.md`.
 
 When adding a drug, list:
 
