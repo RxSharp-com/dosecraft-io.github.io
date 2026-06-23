@@ -80,6 +80,20 @@
       winMessage: "Bacterial walls cleared. Maxipime is working.",
     }),
     drug({
+      id: 15, displayName: "Teflaro", genericName: "ceftaroline",
+      brandName: "Teflaro",
+      className: "Cephalosporin beta-lactam", groupName: "Cephalosporin",
+      gameType: "breakout", mechanicTemplate: "breakout",
+      drugColor: "#5b7cf7", bgGradient: ["#061428", "#0a1f38"],
+      mode: "WALL BREAKER", tagline: "Interrupt the wall build",
+      paddleLabel: "TEFLARO", brickLabel: "Wall Section",
+      description: "Teflaro (ceftaroline) is a cephalosporin antibiotic used for certain bacterial skin infections and community-acquired pneumonia.",
+      howItWorks: "Teflaro interrupts the bacterial wall-building process by targeting the proteins bacteria use to link wall pieces together. Without those links, the wall cannot finish holding together properly and bacteria die.",
+      encouragement: "Your Teflaro infusion is interrupting bacterial wall construction right now.",
+      winMessage: "Bacterial walls weakened. Teflaro is working.",
+      pharmacistReviewNotes: "Review indication scope (ABSSSI/CABP). Ceftaroline binds altered PBPs including PBP2a; keep MRSA/PBP2a nuance out of patient copy unless approved.",
+    }),
+    drug({
       id: 5, displayName: "Invanz", genericName: "Ertapenem",
       className: "Carbapenem", groupName: "Carbapenem",
       gameType: "breakout", drugColor: "#f59e0b", bgGradient: ["#1a0f00", "#2e1a00"],
@@ -192,7 +206,7 @@
 
   window.DOSECRAFT_DRUG_GROUPS = [
     { id: "penicillin", label: "Penicillin Antibiotics", homepageLabel: "Penicillin", color: "#00d4c8", drugIds: [1, 13] },
-    { id: "cephalosporin", label: "Cephalosporin Antibiotics", homepageLabel: "Cephalosporin", color: "#6366f1", drugIds: [2, 3, 4] },
+    { id: "cephalosporin", label: "Cephalosporin Antibiotics", homepageLabel: "Cephalosporin", color: "#6366f1", drugIds: [2, 3, 4, 15] },
     { id: "carbapenem", label: "Carbapenem Antibiotics", homepageLabel: "Carbapenem", color: "#f59e0b", drugIds: [5, 6] },
     { id: "glycopeptide", label: "Glycopeptide Antibiotics", homepageLabel: "Glycopeptide Antibiotics", color: "#c084fc", drugIds: [7, 14] },
     { id: "daptomycin", label: "Cubicin (Daptomycin)", homepageLabel: "Daptomycin", color: "#eab308", drugIds: [8] },
