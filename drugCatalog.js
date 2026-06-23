@@ -103,7 +103,7 @@
     }),
     drug({
       id: 7, displayName: "Vancomycin", genericName: "Vancomycin",
-      className: "Glycopeptide", groupName: "Glycopeptides",
+      className: "Glycopeptide", groupName: "Glycopeptide Antibiotics",
       gameType: "vanco", drugColor: "#c084fc", bgGradient: ["#0e0a1a", "#1a0d2e"],
       mode: "BLOCK ATTACK", tagline: "Block construction",
       paddleLabel: "VANCOMYCIN",
@@ -179,7 +179,7 @@
     }),
     drug({
       id: 14, displayName: "Dalvance", genericName: "dalbavancin",
-      className: "Lipoglycopeptide", groupName: "Glycopeptides",
+      className: "Lipoglycopeptide", groupName: "Glycopeptide Antibiotics",
       gameType: "vanco", drugColor: "#a78bfa", bgGradient: ["#0c0818", "#160d28"],
       mode: "BLOCK ATTACK", tagline: "Stop the wall from locking",
       paddleLabel: "DALVANCE",
@@ -194,7 +194,7 @@
     { id: "penicillin", label: "Penicillin Antibiotics", homepageLabel: "Penicillin", color: "#00d4c8", drugIds: [1, 13] },
     { id: "cephalosporin", label: "Cephalosporin Antibiotics", homepageLabel: "Cephalosporin", color: "#6366f1", drugIds: [2, 3, 4] },
     { id: "carbapenem", label: "Carbapenem Antibiotics", homepageLabel: "Carbapenem", color: "#f59e0b", drugIds: [5, 6] },
-    { id: "glycopeptide", label: "Glycopeptide Antibiotics", homepageLabel: "Glycopeptides", color: "#c084fc", drugIds: [7, 14] },
+    { id: "glycopeptide", label: "Glycopeptide Antibiotics", homepageLabel: "Glycopeptide Antibiotics", color: "#c084fc", drugIds: [7, 14] },
     { id: "daptomycin", label: "Cubicin (Daptomycin)", homepageLabel: "Daptomycin", color: "#eab308", drugIds: [8] },
     { id: "immunoglobulin", label: "Immunoglobulin Therapy (IVIG / SCIG)", homepageLabel: "Immunoglobulin", color: "#f4a261", drugIds: [9, 10, 11, 12] },
   ];
