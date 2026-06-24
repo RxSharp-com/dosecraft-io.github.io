@@ -13,12 +13,11 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.18';
+const CACHE_VERSION = 'v1.0.19';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
-// ─── Core files to pre-cache on install ──────────────────────────────────────
-// These are the files that must load for the game to start at all.
-// Adjust paths if your repo structure differs from the standard layout.
+// clinicConfig.js is intentionally NOT pre-cached — see network-first handler below
+// so clinic phone numbers and instructions can be updated without stale PWA cache.
 const PRECACHE_URLS = [
   '/game.html',
   '/index.html',
@@ -26,7 +25,6 @@ const PRECACHE_URLS = [
   '/homeInfusionApp.js',
   '/homeInfusionStore.js',
   '/homeInfusionCopy.js',
-  '/clinicConfig.js',
   '/careTeamContact.js',
   '/drugCatalog.js',
   '/manifest.json',
@@ -80,6 +78,27 @@ self.addEventListener('fetch', (event) => {
 
   // Skip browser-extension and chrome-extension URLs
   if (url.protocol !== 'https:' && url.protocol !== 'http:') return;
+
+  // ── clinicConfig.js: Network-first ──
+  // Clinic contact info must stay fresh when a deployment updates phone numbers
+  // or after-hours instructions. Falls back to cache only when offline.
+  if (url.pathname.endsWith('/clinicConfig.js')) {
+    event.respondWith(
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(request).then((c) => c || new Response('/* clinicConfig offline */', {
+          status: 503,
+          headers: { 'Content-Type': 'application/javascript' },
+        })))
+    );
+    return;
+  }
 
   // ── HTML pages: Network-first so users always get the freshest markup ──
   if (request.headers.get('Accept')?.includes('text/html')) {

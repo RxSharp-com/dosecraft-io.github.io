@@ -47,6 +47,13 @@
   <script type="text/babel">
     function IndexApp() {
       var STORE = window.DOSECRAFT_HOME_STORE;
+      var isModule = window.DOSECRAFT_isModuleEnabled;
+      if (!isModule("homeInfusion")) {
+        if (isModule("clinicInfusion")) {
+          window.location.replace("game.html");
+          return null;
+        }
+      }
       var hasChoice = STORE.hasModeChoice();
       if (!hasChoice) return <HomeModeSelector />;
       return <HomeInfusionApp />;

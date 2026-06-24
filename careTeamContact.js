@@ -1,10 +1,13 @@
-// Shared Care Team Contact card — reads from clinicConfig.js only.
+// Shared Care Team Contact card — reads from clinicConfig.js helpers only.
 function CareTeamContact(props) {
   var cfg = window.DOSECRAFT_getClinicConfig();
   var phoneHref = window.DOSECRAFT_clinicPhoneHref;
+  var primaryPhone = window.DOSECRAFT_getPrimaryClinicPhone(cfg);
+  var appointmentPhone = window.DOSECRAFT_getAppointmentPhone(cfg);
+  var pharmacyPhone = window.DOSECRAFT_getPharmacyPhone(cfg);
 
   var variant = props.variant || "full";
-  var accent = props.accentColor || "#2a9d8f";
+  var accent = props.accentColor || (cfg.branding && cfg.branding.primaryColor) || "#2a9d8f";
   var showEmergency = props.showEmergency !== false;
 
   var card = {
@@ -71,7 +74,8 @@ function CareTeamContact(props) {
       : "Call your care team";
 
   var showConfiguredContact = cfg.showClinicContact;
-  var hasAnyPhone = !!(cfg.primaryPhoneNumber || cfg.appointmentPhoneNumber || cfg.pharmacyPhoneNumber);
+  var hasAnyPhone = !!(primaryPhone || appointmentPhone || pharmacyPhone);
+  var displayName = cfg.clinicDisplayName || cfg.clinicName;
 
   var routineBlock = (
     <div style={{
@@ -80,20 +84,23 @@ function CareTeamContact(props) {
       marginBottom: showEmergency && cfg.emergencyInstructions ? 10 : 14,
     }}>
       <div style={sectionLabel}>{routineTitle}</div>
-      {showConfiguredContact && cfg.clinicName && (
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{cfg.clinicName}</div>
+      {showConfiguredContact && displayName && (
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10 }}>{displayName}</div>
       )}
-      {showConfiguredContact && cfg.primaryPhoneNumber && (
-        <PhoneRow number={cfg.primaryPhoneNumber} label={hasAnyPhone && (cfg.appointmentPhoneNumber || cfg.pharmacyPhoneNumber) ? "Main line" : "Clinic phone"} />
+      {showConfiguredContact && primaryPhone && (
+        <PhoneRow number={primaryPhone} label={hasAnyPhone && (appointmentPhone || pharmacyPhone) ? "Main line" : "Clinic phone"} />
       )}
       {showConfiguredContact && cfg.afterHoursInstructions && (
         <p style={{ margin: "0 0 10px", fontSize: 15, color: "rgba(255,255,255,0.65)" }}>{cfg.afterHoursInstructions}</p>
       )}
-      {showConfiguredContact && cfg.appointmentPhoneNumber && (
-        <PhoneRow number={cfg.appointmentPhoneNumber} label="Appointments / labs" />
+      {showConfiguredContact && appointmentPhone && (
+        <PhoneRow number={appointmentPhone} label="Appointments / labs" />
       )}
-      {showConfiguredContact && cfg.pharmacyPhoneNumber && (
-        <PhoneRow number={cfg.pharmacyPhoneNumber} label="Pharmacy" />
+      {showConfiguredContact && pharmacyPhone && (
+        <PhoneRow number={pharmacyPhone} label="Pharmacy" />
+      )}
+      {variant === "compact" && showConfiguredContact && cfg.appointmentInstructions && (
+        <p style={{ margin: "0 0 6px", fontSize: 15, color: "rgba(255,255,255,0.65)" }}>{cfg.appointmentInstructions}</p>
       )}
       {(!showConfiguredContact || !hasAnyPhone) && (
         <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.65)" }}>

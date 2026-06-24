@@ -113,7 +113,9 @@ const DRUGS = window.DOSECRAFT_DRUGS || [];
 const DRUG_GROUPS = window.DOSECRAFT_DRUG_GROUPS || [];
 
 function drugsForGroup(group) {
-  return group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
+  const drugs = group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
+  if (window.DOSECRAFT_filterEnabledDrugs) return window.DOSECRAFT_filterEnabledDrugs(drugs);
+  return drugs;
 }
 
 
@@ -649,7 +651,14 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
 
   // Auto-select drug from URL param — skips the in-game menu entirely
   useEffect(() => {
-    if (initialDrug) startDrug(initialIdx);
+    if (initialDrug) {
+      const drug = DRUGS[initialIdx];
+      if (drug && window.DOSECRAFT_isMedicationEnabled && !window.DOSECRAFT_isMedicationEnabled(drug.id)) {
+        setScreen("menu");
+        return;
+      }
+      startDrug(initialIdx);
+    }
   }, []); // intentionally runs once on mount only
 
   const drug = DRUGS[drugIdx];
@@ -2004,6 +2013,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
   );
 
   if (screen === "menu") {
+    // TODO: When enabledModules.infusionArcade is false, consider a companion-only
+    // clinic path that skips canvas gameplay without breaking intro/timer flows.
     const groups = DRUG_GROUPS.map(grp => ({
       label: grp.label,
       color: grp.color,
@@ -2044,7 +2055,9 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             </div>
           )}
           <div style={{ marginTop: returnHome ? 8 : 16 }}>
-            <BigBtn label="🏠 Home infusion companion" onClick={() => { window.location.href = "index.html"; }} />
+            {window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("homeInfusion") && (
+              <BigBtn label="🏠 Home infusion companion" onClick={() => { window.location.href = "index.html"; }} />
+            )}
           </div>
           <MusicToggle />
           <ShareBtn />
@@ -2554,7 +2567,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             {!isComplete && (
               <BigBtn label="▶ Play another round" onClick={() => startDrug(drugIdx)} primary />
             )}
-            {!isComplete && (
+            {!isComplete && window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("infusionArcade") && (
               <BigBtn label="🎮 Choose a different game" onClick={() => setScreen("menu")} />
             )}
             {isComplete && (

@@ -327,10 +327,15 @@
 
     function GameEntry() {
       const STORE = window.DOSECRAFT_HOME_STORE;
-      const [ready, setReady] = React.useState(STORE.hasModeChoice());
+      const isModule = window.DOSECRAFT_isModuleEnabled;
 
-      if (!ready) {
+      if (!STORE.hasModeChoice()) {
         return <HomeModeSelector />;
+      }
+
+      if (!isModule("clinicInfusion") && isModule("homeInfusion")) {
+        window.location.replace("index.html");
+        return null;
       }
 
       const drugName = getDrugNameFromURL();

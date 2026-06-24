@@ -291,7 +291,11 @@
   }
 
   function homeAntibioticDrugs(allDrugs) {
-    return (allDrugs || []).filter(function (d) { return d.gameType !== "ivig"; });
+    var antibiotics = (allDrugs || []).filter(function (d) { return d.gameType !== "ivig"; });
+    if (window.DOSECRAFT_filterEnabledDrugs) {
+      return window.DOSECRAFT_filterEnabledDrugs(antibiotics);
+    }
+    return antibiotics;
   }
 
   function isSetupComplete(settings) {

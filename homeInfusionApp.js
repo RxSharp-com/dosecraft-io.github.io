@@ -3,6 +3,8 @@ function HomeInfusionApp() {
   var STORE = window.DOSECRAFT_HOME_STORE;
   var COPY = window.DOSECRAFT_HOME_COPY;
   var ALL_DRUGS = window.DOSECRAFT_DRUGS || [];
+  var cfg = window.DOSECRAFT_getClinicConfig();
+  var isModule = window.DOSECRAFT_isModuleEnabled;
   var HOME_DRUGS = STORE.homeAntibioticDrugs(ALL_DRUGS);
   var getEd = window.DOSECRAFT_getPatientEducation;
 
@@ -41,7 +43,21 @@ function HomeInfusionApp() {
 
   function medColor() {
     var d = STORE.getMedicationDrug(settings, ALL_DRUGS);
-    return d ? d.color : "#2a9d8f";
+    if (d) return d.color;
+    if (cfg.branding && cfg.branding.primaryColor) return cfg.branding.primaryColor;
+    return "#2a9d8f";
+  }
+
+  function savedMedicationDisabled() {
+    return window.DOSECRAFT_isSavedMedicationDisabled(settings);
+  }
+
+  function goToScreen(name) {
+    if (name === "sash" && !isModule("sashGuide")) return;
+    if (name === "appointment" && !isModule("appointmentReminders")) return;
+    if (name === "medInfo" && !isModule("medicationEducation")) return;
+    if (name === "lineCare" && !isModule("lineCare")) return;
+    setScreen(name);
   }
 
   var col = medColor();
@@ -132,7 +148,12 @@ function HomeInfusionApp() {
   }
 
   function goPlayGame() {
+    if (!isModule("infusionArcade")) return;
     var d = STORE.getMedicationDrug(settings, ALL_DRUGS);
+    if (d && !window.DOSECRAFT_isMedicationEnabled(d.id)) {
+      goToScreen("setup");
+      return;
+    }
     if (d) {
       window.location.href = "game.html?drug=" + encodeURIComponent(d.name) + "&return=home";
     } else {
@@ -141,6 +162,7 @@ function HomeInfusionApp() {
   }
 
   function goClinicMode() {
+    if (!isModule("clinicInfusion")) return;
     window.location.href = "game.html";
   }
 
@@ -178,7 +200,15 @@ function HomeInfusionApp() {
       <Shell>
         <Back onClick={function () { if (STORE.isSetupComplete(STORE.loadSettings())) setScreen("dashboard"); }} label="Dashboard" />
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>Treatment setup</h1>
-        <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 20, fontSize: 16 }}>{COPY.careTeamNote}</p>
+        <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 20, fontSize: 16 }}>{cfg.disclaimers.general || COPY.careTeamNote}</p>
+
+        {savedMedicationDisabled() && (
+          <div style={{ ...card, borderColor: "#f4a26188" }}>
+            <p style={{ margin: 0, fontSize: 16 }}>
+              Your previously selected medication is not available in this app configuration. Please choose an available medication below or enter &quot;Other / not listed.&quot;
+            </p>
+          </div>
+        )}
 
         <div style={card}>
           <div style={label}>Medication</div>
@@ -433,6 +463,7 @@ function HomeInfusionApp() {
           </label>
         </div>
 
+        {isModule("appointmentReminders") && (
         <div style={card}>
           <div style={label}>Next lab / follow-up visit</div>
           <input type="date" value={settings.appointmentSchedule.nextAppointmentDate || ""}
@@ -452,6 +483,7 @@ function HomeInfusionApp() {
               style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 10 }} />
           )}
         </div>
+        )}
 
         <div style={card}>
           <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
@@ -470,6 +502,14 @@ function HomeInfusionApp() {
 
   // ── SASH ───────────────────────────────────────────────────────────────────
   if (screen === "sash") {
+    if (!isModule("sashGuide")) {
+      return (
+        <Shell>
+          <Back onClick={function () { setScreen("dashboard"); }} />
+          <p style={{ color: "rgba(255,255,255,0.65)" }}>The SASH guide is not available in this app configuration.</p>
+        </Shell>
+      );
+    }
     var steps = getVisibleSashSteps();
     var step = steps[sashStep] || steps[0];
     var progress = (sashStep + 1) / steps.length;
@@ -603,6 +643,14 @@ function HomeInfusionApp() {
 
   // ── LINE CARE ──────────────────────────────────────────────────────────────
   if (screen === "lineCare") {
+    if (!isModule("lineCare")) {
+      return (
+        <Shell>
+          <Back onClick={function () { setScreen("dashboard"); }} />
+          <p style={{ color: "rgba(255,255,255,0.65)" }}>Line care information is not available in this app configuration.</p>
+        </Shell>
+      );
+    }
     return (
       <Shell>
         <Back onClick={function () { setScreen("dashboard"); }} />
@@ -614,13 +662,21 @@ function HomeInfusionApp() {
             })}
           </ul>
         </div>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>{COPY.careTeamNote}</p>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>{cfg.disclaimers.lineCare || COPY.careTeamNote}</p>
       </Shell>
     );
   }
 
   // ── MEDICATION INFO ────────────────────────────────────────────────────────
   if (screen === "medInfo") {
+    if (!isModule("medicationEducation")) {
+      return (
+        <Shell>
+          <Back onClick={function () { setScreen("dashboard"); }} />
+          <p style={{ color: "rgba(255,255,255,0.65)" }}>Medication education is not available in this app configuration.</p>
+        </Shell>
+      );
+    }
     var drug = STORE.getMedicationDrug(settings, ALL_DRUGS);
     var ed = drug ? getEd(drug) : getEd(null);
     return (
@@ -663,13 +719,22 @@ function HomeInfusionApp() {
           </div>
         )}
         <CareTeamContact variant="full" accentColor={col} />
-        {drug && <Btn primary label="Learn what this medication is doing (play game)" onClick={goPlayGame} />}
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>{cfg.disclaimers.medication}</p>
+        {drug && isModule("infusionArcade") && <Btn primary label="Learn what this medication is doing (play game)" onClick={goPlayGame} />}
       </Shell>
     );
   }
 
   // ── APPOINTMENT EDIT ───────────────────────────────────────────────────────
   if (screen === "appointment") {
+    if (!isModule("appointmentReminders")) {
+      return (
+        <Shell>
+          <Back onClick={function () { setScreen("dashboard"); }} />
+          <p style={{ color: "rgba(255,255,255,0.65)" }}>Appointment reminders are not available in this app configuration.</p>
+        </Shell>
+      );
+    }
     return (
       <Shell>
         <Back onClick={function () { setScreen("dashboard"); }} />
@@ -705,7 +770,7 @@ function HomeInfusionApp() {
 
   // ── DASHBOARD ──────────────────────────────────────────────────────────────
   var dayInfo = STORE.getTreatmentDayInfo(settings);
-  var apptDate = STORE.getNextAppointmentDate(settings);
+  var apptDate = isModule("appointmentReminders") ? STORE.getNextAppointmentDate(settings) : "";
   void tick;
 
   return (
@@ -713,7 +778,7 @@ function HomeInfusionApp() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>Dosecraft</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "4px 0 0" }}>Home infusion</h1>
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "4px 0 0" }}>{cfg.clinicDisplayName || "Home infusion"}</h1>
         </div>
         <button onClick={function () { setScreen("setup"); }} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "8px 14px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
           Edit setup
@@ -724,6 +789,15 @@ function HomeInfusionApp() {
         <div style={{ ...card, borderColor: "#f4a26188" }}>
           <p style={{ margin: 0 }}>Complete treatment setup to see your schedule and next dose.</p>
           <Btn primary label="Set up treatment" onClick={function () { setScreen("setup"); }} />
+        </div>
+      )}
+
+      {savedMedicationDisabled() && (
+        <div style={{ ...card, borderColor: "#f4a26188" }}>
+          <p style={{ margin: "0 0 12px", fontSize: 16 }}>
+            Your saved medication is not available in this app. Please update your treatment setup.
+          </p>
+          <Btn primary label="Update medication" onClick={function () { setScreen("setup"); }} />
         </div>
       )}
 
@@ -751,24 +825,24 @@ function HomeInfusionApp() {
         </div>
       )}
 
-      {apptDate && (
+      {isModule("appointmentReminders") && apptDate && (
         <div style={card}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
               <div style={label}>Next lab / visit</div>
               <div style={{ fontSize: 20, fontWeight: 700 }}>{new Date(apptDate + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
             </div>
-            <button onClick={function () { setScreen("appointment"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
+            <button onClick={function () { goToScreen("appointment"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
               Edit
             </button>
           </div>
         </div>
       )}
-      {!apptDate && STORE.isSetupComplete(settings) && (
+      {isModule("appointmentReminders") && !apptDate && STORE.isSetupComplete(settings) && (
         <div style={card}>
           <div style={label}>Next lab / visit</div>
           <p style={{ margin: "0 0 10px", fontSize: 15, color: "rgba(255,255,255,0.55)" }}>No visit scheduled yet.</p>
-          <Btn label="Add visit date" onClick={function () { setScreen("appointment"); }} />
+          <Btn label="Add visit date" onClick={function () { goToScreen("appointment"); }} />
         </div>
       )}
 
@@ -776,18 +850,30 @@ function HomeInfusionApp() {
 
       <div style={{ marginTop: 8 }}>
         <div style={label}>Quick actions</div>
-        <Btn primary label="Start dose (SASH guide)" onClick={function () { setSashStep(0); setChecked({}); setDoseTimer(STORE.loadDoseTimer()); setScreen("sash"); }} />
-        <Btn label="Warning signs" onClick={function () { setScreen("warnings"); }} />
-        <Btn label="Medication info" onClick={function () { setScreen("medInfo"); }} />
-        <Btn label="Line care" onClick={function () { setScreen("lineCare"); }} />
-        <Btn label="Play game" onClick={goPlayGame} />
+        {isModule("sashGuide") && (
+          <Btn primary label="Start dose (SASH guide)" onClick={function () { setSashStep(0); setChecked({}); setDoseTimer(STORE.loadDoseTimer()); goToScreen("sash"); }} />
+        )}
+        <Btn label="Warning signs" onClick={function () { goToScreen("warnings"); }} />
+        {isModule("medicationEducation") && (
+          <Btn label="Medication info" onClick={function () { goToScreen("medInfo"); }} />
+        )}
+        {isModule("lineCare") && (
+          <Btn label="Line care" onClick={function () { goToScreen("lineCare"); }} />
+        )}
+        {isModule("infusionArcade") && (
+          <Btn label="Play game" onClick={goPlayGame} />
+        )}
       </div>
 
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-        <Btn label="Switch to clinic infusion mode" onClick={goClinicMode} />
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: 0 }}>
-          IVIG and in-clinic infusions · SharpRX Interactive
-        </p>
+        {isModule("clinicInfusion") && (
+          <Btn label="Switch to clinic infusion mode" onClick={goClinicMode} />
+        )}
+        {cfg.branding.showPoweredByDosecraft !== false && (
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: 0 }}>
+            IVIG and in-clinic infusions · SharpRX Interactive
+          </p>
+        )}
       </div>
     </Shell>
   );
@@ -795,6 +881,8 @@ function HomeInfusionApp() {
 
 function HomeModeSelector(props) {
   var STORE = window.DOSECRAFT_HOME_STORE;
+  var isModule = window.DOSECRAFT_isModuleEnabled;
+  var cfg = window.DOSECRAFT_getClinicConfig();
   var page = {
     minHeight: "100vh",
     background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
@@ -819,8 +907,9 @@ function HomeModeSelector(props) {
         <div style={{ fontSize: 13, letterSpacing: 3, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>DOSECRAFT</div>
         <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 12 }}>How will you use Dosecraft?</h1>
         <p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", marginBottom: 28, lineHeight: 1.6 }}>
-          You can change this later. Follow your care team's instructions for your actual treatment.
+          You can change this later. {cfg.disclaimers.general}
         </p>
+        {isModule("homeInfusion") && (
         <button onClick={function () { choose("home"); }} style={{
           display: "block", width: "100%", minHeight: 56, marginBottom: 14, padding: 16,
           borderRadius: 14, border: "none", background: "#2a9d8f", color: "#041018",
@@ -829,6 +918,8 @@ function HomeModeSelector(props) {
           Home infusion companion
           <div style={{ fontSize: 14, fontWeight: 400, marginTop: 4, opacity: 0.85 }}>Antibiotic doses at home · SASH · dose tracking</div>
         </button>
+        )}
+        {isModule("clinicInfusion") && (
         <button onClick={function () { choose("clinic"); }} style={{
           display: "block", width: "100%", minHeight: 56, padding: 16,
           borderRadius: 14, border: "2px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "#f5f8fc",
@@ -837,6 +928,10 @@ function HomeModeSelector(props) {
           Clinic infusion mode
           <div style={{ fontSize: 14, fontWeight: 400, marginTop: 4, opacity: 0.75 }}>IVIG / in-clinic timer · optional games</div>
         </button>
+        )}
+        {!isModule("homeInfusion") && !isModule("clinicInfusion") && (
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>No infusion modes are enabled for this clinic configuration.</p>
+        )}
       </div>
     </div>
   );
