@@ -285,8 +285,8 @@
     { id: "carbapenem", label: "Carbapenem Antibiotics", homepageLabel: "Carbapenem", color: "#f59e0b", drugIds: [5, 6] },
     { id: "glycopeptide", label: "Glycopeptide Antibiotics", homepageLabel: "Glycopeptide Antibiotics", color: "#c084fc", drugIds: [7, 14] },
     { id: "daptomycin", label: "Cubicin (Daptomycin)", homepageLabel: "Daptomycin", color: "#eab308", drugIds: [8] },
-    { id: "immunoglobulin", label: "Immunoglobulin Therapy (IVIG / SCIG)", homepageLabel: "Immunoglobulin", color: "#f4a261", drugIds: [9, 10, 11, 12] },
     { id: "tetracycline", label: "Tetracycline Antibiotics", homepageLabel: "Tetracycline", color: "#14b8a6", drugIds: [16] },
+    { id: "immunoglobulin", label: "Immunoglobulin Therapy (IVIG / SCIG)", homepageLabel: "Immunoglobulin", color: "#f4a261", drugIds: [9, 10, 11, 12] },
   ];
 
   window.DOSECRAFT_MECHANIC_TILES = [
