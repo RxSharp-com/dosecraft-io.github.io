@@ -36,10 +36,11 @@ Homepage (`index.html`) and game (`game.html` → `InfusionArcade.js`) load the 
 | Glycopeptide or lipoglycopeptide / D-Ala-D-Ala binding | `vanco` | `vanco` | `BLOCK ATTACK` | `paddleLabel`, `bgGradient` |
 | Daptomycin-like membrane depolarization / disruption | `dapto` | `dapto` | `MEMBRANE BREACH` | `bgGradient` |
 | IVIG / SCIG / immune modulation | `ivig` | `ivig` | `IMMUNE DEFENSE` | `bgGradient`, `ivigNote` |
+| Tetracycline / 30S ribosome protein-synthesis blockade | `tetracycline` | `tetracycline` | `PROTEIN BLOCKER` | `paddleLabel`, `bgGradient` |
 
 If no existing mechanic fits, **stop** and propose a new mechanic — do not force a bad fit.
 
-Reference implementations in catalog: Penicillin G (`breakout`), Dalvance (`vanco`).
+Reference implementations in catalog: Penicillin G (`breakout`), Dalvance (`vanco`), Doxycycline (`tetracycline`).
 
 ## Implementation steps
 
