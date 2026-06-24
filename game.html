@@ -97,6 +97,12 @@
   const SFX = (() => {
     let ctx = null;
     const buffers = {};
+    let enabled = true;
+
+    try {
+      const saved = localStorage.getItem('dosecraftSfxEnabled');
+      if (saved !== null) enabled = saved === 'true';
+    } catch (e) {}
 
     function getCtx() {
       if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -116,6 +122,7 @@
     }
 
     function play(name) {
+      if (!enabled) return;
       const buf = buffers[name];
       if (!buf) return;
       const ac = getCtx();
@@ -128,7 +135,14 @@
       src.start(0);
     }
 
-    return { load, play };
+    function getEnabled() { return enabled; }
+
+    function setEnabled(val) {
+      enabled = !!val;
+      try { localStorage.setItem('dosecraftSfxEnabled', enabled ? 'true' : 'false'); } catch (e) {}
+    }
+
+    return { load, play, getEnabled, setEnabled };
   })();
 
   window.addEventListener('DOMContentLoaded', () => {

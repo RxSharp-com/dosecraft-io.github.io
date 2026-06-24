@@ -253,7 +253,7 @@ function HomeInfusionApp() {
 
     return (
       <HomeShell>
-        <HomeBack onClick={function () { if (STORE.isSetupComplete(STORE.loadSettings())) setScreen("dashboard"); }} label="Dashboard" />
+        <HomeBack onClick={function () { setSettings(STORE.loadSettings()); setScreen("dashboard"); }} label="Dashboard" />
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>Treatment setup</h1>
         <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 20, fontSize: 16 }}>{cfg.disclaimers.general || COPY.careTeamNote}</p>
 
