@@ -11,12 +11,12 @@
   var DEFAULT_CLINIC_CONFIG = {
     configVersion: 1,
     clinicId: "default",
-    clinicName: "Northwest Arkansas Infectious Disease Specialists",
-    clinicDisplayName: "NWA Infectious Disease",
-    primaryPhoneNumber: "(555)444-1234",
+    clinicName: "",
+    clinicDisplayName: "",
+    primaryPhoneNumber: "",
     appointmentPhoneNumber: "",
-    pharmacyPhoneNumber: "(555)444-1134",
-    afterHoursInstructions: "Call (555)444-1552",
+    pharmacyPhoneNumber: "",
+    afterHoursInstructions: "",
     appointmentInstructions:
       "Call your clinic if you need to reschedule or have questions about appointments.",
     emergencyInstructions:
