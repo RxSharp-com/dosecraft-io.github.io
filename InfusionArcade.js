@@ -2002,6 +2002,49 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     >{label}</button>
   );
 
+  function canReturnToHomeCompanion() {
+    if (typeof window.DOSECRAFT_isModuleEnabled === "function" && !window.DOSECRAFT_isModuleEnabled("homeInfusion")) {
+      return false;
+    }
+    if (returnHome) return true;
+    var store = window.DOSECRAFT_HOME_STORE;
+    return store && typeof store.getPatientMode === "function" && store.getPatientMode() === "home";
+  }
+
+  function goHomeCompanion() {
+    window.location.href = "index.html";
+  }
+
+  const HomeCompanionBackLink = () => (
+    canReturnToHomeCompanion() ? (
+      <button
+        onClick={goHomeCompanion}
+        style={{
+          background: "transparent",
+          border: "none",
+          color: "#2a9d8f",
+          fontSize: 15,
+          fontWeight: 600,
+          padding: "8px 0",
+          marginBottom: 12,
+          cursor: "pointer",
+          fontFamily: SANS,
+          touchAction: "manipulation",
+          textAlign: "left",
+          width: "100%",
+        }}
+      >
+        ← Back to home companion
+      </button>
+    ) : null
+  );
+
+  const HomeCompanionBtn = ({ primary = false }) => (
+    canReturnToHomeCompanion() ? (
+      <BigBtn label="🏠 Back to home companion" onClick={goHomeCompanion} primary={primary} />
+    ) : null
+  );
+
   if (splashVisible) return (
     <div style={{ background: "#030812", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: SANS }}>
       <style>{`@keyframes splashIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }`}</style>
@@ -2027,6 +2070,11 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             <h1 style={{ fontSize: 34, fontWeight: 900, margin: "0 0 8px", color: "#ffffff", fontFamily: SERIF, letterSpacing: 1 }}>Infusion Arcade</h1>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>Select your medication to see it working</p>
           </div>
+          {canReturnToHomeCompanion() && (
+            <div style={{ marginBottom: 20 }}>
+              <HomeCompanionBtn />
+            </div>
+          )}
           {groups.map(grp => grp.drugs.length > 0 && (
             <div key={grp.label} style={{ marginBottom: 22 }}>
               <div style={{ fontSize: 12, letterSpacing: 3, color: grp.color + "cc", marginBottom: 12, textTransform: "uppercase", borderBottom: `1px solid ${grp.color}30`, paddingBottom: 8 }}>{grp.label}</div>
@@ -2049,16 +2097,6 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             </div>
           ))}
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
-          {returnHome && (
-            <div style={{ marginTop: 16 }}>
-              <BigBtn label="← Back to home dashboard" onClick={() => { window.location.href = "index.html"; }} />
-            </div>
-          )}
-          <div style={{ marginTop: returnHome ? 8 : 16 }}>
-            {window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("homeInfusion") && (
-              <BigBtn label="🏠 Home infusion companion" onClick={() => { window.location.href = "index.html"; }} />
-            )}
-          </div>
           <MusicToggle />
           <ShareBtn />
           <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
@@ -2105,6 +2143,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       <div style={pageStyle}>
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
         <div style={{ maxWidth: 460, width: "100%" }}>
+
+          <HomeCompanionBackLink />
 
           {/* Drug header */}
           <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -2335,6 +2375,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
         <div style={{ maxWidth: 460, width: "100%" }}>
 
+          <HomeCompanionBackLink />
+
           {/* Round complete header */}
           <div style={{ textAlign: "center", marginBottom: 24 }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>✦</div>
@@ -2434,6 +2476,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
               </div>
             )}
             {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
+            <HomeCompanionBtn />
             <BigBtn
               label="← Back to medication menu"
               onClick={() => setScreen("menu")}
@@ -2472,6 +2515,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       <div style={{ ...pageStyle, padding: "24px 16px" }}>
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
         <div style={{ maxWidth: 460, width: "100%" }}>
+
+          <HomeCompanionBackLink />
 
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -2580,6 +2625,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             )}
             {/* setScreen("menu") keeps us inside game.html and does NOT call endInfusionSession —
                 the session timer keeps running. Only "End infusion session" below clears it. */}
+            <HomeCompanionBtn primary />
             <BigBtn label="← Back to medication menu" onClick={() => setScreen("menu")} />
             {!isComplete && (
               <button
@@ -2762,6 +2808,9 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
               <button style={overlayBtnSm} onClick={handlePauseHowToPlay}>How to Play</button>
               {sessionActive && (
                 <button style={overlayBtnSm} onClick={handleReturnToCompanion}>Return to Companion</button>
+              )}
+              {canReturnToHomeCompanion() && (
+                <button style={overlayBtnSm} onClick={goHomeCompanion}>Back to home companion</button>
               )}
               <button style={{ ...overlayBtnSm, marginBottom: 0, color: "rgba(255,100,100,0.7)", borderColor: "rgba(255,100,100,0.25)" }}
                 onClick={handleEndRound}>End Round</button>
