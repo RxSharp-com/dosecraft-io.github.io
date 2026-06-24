@@ -311,17 +311,32 @@
     Both scripts must be type="text/babel" for this to work.
   -->
   <script src="drugCatalog.js"></script>
+  <script src="homeInfusionCopy.js"></script>
+  <script src="homeInfusionStore.js"></script>
+  <script type="text/babel" src="homeInfusionApp.js"></script>
   <script type="text/babel" src="InfusionArcade.js"></script>
 
   <script type="text/babel">
     // ── MOUNT ─────────────────────────────────────────────────────────────────
-    function App() {
+    function getReturnHome() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('return') === 'home';
+    }
+
+    function GameEntry() {
+      const STORE = window.DOSECRAFT_HOME_STORE;
+      const [ready, setReady] = React.useState(STORE.hasModeChoice());
+
+      if (!ready) {
+        return <HomeModeSelector />;
+      }
+
       const drugName = getDrugNameFromURL();
-      return <InfusionArcade initialDrug={drugName} />;
+      return <InfusionArcade initialDrug={drugName} returnHome={getReturnHome()} />;
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<GameEntry />);
   </script>
 
   <!--

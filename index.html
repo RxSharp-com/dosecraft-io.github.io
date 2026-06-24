@@ -2,18 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-
-  <!--
-    PWA / mobile viewport — matches game.html.
-    maximum-scale=1.0 + user-scalable=no prevents accidental pinch-zoom
-    on the drug-selection list while keeping it finger-friendly.
-    viewport-fit=cover extends into the iPhone notch area.
-  -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Dosecraft · Home Infusion Companion</title>
 
-  <title>Dosecraft · Infusion Arcade</title>
-
-  <!-- Google Analytics 4 -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-C34V4019DW"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -22,252 +13,51 @@
     gtag('config', 'G-C34V4019DW');
   </script>
 
-  <!-- ── PWA: manifest ──────────────────────────────────────────────────────
-       Registering the manifest on index.html too means Chrome/Android will
-       show the install prompt whether the user lands here or on game.html.
-  -->
   <link rel="manifest" href="/manifest.json" />
-
-  <!-- ── PWA: iOS / Safari "Add to Home Screen" ───────────────────────────
-       Safari ignores the manifest's icons array; these tags are required.
-  -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Infusion Arcade" />
+  <meta name="apple-mobile-web-app-title" content="Dosecraft" />
   <link rel="apple-touch-icon" href="/icon-192x192.png" />
+  <meta name="theme-color" content="#0a1628" />
 
-  <!-- ── PWA: Chrome / Android toolbar tint ───────────────────────────────
-       Dark teal matches the top ticker bar on the homepage.
-  -->
-  <meta name="theme-color" content="#000000" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; background: #0a1628; }
     body {
-      background: radial-gradient(ellipse at 30% 20%, #0a1a1a 0%, #060a14 40%, #070414 100%);
-      color: #f0f4ff;
-      font-family: 'Courier New', Courier, monospace;
-      min-height: 100vh;
-      overflow-x: hidden;
-      overflow-y: auto;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
     }
-    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-    @keyframes letterBob { from { transform: translateY(0px); } to { transform: translateY(-6px); } }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes sideGlow { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
-    .ticker-inner { display: flex; white-space: nowrap; animation: ticker 50s linear infinite; }
-    .ticker-text { font-size: 12px; letter-spacing: 2px; color: #00d4c8; text-transform: uppercase; padding-right: 80px; }
-    .phase { animation: fadeUp 0.35s ease both; }
-    .drug-btn { background: rgba(255,255,255,0.04); border-radius: 8px; padding: 13px 15px; cursor: pointer; text-align: left; font-family: 'Courier New', Courier, monospace; width: 100%; color: #fff; transition: all 0.12s ease; }
-    .drug-btn:hover { transform: translateY(-2px); }
-    .game-tile { text-align: center; padding: 14px 16px; border-radius: 8px; min-width: 110px; flex: 1; }
-    .back-btn { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.35); font-family: 'Courier New', Courier, monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; padding: 8px 20px; border-radius: 6px; cursor: pointer; }
-    .back-btn:hover { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.3); }
-    #crt { position: fixed; inset: 0; pointer-events: none; z-index: 99; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px); }
-    #side-l { position: fixed; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, transparent, #00d4c8, #c084fc, #f59e0b, transparent); pointer-events: none; z-index: 10; animation: sideGlow 3s ease-in-out infinite; }
-    #side-r { position: fixed; right: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(to bottom, transparent, #00d4c8, #c084fc, #f59e0b, transparent); pointer-events: none; z-index: 10; animation: sideGlow 3s ease-in-out infinite 1.5s; }
+    #root { min-height: 100vh; }
   </style>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.9/babel.min.js"></script>
 </head>
 <body>
+  <div id="root"></div>
 
-<div id="crt"></div>
-<div id="side-l"></div>
-<div id="side-r"></div>
+  <script src="drugCatalog.js"></script>
+  <script src="homeInfusionCopy.js"></script>
+  <script src="homeInfusionStore.js"></script>
+  <script type="text/babel" src="homeInfusionApp.js"></script>
 
-<!-- Pixel corners -->
-<svg style="position:fixed;top:0;left:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M2 38L2 2L38 2" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="2" y="2" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
-<svg style="position:fixed;top:0;right:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M38 38L38 2L2 2" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="32" y="2" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
-<svg style="position:fixed;bottom:0;left:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M2 2L2 38L38 38" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="2" y="32" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
-<svg style="position:fixed;bottom:0;right:0;pointer-events:none;z-index:20;" width="40" height="40" viewBox="0 0 40 40"><path d="M38 2L38 38L2 38" stroke="#00d4c8" stroke-width="2" opacity="0.5"/><rect x="32" y="32" width="6" height="6" fill="#00d4c8" opacity="0.7"/></svg>
+  <script type="text/babel">
+    function IndexApp() {
+      var STORE = window.DOSECRAFT_HOME_STORE;
+      var hasChoice = STORE.hasModeChoice();
+      if (!hasChoice) return <HomeModeSelector />;
+      return <HomeInfusionApp />;
+    }
 
-<!-- Ticker -->
-<div style="border-top:2px solid #00d4c8;border-bottom:2px solid #00d4c8;background:#000;overflow:hidden;height:36px;display:flex;align-items:center;">
-  <div class="ticker-inner">
-    <span class="ticker-text">INSERT COIN TO BEGIN ✦ &nbsp; ZOSYN BATTLES BACTERIA ✦ &nbsp; VANCOMYCIN BLOCKS CONSTRUCTION ✦ &nbsp; IVIG REINFORCES YOUR IMMUNITY ✦ &nbsp; YOUR INFUSION IS WORKING ✦ &nbsp; STAY CALM · STAY SEATED · STAY CURIOUS ✦ &nbsp;&nbsp;&nbsp;</span>
-    <span class="ticker-text">INSERT COIN TO BEGIN ✦ &nbsp; ZOSYN BATTLES BACTERIA ✦ &nbsp; VANCOMYCIN BLOCKS CONSTRUCTION ✦ &nbsp; IVIG REINFORCES YOUR IMMUNITY ✦ &nbsp; YOUR INFUSION IS WORKING ✦ &nbsp; STAY CALM · STAY SEATED · STAY CURIOUS ✦ &nbsp;&nbsp;&nbsp;</span>
-  </div>
-</div>
+    var root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<IndexApp />);
+  </script>
 
-<!-- Logo -->
-<div style="text-align:center;padding:40px 24px 16px;">
-  <div id="logo" style="font-size:clamp(34px,9vw,68px);font-weight:900;letter-spacing:0.15em;line-height:1;"></div>
-  <div style="font-size:clamp(9px,2vw,13px);letter-spacing:0.45em;color:rgba(255,255,255,0.32);text-transform:uppercase;margin-top:8px;">INFUSION ARCADE</div>
-</div>
-
-<div id="app"></div>
-
-<script src="drugCatalog.js"></script>
-<script>
-const DRUGS = window.DOSECRAFT_DRUGS;
-const GROUPS = window.DOSECRAFT_DRUG_GROUPS;
-const TILES = window.DOSECRAFT_MECHANIC_TILES;
-
-function drugsForGroup(group) {
-  return group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
-}
-
-// Build animated logo
-(function() {
-  const el = document.getElementById('logo');
-  const colors  = ['#00d4c8','#c084fc','#f59e0b'];
-  const shadows  = ['0 0 10px #00d4c8,0 0 30px #00d4c855','0 0 10px #c084fc,0 0 30px #c084fc55','0 0 10px #f59e0b,0 0 30px #f59e0b55'];
-  'DOSECRAFT'.split('').forEach((l, i) => {
-    const s = document.createElement('span');
-    s.textContent = l;
-    const ci = i % 3;
-    s.style.cssText = `display:inline-block;color:${colors[ci]};text-shadow:${shadows[ci]};`
-      + `animation:letterBob ${1.2+i*0.1}s ease-in-out ${i*0.07}s infinite alternate;`;
-    el.appendChild(s);
-  });
-})();
-
-// Blinking prompt
-let blinkOn = true;
-setInterval(() => {
-  const el = document.getElementById('blink');
-  if (el) { blinkOn = !blinkOn; el.style.opacity = blinkOn ? '1' : '0'; }
-}, 650);
-
-function goToGame(drugName) {
-  window.location.href = 'game.html?drug=' + encodeURIComponent(drugName);
-}
-
-function render(phase) {
-  const app = document.getElementById('app');
-  const div = document.createElement('div');
-  div.className = 'phase';
-  div.innerHTML = phase === 'attract' ? attractHTML() : selectHTML();
-  app.innerHTML = '';
-  app.appendChild(div);
-}
-
-function attractHTML() {
-  const tiles = TILES.map(g => `
-    <div class="game-tile" style="border:1px solid ${g.color}33;background:${g.color}0a;">
-      <div style="font-size:22px;margin-bottom:7px;">${g.icon}</div>
-      <div style="font-size:10px;font-weight:700;color:${g.color};letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">${g.label}</div>
-      <div style="font-size:9px;color:rgba(255,255,255,0.28);">${g.desc}</div>
-    </div>`).join('');
-
-  return `
-    <div style="display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:16px;
-      border-top:1px solid rgba(255,255,255,0.1);border-bottom:1px solid rgba(255,255,255,0.1);
-      padding:16px 0;margin:0 24px 28px;">
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#00d4c8;text-shadow:0 0 10px #00d4c888;">${DRUGS.length}</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Medications</div>
-      </div>
-      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#c084fc;text-shadow:0 0 10px #c084fc88;">4</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Game Modes</div>
-      </div>
-      <div style="width:1px;height:36px;background:rgba(255,255,255,0.1);"></div>
-      <div style="text-align:center;padding:0 20px;">
-        <div style="font-size:28px;font-weight:900;color:#f59e0b;text-shadow:0 0 10px #f59e0b88;">6</div>
-        <div style="font-size:9px;letter-spacing:0.2em;color:rgba(255,255,255,0.3);text-transform:uppercase;margin-top:2px;">Drug Classes</div>
-      </div>
-    </div>
-
-    <div style="text-align:center;padding:4px 0 28px;">
-      <span id="blink" onclick="render('select')"
-        style="font-size:clamp(13px,3.5vw,20px);letter-spacing:0.3em;color:#f59e0b;
-               text-shadow:0 0 12px #f59e0b;text-transform:uppercase;cursor:pointer;">
-        ▶ SELECT YOUR MEDICATION ◀
-      </span>
-    </div>
-
-    <div style="text-align:center;padding:0 24px 36px;max-width:440px;margin:0 auto;">
-      <p style="font-size:clamp(11px,2.5vw,14px);line-height:2;color:rgba(255,255,255,0.38);letter-spacing:0.06em;">
-        You're receiving your infusion right now.<br>
-        Watch your medication work — in real time.
-      </p>
-    </div>
-
-    <div style="display:flex;justify-content:center;gap:10px;padding:0 16px 44px;flex-wrap:wrap;">
-      ${tiles}
-    </div>
-
-    <div style="text-align:center;padding:0 0 28px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
-      SharpRX Interactive · dosecraft.io
-    </div>`;
-}
-
-function selectHTML() {
-  const chips = ['WALL BREAKER','BLOCK ATTACK','MEMBRANE BREACH','IMMUNE DEFENSE'].map(m =>
-    `<span style="font-size:9px;letter-spacing:0.15em;color:rgba(255,255,255,0.28);
-      background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);
-      border-radius:4px;padding:3px 8px;">${m}</span>`).join('');
-
-  const groups = GROUPS.map(grp => {
-    const drugs = drugsForGroup(grp);
-    if (!drugs.length) return '';
-    const cards = drugs.map(d => `
-      <button class="drug-btn" style="border:1.5px solid ${d.color}44;"
-        onmouseenter="this.style.background='linear-gradient(135deg,${d.color}22,${d.color}0d)';this.style.borderColor='${d.color}';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 20px ${d.color}33';"
-        onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='${d.color}44';this.style.transform='none';this.style.boxShadow='none';"
-        onclick="goToGame('${d.name}')">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-              <div style="width:8px;height:8px;border-radius:50%;background:${d.color};box-shadow:0 0 6px ${d.color};flex-shrink:0;"></div>
-              <span style="font-size:15px;font-weight:900;color:${d.color};letter-spacing:0.06em;">${d.name}</span>
-            </div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.38);padding-left:16px;margin-bottom:3px;">${d.generic}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.22);padding-left:16px;letter-spacing:0.1em;">${d.tagline}</div>
-          </div>
-          <span style="background:${d.color}1a;border:1px solid ${d.color}44;border-radius:4px;padding:3px 7px;font-size:8px;letter-spacing:0.1em;color:${d.color}cc;text-transform:uppercase;white-space:nowrap;flex-shrink:0;">${d.mode}</span>
-        </div>
-      </button>`).join('');
-
-    return `
-      <div style="display:flex;align-items:center;gap:10px;margin-top:20px;margin-bottom:10px;">
-        <div style="height:1px;width:14px;background:${grp.color}88;"></div>
-        <div style="font-size:9px;letter-spacing:0.35em;color:${grp.color}99;text-transform:uppercase;white-space:nowrap;">${grp.homepageLabel}</div>
-        <div style="flex:1;height:1px;background:linear-gradient(to right,${grp.color}44,transparent);"></div>
-      </div>
-      <div style="display:grid;gap:7px;">${cards}</div>`;
-  }).join('');
-
-  return `
-    <div style="text-align:center;padding:4px 16px 16px;font-size:11px;letter-spacing:0.25em;color:rgba(255,255,255,0.3);text-transform:uppercase;">
-      Select your medication
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:0 16px 18px;">${chips}</div>
-    <div style="max-width:540px;margin:0 auto;padding:0 14px;">${groups}</div>
-    <div style="text-align:center;padding:28px 0 16px;">
-      <button class="back-btn" onclick="render('attract')">← Back</button>
-    </div>
-    <div style="text-align:center;padding:0 0 32px;font-size:9px;letter-spacing:0.3em;color:rgba(255,255,255,0.12);text-transform:uppercase;">
-      SharpRX Interactive · dosecraft.io
-    </div>`;
-}
-
-render('attract');
-</script>
-
-  <!--
-    ── SERVICE WORKER REGISTRATION ─────────────────────────────────────────────
-    FILE INVOLVED: sw.js  (new file, repo root)
-
-    Registering from index.html too ensures the SW activates even when a user
-    bookmarks / navigates directly to the drug-selection homepage. The browser
-    deduplicates: registering the same scope from two pages does not create two
-    workers — the existing registration is reused.
-
-    The try/catch fallback means the page works normally if sw.js hasn't been
-    committed yet (safe for incremental deploys).
-  -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker
-          .register('/sw.js', { scope: '/' })
-          .then(function (reg) {
-            console.log('[Dosecraft SW] Registered from index. Scope:', reg.scope);
-          })
-          .catch(function (err) {
-            console.warn('[Dosecraft SW] Registration skipped:', err.message);
-          });
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {});
       });
     }
   </script>

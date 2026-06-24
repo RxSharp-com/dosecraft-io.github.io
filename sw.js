@@ -13,7 +13,7 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.16';
+const CACHE_VERSION = 'v1.0.17';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
 // ─── Core files to pre-cache on install ──────────────────────────────────────
@@ -23,6 +23,10 @@ const PRECACHE_URLS = [
   '/game.html',
   '/index.html',
   '/InfusionArcade.js',
+  '/homeInfusionApp.js',
+  '/homeInfusionStore.js',
+  '/homeInfusionCopy.js',
+  '/drugCatalog.js',
   '/manifest.json',
   '/icon-192x192.png',
   '/icon-512x512.png',
