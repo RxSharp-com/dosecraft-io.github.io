@@ -143,6 +143,37 @@ function drugsForGroup(group) {
   return drugs;
 }
 
+const MECHANIC_LABEL = {
+  breakout: "Wall Breaker",
+  vanco: "Block Attack",
+  dapto: "Membrane Breach",
+  ivig: "Immune Defense",
+  tetracycline: "Protein Blocker",
+};
+
+function mechanicTagForDrug(d) {
+  if (!d) return "";
+  return MECHANIC_LABEL[d.gameType] || "";
+}
+
+function loadGameSpeedSetting() {
+  try {
+    const s = localStorage.getItem("dosecraftGameSpeed");
+    if (s === "relaxed" || s === "fast" || s === "normal") return s;
+  } catch (e) {}
+  return "normal";
+}
+
+function saveGameSpeedSetting(speed) {
+  try { localStorage.setItem("dosecraftGameSpeed", speed); } catch (e) {}
+}
+
+function gameSpeedMultiplier(speed) {
+  if (speed === "relaxed") return 0.85;
+  if (speed === "fast") return 1.2;
+  return 1;
+}
+
 
 // ── BRICK LAYOUTS ─────────────────────────────────────────────────────────────
 // Each layout function returns an array of brick objects.
@@ -463,6 +494,17 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
   // ── MUSIC STATE ───────────────────────────────────────────────────────────
   // Mirrors MUSIC.getEnabled() so the toggle button re-renders correctly.
   const [musicEnabled, setMusicEnabledState] = useState(() => MUSIC.getEnabled());
+  const [sfxEnabled, setSfxEnabledState] = useState(() => (typeof SFX !== "undefined" && SFX.getEnabled ? SFX.getEnabled() : true));
+  const [gameSpeed, setGameSpeedState] = useState(() => loadGameSpeedSetting());
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNav, setShowNav] = useState(false);
+  const [showAboutPanel, setShowAboutPanel] = useState(false);
+
+  function closeOverlays() {
+    setShowSettings(false);
+    setShowNav(false);
+    setShowAboutPanel(false);
+  }
 
   function toggleMusic() {
     const next = !MUSIC.getEnabled();
@@ -478,6 +520,18 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       const key = trackFor[screen];
       if (key) MUSIC.fadeToTrack(key);
     }
+  }
+
+  function toggleSfx() {
+    if (typeof SFX === "undefined" || !SFX.setEnabled) return;
+    const next = !SFX.getEnabled();
+    SFX.setEnabled(next);
+    setSfxEnabledState(next);
+  }
+
+  function setGameSpeed(speed) {
+    setGameSpeedState(speed);
+    saveGameSpeedSetting(speed);
   }
 
   // ── INFUSION SESSION STATE ────────────────────────────────────────────────
@@ -699,17 +753,19 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     splashTimerRef.current = setTimeout(() => { setSplashVisible(false); cb(); }, 2000);
   }, []);
 
-  const startDrug = useCallback((idx) => {
+  const startDrug = useCallback((idx, options) => {
+    options = options || {};
+    const restartPlaying = options.restartPlaying === true;
     setDrugIdx(idx);
     stateRef.current = null;
 
     const d = DRUGS[idx];
-    trackEvent('medication_selected', { medication: d.name });
+    if (!restartPlaying) trackEvent('medication_selected', { medication: d.name });
     const setup = pickRoundSetup(d.gameType, roundCount);
     setRoundSetup(setup);
 
     const { spawnMult, speedMult } = setup.pattern;
-    const speed = speedMult * setup.rampMult; // combined speed multiplier
+    const speed = speedMult * setup.rampMult * gameSpeedMultiplier(loadGameSpeedSetting());
 
       if (d.gameType === "breakout") {
         // Ball speed scales with the speed multiplier (base 4.8 → up to ~6)
@@ -835,11 +891,16 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         };
       }
       setProgress(0);
-      // Go directly to intro — no splash here.
-      // Splash fires from the intro button, just before entering playing.
-      // This means intro is always reachable instantly when selecting a drug.
-      setScreen("intro");
-  }, [roundCount]);
+      if (restartPlaying) {
+        setShowTutorial(false);
+        setIsPaused(false);
+        showSplashThen(() => setScreen("playing"));
+      } else {
+        // Go directly to intro — no splash here.
+        // Splash fires from the intro button, just before entering playing.
+        setScreen("intro");
+      }
+  }, [roundCount, showSplashThen]);
 
   // Pointer control
   useEffect(() => {
@@ -2217,15 +2278,333 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     window.open("https://forms.gle/tw2o3WgeSEccbifG7", "_blank");
   }
 
-  const ShareBtn = ({ label = "▶ SHARE DOSECRAFT" }) => (
-    <button onClick={handleShare} style={{
-      background: "transparent",
-      border: "1.5px solid rgba(255,255,255,0.22)",
-      color: "rgba(255,255,255,0.55)",
-      padding: "12px 20px", borderRadius: 10, fontSize: 14, fontWeight: 700,
-      fontFamily: SANS, cursor: "pointer", touchAction: "manipulation",
-      letterSpacing: 1, width: "100%", marginTop: 10,
-    }}
+  function handleResetRound() {
+    const playing = screen === "playing";
+    const msg = playing
+      ? "Restart this round? Your infusion timer will keep running on this device."
+      : "Restart the current game setup? Your infusion timer will keep running on this device.";
+    if (!window.confirm(msg)) return;
+    closeOverlays();
+    cancelAnimationFrame(animRef.current);
+    if (playing) {
+      startDrug(drugIdx, { restartPlaying: true });
+    } else {
+      startDrug(drugIdx);
+    }
+  }
+
+  function handleResetInfusionTimer() {
+    if (!window.confirm("Reset the infusion timer on this device? This clears your session progress here. Your care team's instructions still apply.")) return;
+    closeOverlays();
+    endInfusionSession();
+    if (screen === "complete") setScreen("companion");
+  }
+
+  function getTopBarTitle() {
+    if (screen === "menu") return "Infusion Arcade";
+    if (screen === "playing") return drug.name;
+    if (screen === "companion" || screen === "complete") return "Infusion companion";
+    if (screen === "roundComplete") return "Round complete";
+    return drug.name;
+  }
+
+  function makeBtnStyle(kind, accent) {
+    const base = {
+      fontFamily: SANS,
+      cursor: "pointer",
+      touchAction: "manipulation",
+      borderRadius: 14,
+      fontWeight: 700,
+      width: "100%",
+      minHeight: 52,
+      fontSize: 17,
+      letterSpacing: 0.3,
+    };
+    if (kind === "primary") {
+      return Object.assign({}, base, {
+        background: accent,
+        color: "#080010",
+        border: "none",
+        padding: "16px 24px",
+        boxShadow: `0 0 24px ${accent}55`,
+        minHeight: 56,
+        fontSize: 18,
+      });
+    }
+    if (kind === "secondary") {
+      return Object.assign({}, base, {
+        background: "rgba(255,255,255,0.1)",
+        color: "rgba(255,255,255,0.92)",
+        border: "2px solid rgba(255,255,255,0.28)",
+        padding: "14px 22px",
+      });
+    }
+    if (kind === "ghost") {
+      return Object.assign({}, base, {
+        background: "transparent",
+        color: "rgba(255,255,255,0.55)",
+        border: "1.5px solid rgba(255,255,255,0.22)",
+        padding: "12px 18px",
+        fontSize: 15,
+        minHeight: 48,
+      });
+    }
+    if (kind === "danger") {
+      return Object.assign({}, base, {
+        background: "transparent",
+        color: "rgba(255,120,120,0.85)",
+        border: "1px solid rgba(255,100,100,0.35)",
+        padding: "12px 18px",
+        fontSize: 15,
+        minHeight: 48,
+      });
+    }
+    if (kind === "icon") {
+      return {
+        background: "rgba(255,255,255,0.08)",
+        border: "1.5px solid rgba(255,255,255,0.2)",
+        color: "rgba(255,255,255,0.85)",
+        borderRadius: 12,
+        padding: "10px 14px",
+        fontSize: 14,
+        fontWeight: 700,
+        fontFamily: SANS,
+        cursor: "pointer",
+        touchAction: "manipulation",
+        minHeight: 44,
+        minWidth: 44,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+      };
+    }
+    return base;
+  }
+
+  const BigBtn = ({ label, onClick, primary = false, kind }) => (
+    <button onClick={onClick} style={makeBtnStyle(kind || (primary ? "primary" : "secondary"), col)}
+      onMouseEnter={e => { e.currentTarget.style.opacity = "0.88"; }}
+      onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+    >{label}</button>
+  );
+
+  const drawerBackdrop = {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 10000,
+  };
+
+  const ArcadeTopBar = ({ compact }) => (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      width: "100%",
+      maxWidth: compact ? CANVAS_W : 640,
+      margin: "0 auto",
+      padding: compact ? "8px 0 10px" : "0 0 16px",
+      flexShrink: 0,
+    }}>
+      <button
+        type="button"
+        aria-label="Open navigation menu"
+        onClick={() => { setShowSettings(false); setShowAboutPanel(false); setShowNav(true); }}
+        style={makeBtnStyle("icon", col)}
+      >
+        <span aria-hidden="true">☰</span>
+        <span>Menu</span>
+      </button>
+      <div style={{
+        flex: 1,
+        textAlign: "center",
+        fontSize: compact ? 14 : 15,
+        fontWeight: 700,
+        color: "rgba(255,255,255,0.75)",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        padding: "0 4px",
+      }}>
+        {getTopBarTitle()}
+      </div>
+      <button
+        type="button"
+        aria-label="Open settings"
+        onClick={() => { setShowNav(false); setShowAboutPanel(false); setShowSettings(true); }}
+        style={makeBtnStyle("icon", col)}
+      >
+        <span aria-hidden="true">⚙</span>
+        <span>Settings</span>
+      </button>
+    </div>
+  );
+
+  const SettingsPanel = () => !showSettings ? null : (
+    <div style={drawerBackdrop} onClick={closeOverlays} role="presentation">
+      <div
+        role="dialog"
+        aria-label="Settings"
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "fixed", left: "50%", bottom: 0, transform: "translateX(-50%)",
+          width: "min(480px, 100%)", maxHeight: "85vh", overflowY: "auto",
+          background: "linear-gradient(180deg,#0d1528,#060a14)",
+          border: "1px solid rgba(255,255,255,0.15)", borderRadius: "16px 16px 0 0",
+          padding: "20px 18px 28px", zIndex: 10001, fontFamily: SANS,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Settings</h2>
+          <button type="button" aria-label="Close settings" onClick={closeOverlays} style={makeBtnStyle("icon", col)}>Close</button>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 18 }}>
+          <button type="button" onClick={toggleMusic} style={makeBtnStyle("secondary", col)}>
+            {musicEnabled ? "🎵 Music on" : "🔇 Music off"}
+          </button>
+          <button type="button" onClick={toggleSfx} style={makeBtnStyle("secondary", col)}>
+            {sfxEnabled ? "🔊 Sound effects on" : "🔈 Sound effects off"}
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", marginBottom: 10 }}>Game speed</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { id: "relaxed", label: "Relaxed" },
+              { id: "normal", label: "Normal" },
+              { id: "fast", label: "Fast" },
+            ].map(opt => (
+              <button key={opt.id} type="button" onClick={() => setGameSpeed(opt.id)}
+                style={{
+                  flex: "1 1 30%", minHeight: 48, borderRadius: 10, fontSize: 15, fontWeight: 700,
+                  cursor: "pointer", fontFamily: SANS, touchAction: "manipulation",
+                  background: gameSpeed === opt.id ? col + "33" : "rgba(255,255,255,0.07)",
+                  border: gameSpeed === opt.id ? `2px solid ${col}` : "2px solid rgba(255,255,255,0.12)",
+                  color: gameSpeed === opt.id ? col : "rgba(255,255,255,0.65)",
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 10, lineHeight: 1.5 }}>
+            Game speed changes arcade pacing only. It does not change your infusion timer.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <button type="button" onClick={handleResetRound} style={makeBtnStyle("ghost", col)}>Reset round</button>
+          {sessionActive && (
+            <button type="button" onClick={handleResetInfusionTimer} style={makeBtnStyle("danger", col)}>
+              Reset infusion timer
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const NavDrawer = () => !showNav ? null : (
+    <div style={drawerBackdrop} onClick={closeOverlays} role="presentation">
+      <div
+        role="dialog"
+        aria-label="Navigation menu"
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "fixed", left: 0, top: 0, bottom: 0, width: "min(320px, 88vw)",
+          background: "linear-gradient(180deg,#0d1528,#060a14)",
+          borderRight: "1px solid rgba(255,255,255,0.15)",
+          padding: "20px 16px 28px", zIndex: 10001, fontFamily: SANS, overflowY: "auto",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>Navigation</h2>
+          <button type="button" aria-label="Close navigation menu" onClick={closeOverlays} style={makeBtnStyle("icon", col)}>Close</button>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <BigBtn label="Medication menu" onClick={() => { closeOverlays(); setScreen("menu"); }} />
+          {screen !== "menu" && (
+            <BigBtn label="Current medication" onClick={() => { closeOverlays(); setScreen("intro"); }} />
+          )}
+          {(sessionActive || screen === "companion" || screen === "complete") && (
+            <BigBtn label="Companion mode" onClick={() => {
+              closeOverlays();
+              if (sessionActive) setScreen("companion");
+              else setScreen("intro");
+            }} />
+          )}
+          <BigBtn label="About Dosecraft" onClick={() => { setShowNav(false); setShowAboutPanel(true); }} />
+          <BigBtn label="Share feedback" onClick={() => { closeOverlays(); handleFeedback(); }} kind="ghost" />
+          <ShareBtn label="Share Dosecraft" />
+          {canReturnToHomeCompanion() && (
+            <BigBtn label="Back to home companion" onClick={() => { closeOverlays(); goHomeCompanion(); }} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const AboutPanel = () => !showAboutPanel ? null : (
+    <div style={drawerBackdrop} onClick={closeOverlays} role="presentation">
+      <div
+        role="dialog"
+        aria-label="About Dosecraft"
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)",
+          width: "min(440px, 92vw)", maxHeight: "80vh", overflowY: "auto",
+          background: "linear-gradient(180deg,#0d1528,#060a14)",
+          border: "1px solid rgba(255,255,255,0.15)", borderRadius: 16,
+          padding: "22px 20px", zIndex: 10001, fontFamily: SANS,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>About Dosecraft</h2>
+          <button type="button" aria-label="Close about" onClick={closeOverlays} style={makeBtnStyle("icon", col)}>Close</button>
+        </div>
+        <p style={{ fontSize: 16, lineHeight: 1.7, color: "rgba(255,255,255,0.85)", margin: "0 0 12px" }}>
+          Dosecraft is an arcade-style companion for infusion patients. Games illustrate how medications work — they do not replace instructions from your care team.
+        </p>
+        {screen !== "menu" && (
+          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 16px", marginTop: 12 }}>
+            <div style={{ fontSize: 12, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 8 }}>Current medication</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: col }}>{drug.name}</div>
+            <p style={{ fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.8)", margin: "10px 0 0" }}>{drug.howItWorks || drug.description}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const GlobalOverlays = () => (
+    <>
+      <SettingsPanel />
+      <NavDrawer />
+      <AboutPanel />
+      <ShareNotif />
+    </>
+  );
+
+  const ScreenShell = ({ children, bg, maxWidth, padTop }) => (
+    <div style={{
+      background: bg || `linear-gradient(160deg, ${drug.bgGradient ? drug.bgGradient[0] : "#060a14"}, ${drug.bgGradient ? drug.bgGradient[1] : "#0a0814"})`,
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      fontFamily: SANS,
+      color: "#f0f4ff",
+      padding: padTop || "16px 16px 32px",
+    }}>
+      <div style={{ width: "100%", maxWidth: maxWidth || 640 }}>
+        <ArcadeTopBar />
+        {children}
+      </div>
+      <GlobalOverlays />
+    </div>
+  );
+
+  const ShareBtn = ({ label = "Share Dosecraft" }) => (
+    <button onClick={handleShare} style={Object.assign({}, makeBtnStyle("ghost", col), { marginTop: 0 })}
       onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.45)"}
       onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.22)"}
     >{label}</button>
@@ -2248,51 +2627,6 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     <div style={{ marginTop: 24, textAlign: "center", fontSize: 12, fontWeight: 700, letterSpacing: 2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
       SharpRX Interactive
     </div>
-  );
-
-  // Music toggle — visible, touch-friendly, accessible
-  const MusicToggle = () => (
-    <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-      <button
-        aria-label={musicEnabled ? "Music on — tap to mute" : "Music off — tap to unmute"}
-        onClick={toggleMusic}
-        style={{
-          background: musicEnabled ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.25)",
-          border: musicEnabled ? `1.5px solid rgba(255,255,255,0.25)` : "1.5px solid rgba(255,255,255,0.1)",
-          color: musicEnabled ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)",
-          borderRadius: 10,
-          padding: "10px 20px",
-          fontSize: 15,
-          fontFamily: SANS,
-          cursor: "pointer",
-          touchAction: "manipulation",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 44,
-          minWidth: 140,
-          justifyContent: "center",
-        }}
-      >
-        <span style={{ fontSize: 18 }}>{musicEnabled ? "🎵" : "🔇"}</span>
-        <span>{musicEnabled ? "Music on" : "Music off"}</span>
-      </button>
-    </div>
-  );
-
-  const BigBtn = ({ label, onClick, primary = false }) => (
-    <button onClick={onClick} style={{
-      background: primary ? col : "rgba(255,255,255,0.1)",
-      color: primary ? "#080010" : "rgba(255,255,255,0.9)",
-      border: primary ? "none" : "2px solid rgba(255,255,255,0.28)",
-      padding: "18px 36px", borderRadius: 14, fontSize: 18, fontWeight: 700,
-      fontFamily: SANS, cursor: "pointer", touchAction: "manipulation",
-      boxShadow: primary ? `0 0 28px ${col}66` : "none", letterSpacing: 0.5,
-      width: "100%", minHeight: 56,
-    }}
-      onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
-      onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-    >{label}</button>
   );
 
   function canReturnToHomeCompanion() {
@@ -2357,46 +2691,55 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       drugs: drugsForGroup(grp),
     }));
     return (
-      <div style={{ background: "linear-gradient(160deg,#060a14,#0a0814)", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: SANS, color: "#f0f4ff", padding: "24px 16px" }}>
-        <div style={{ maxWidth: 500, width: "100%" }}>
-          <div style={{ textAlign: "center", marginBottom: 28 }}>
-            <h1 style={{ fontSize: 34, fontWeight: 900, margin: "0 0 8px", color: "#ffffff", fontFamily: SERIF, letterSpacing: 1 }}>Infusion Arcade</h1>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>Select your medication to see it working</p>
+      <ScreenShell bg="linear-gradient(160deg,#060a14,#0a0814)" maxWidth={640}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <h1 style={{ fontSize: 32, fontWeight: 900, margin: "0 0 6px", color: "#ffffff", fontFamily: SERIF, letterSpacing: 1 }}>Infusion Arcade</h1>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", margin: 0 }}>Select your medication to see it working</p>
           </div>
           {canReturnToHomeCompanion() && (
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 16 }}>
               <HomeCompanionBtn />
             </div>
           )}
           {groups.map(grp => grp.drugs.length > 0 && (
-            <div key={grp.label} style={{ marginBottom: 22 }}>
-              <div style={{ fontSize: 12, letterSpacing: 3, color: grp.color + "cc", marginBottom: 12, textTransform: "uppercase", borderBottom: `1px solid ${grp.color}30`, paddingBottom: 8 }}>{grp.label}</div>
-              <div style={{ display: "grid", gap: 10 }}>
+            <div key={grp.label} style={{ marginBottom: 18 }}>
+              <div style={{
+                fontSize: 12, letterSpacing: 2, color: grp.color + "cc", marginBottom: 10,
+                textTransform: "uppercase", borderBottom: `1px solid ${grp.color}30`, paddingBottom: 6,
+                position: "sticky", top: 0, background: "rgba(6,10,20,0.92)", zIndex: 2, paddingTop: 4,
+              }}>{grp.label}</div>
+              <div style={{
+                display: "grid",
+                gap: 8,
+                gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              }}>
                 {grp.drugs.map(d => (
-                  <button key={d.id} onClick={() => startDrug(DRUGS.findIndex(x => x.id === d.id))} style={{ background: "rgba(255,255,255,0.06)", border: `1.5px solid ${d.drugColor}44`, color: "#ffffff", padding: "18px 20px", borderRadius: 12, cursor: "pointer", textAlign: "left", fontFamily: SANS, touchAction: "manipulation", minHeight: 72 }}
+                  <button key={d.id} onClick={() => startDrug(DRUGS.findIndex(x => x.id === d.id))} style={{
+                    background: "rgba(255,255,255,0.06)", border: `1.5px solid ${d.drugColor}44`, color: "#ffffff",
+                    padding: "12px 14px", borderRadius: 12, cursor: "pointer", textAlign: "left",
+                    fontFamily: SANS, touchAction: "manipulation", minHeight: 88,
+                  }}
                     onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
                     onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                      <div style={{ width: 12, height: 12, borderRadius: "50%", background: d.drugColor, boxShadow: `0 0 8px ${d.drugColor}`, flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontSize: 19, fontWeight: 700, color: d.drugColor }}>{d.name}</div>
-                        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginTop: 3 }}>{d.generic}</div>
-                      </div>
-                    </div>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: d.drugColor, lineHeight: 1.25 }}>{d.name}</div>
+                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 4, lineHeight: 1.35 }}>{d.generic}</div>
+                    {mechanicTagForDrug(d) && (
+                      <div style={{
+                        display: "inline-block", marginTop: 8, fontSize: 11, fontWeight: 700,
+                        letterSpacing: 0.5, textTransform: "uppercase", color: d.drugColor,
+                        background: d.drugColor + "18", border: `1px solid ${d.drugColor}44`,
+                        borderRadius: 6, padding: "3px 8px",
+                      }}>{mechanicTagForDrug(d)}</div>
+                    )}
                   </button>
                 ))}
               </div>
             </div>
           ))}
-          <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
-          <MusicToggle />
-          <ShareBtn />
-          <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
+          <div style={{ textAlign: "center", marginTop: 12, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
           <SharpRXBadge />
-          <ShareNotif />
-        </div>
-      </div>
+      </ScreenShell>
     );
   }
 
@@ -2433,9 +2776,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       : null;
 
     return (
-      <div style={pageStyle}>
+      <ScreenShell maxWidth={460}>
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
-        <div style={{ maxWidth: 460, width: "100%" }}>
 
           <HomeCompanionBackLink />
 
@@ -2510,9 +2852,9 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, flexDirection: "column" }}>
             <BigBtn
-              label={alreadyActive ? "▶ Play a round →" : "Start session →"}
+              label={alreadyActive ? "▶ Continue game" : "▶ Start session"}
               onClick={() => {
                 if (!alreadyActive) {
                   const now = Date.now();
@@ -2523,19 +2865,14 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
                   setSessionActive(true);
                   startInfusionClock(now, infusionDurationMinutes);
                 }
-                // Splash transition fires HERE — between intro and playing,
-                // not before intro. This is the correct patient-flow placement.
                 showSplashThen(() => setScreen("playing"));
               }}
               primary
             />
-            {/* Back stays inside game.html — navigating to index.html would destroy React state and lose the session */}
-            <BigBtn label="← Back" onClick={() => setScreen("menu")} />
+            <BigBtn label="Switch medication" onClick={() => setScreen("menu")} />
           </div>
-          <MusicToggle />
           <SharpRXBadge />
-        </div>
-      </div>
+      </ScreenShell>
     );
   }
 
@@ -2604,13 +2941,12 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     const info = instructions[drug.gameType] || instructions.breakout;
 
     return (
-      <div style={pageStyle}>
+      <ScreenShell maxWidth={460}>
         <style>{`
           @keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }
           @keyframes hintPulse { 0%,100%{opacity:0.5;transform:translateY(0);} 50%{opacity:1;transform:translateY(4px);} }
           @keyframes slideHint { 0%{transform:translateX(-18px);opacity:0.4;} 50%{transform:translateX(18px);opacity:1;} 100%{transform:translateX(-18px);opacity:0.4;} }
         `}</style>
-        <div style={{ maxWidth: 460, width: "100%" }}>
 
           {/* Drug name + game title */}
           <div style={{ textAlign: "center", marginBottom: 22 }}>
@@ -2654,13 +2990,14 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
           </div>
 
           <BigBtn label="▶ Start round" onClick={() => setScreen("playing")} primary />
-          <div style={{ marginTop: 12 }}>
-            <BigBtn label="← Back" onClick={() => setScreen("intro")} />
+          <div style={{ marginTop: 10 }}>
+            <BigBtn label="How this medication works" onClick={() => setScreen("intro")} />
           </div>
-          <MusicToggle />
+          <div style={{ marginTop: 10 }}>
+            <BigBtn label="Switch medication" onClick={() => setScreen("menu")} />
+          </div>
           <SharpRXBadge />
-        </div>
-      </div>
+      </ScreenShell>
     );
   }
 
@@ -2674,9 +3011,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     const isSessionComplete = pct >= 1 || infusionMode === "complete";
 
     return (
-      <div style={{ ...pageStyle, padding: "24px 16px" }}>
+      <ScreenShell maxWidth={460} padTop="16px 16px 32px">
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
-        <div style={{ maxWidth: 460, width: "100%" }}>
 
           <HomeCompanionBackLink />
 
@@ -2761,47 +3097,26 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
                 primary
               />
             )}
-            <BigBtn
-              label="🎮 Choose a different game"
-              onClick={() => setScreen("menu")}
-            />
             {sessionActive && !isSessionComplete && (
               <BigBtn
                 label="💧 Infusion companion"
                 onClick={() => { trackEvent('companion_mode_opened'); setScreen("companion"); }}
               />
             )}
+            <HomeCompanionBtn />
+            <BigBtn label="Switch medication" onClick={() => setScreen("menu")} />
+            <BigBtn label="How this medication works" onClick={() => setScreen("intro")} />
             {isSessionComplete && (
               <div style={{ textAlign: "center", padding: "8px 0 4px" }}>
-                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, margin: "0 0 16px" }}>
+                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, margin: "0 0 8px" }}>
                   Your session is done. Let your care team know how you're feeling.
                 </p>
               </div>
             )}
-            {/* setScreen("menu") keeps us inside game.html — session timer is preserved */}
-            <HomeCompanionBtn />
-            <BigBtn
-              label="← Back to medication menu"
-              onClick={() => setScreen("menu")}
-            />
-            {sessionActive && (
-              <button
-                onClick={() => {
-                  if (window.confirm("End the infusion session? Your timer will be cleared.")) {
-                    endInfusionSession();
-                  }
-                }}
-                style={{ background: "transparent", border: "1px solid rgba(255,100,100,0.3)", color: "rgba(255,120,120,0.6)", padding: "10px 20px", borderRadius: 10, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation", marginTop: 4 }}
-              >
-                End infusion session
-              </button>
-            )}
           </div>
 
-          <MusicToggle />
           <SharpRXBadge />
-        </div>
-      </div>
+      </ScreenShell>
     );
   }
 
@@ -2815,9 +3130,8 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     const isComplete = screen === "complete" || pct >= 1;
 
     return (
-      <div style={{ ...pageStyle, padding: "24px 16px" }}>
+      <ScreenShell maxWidth={460} padTop="16px 16px 32px">
         <style>{`@keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }`}</style>
-        <div style={{ maxWidth: 460, width: "100%" }}>
 
           <HomeCompanionBackLink />
 
@@ -2915,41 +3229,26 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             {!isComplete && (
               <BigBtn label="▶ Play another round" onClick={() => startDrug(drugIdx)} primary />
             )}
-            {!isComplete && window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("infusionArcade") && (
-              <BigBtn label="🎮 Choose a different game" onClick={() => setScreen("menu")} />
+            <HomeCompanionBtn primary={!isComplete} />
+            {!isComplete && sessionActive && (
+              <BigBtn label="Resume game" onClick={() => {
+                if (stateRef.current) showSplashThen(() => setScreen("playing"));
+                else setScreen("intro");
+              }} />
             )}
+            <BigBtn label="Switch medication" onClick={() => setScreen("menu")} />
+            <BigBtn label="How this medication works" onClick={() => setScreen("intro")} />
             {isComplete && (
               <div style={{ textAlign: "center", marginBottom: 8 }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>✦</div>
-                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, margin: "0 0 16px" }}>
+                <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, margin: "0 0 8px" }}>
                   Your session is done. Let your care team know how you're feeling.
                 </p>
               </div>
             )}
-            {/* setScreen("menu") keeps us inside game.html and does NOT call endInfusionSession —
-                the session timer keeps running. Only "End infusion session" below clears it. */}
-            <HomeCompanionBtn primary />
-            <BigBtn label="← Back to medication menu" onClick={() => setScreen("menu")} />
-            {!isComplete && (
-              <button
-                onClick={() => {
-                  if (window.confirm("End the infusion session? Your timer will be cleared.")) {
-                    endInfusionSession();
-                  }
-                }}
-                style={{ background: "transparent", border: "1px solid rgba(255,100,100,0.3)", color: "rgba(255,120,120,0.6)", padding: "10px 20px", borderRadius: 10, fontSize: 14, cursor: "pointer", fontFamily: SANS, touchAction: "manipulation", marginTop: 4 }}
-              >
-                End infusion session
-              </button>
-            )}
           </div>
-          <MusicToggle />
-          <ShareBtn label="▶ SHARE WITH OTHERS" />
-          <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
           <SharpRXBadge />
-          <ShareNotif />
-        </div>
-      </div>
+      </ScreenShell>
     );
   }
 
@@ -3057,6 +3356,9 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         @keyframes dripDrop { 0%,100%{transform:translateY(0);opacity:1;} 60%{transform:translateY(6px);opacity:0.3;} }
         @keyframes tutIn { from { opacity:0; transform:scale(0.93); } to { opacity:1; transform:scale(1); } }
       `}</style>
+
+      <ArcadeTopBar compact />
+      <GlobalOverlays />
 
       <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
         style={{ display: "block", borderRadius: 14, border: `2px solid ${col}33`, boxShadow: `0 0 40px ${col}22`, maxWidth: "100%", touchAction: "none" }} />
@@ -3196,7 +3498,6 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       </div>
 
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: 2, textTransform: "uppercase" }}>SharpRX Interactive</div>
-      <MusicToggle />
     </div>
   );
 }
