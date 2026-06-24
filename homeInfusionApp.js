@@ -215,7 +215,7 @@ function HomeInfusionApp() {
 
   function goClinicMode() {
     if (!isModule("clinicInfusion")) return;
-    window.location.href = "game.html";
+    window.location.href = "game.html?return=home";
   }
 
   // ── SETUP ──────────────────────────────────────────────────────────────────
