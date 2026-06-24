@@ -163,7 +163,6 @@
 
   function nextFromStandardTimes(settings, after) {
     var now = after || new Date();
-    var todayStr = formatDateISO(now);
     var times = timesForStandardFrequency(settings);
     var candidates = [];
 
