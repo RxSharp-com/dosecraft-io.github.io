@@ -1,4 +1,73 @@
 // Home Infusion Mode — React UI (loaded via Babel on index.html)
+
+// Stable shell components — must stay at module scope so React does not remount
+// form inputs when HomeInfusionApp re-renders (e.g. SASH dose timer tick).
+var HOME_PAGE_STYLE = {
+  minHeight: "100vh",
+  background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
+  color: "#f5f8fc",
+  fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+  fontSize: 18,
+  lineHeight: 1.55,
+  padding: "20px 16px 40px",
+};
+
+function HomeShell(props) {
+  return (
+    <div style={HOME_PAGE_STYLE}>
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>{props.children}</div>
+    </div>
+  );
+}
+
+function HomeBtn(props) {
+  var accent = props.accentColor || "#2a9d8f";
+  var primary = props.primary;
+  return (
+    <button
+      onClick={props.onClick}
+      disabled={props.disabled}
+      style={{
+        display: "block",
+        width: "100%",
+        minHeight: 52,
+        padding: "14px 20px",
+        marginBottom: 10,
+        borderRadius: 12,
+        border: primary ? "none" : "2px solid rgba(255,255,255,0.2)",
+        background: primary ? accent : "rgba(255,255,255,0.08)",
+        color: primary ? "#041018" : "#f5f8fc",
+        fontSize: 17,
+        fontWeight: 700,
+        cursor: props.disabled ? "default" : "pointer",
+        opacity: props.disabled ? 0.5 : 1,
+        touchAction: "manipulation",
+      }}
+    >
+      {props.children || props.label}
+    </button>
+  );
+}
+
+function HomeBack(props) {
+  return (
+    <button
+      onClick={props.onClick}
+      style={{
+        background: "transparent",
+        border: "none",
+        color: "rgba(255,255,255,0.5)",
+        fontSize: 15,
+        padding: "8px 0",
+        marginBottom: 12,
+        cursor: "pointer",
+      }}
+    >
+      ← {props.label || "Back"}
+    </button>
+  );
+}
+
 function HomeInfusionApp() {
   var STORE = window.DOSECRAFT_HOME_STORE;
   var COPY = window.DOSECRAFT_HOME_COPY;
@@ -32,9 +101,10 @@ function HomeInfusionApp() {
   var doseTimer = _timer[0], setDoseTimer = _timer[1];
 
   _useEffect(function () {
+    if (screen !== "sash" || !doseTimer) return;
     var id = setInterval(function () { setTick(function (t) { return t + 1; }); }, 1000);
     return function () { clearInterval(id); };
-  }, []);
+  }, [screen, doseTimer]);
 
   function persist(next) {
     setSettings(next);
@@ -61,15 +131,6 @@ function HomeInfusionApp() {
   }
 
   var col = medColor();
-  var page = {
-    minHeight: "100vh",
-    background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
-    color: "#f5f8fc",
-    fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-    fontSize: 18,
-    lineHeight: 1.55,
-    padding: "20px 16px 40px",
-  };
   var card = {
     background: "rgba(255,255,255,0.06)",
     border: "1px solid rgba(255,255,255,0.12)",
@@ -84,61 +145,6 @@ function HomeInfusionApp() {
     color: "rgba(255,255,255,0.5)",
     marginBottom: 8,
   };
-
-  function Btn(props) {
-    var primary = props.primary;
-    return (
-      <button
-        onClick={props.onClick}
-        disabled={props.disabled}
-        style={{
-          display: "block",
-          width: "100%",
-          minHeight: 52,
-          padding: "14px 20px",
-          marginBottom: 10,
-          borderRadius: 12,
-          border: primary ? "none" : "2px solid rgba(255,255,255,0.2)",
-          background: primary ? col : "rgba(255,255,255,0.08)",
-          color: primary ? "#041018" : "#f5f8fc",
-          fontSize: 17,
-          fontWeight: 700,
-          cursor: props.disabled ? "default" : "pointer",
-          opacity: props.disabled ? 0.5 : 1,
-          touchAction: "manipulation",
-        }}
-      >
-        {props.children || props.label}
-      </button>
-    );
-  }
-
-  function Back(props) {
-    return (
-      <button
-        onClick={props.onClick}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "rgba(255,255,255,0.5)",
-          fontSize: 15,
-          padding: "8px 0",
-          marginBottom: 12,
-          cursor: "pointer",
-        }}
-      >
-        ← {props.label || "Back"}
-      </button>
-    );
-  }
-
-  function Shell(props) {
-    return (
-      <div style={page}>
-        <div style={{ maxWidth: 480, margin: "0 auto" }}>{props.children}</div>
-      </div>
-    );
-  }
 
   function getVisibleSashSteps() {
     return COPY.sashSteps.filter(function (s) {
@@ -197,8 +203,8 @@ function HomeInfusionApp() {
     }
 
     return (
-      <Shell>
-        <Back onClick={function () { if (STORE.isSetupComplete(STORE.loadSettings())) setScreen("dashboard"); }} label="Dashboard" />
+      <HomeShell>
+        <HomeBack onClick={function () { if (STORE.isSetupComplete(STORE.loadSettings())) setScreen("dashboard"); }} label="Dashboard" />
         <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>Treatment setup</h1>
         <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 20, fontSize: 16 }}>{cfg.disclaimers.general || COPY.careTeamNote}</p>
 
@@ -495,8 +501,8 @@ function HomeInfusionApp() {
           </p>
         </div>
 
-        <Btn primary label="Save treatment setup" onClick={saveSetup} />
-      </Shell>
+        <HomeBtn accentColor={col} primary label="Save treatment setup" onClick={saveSetup} />
+      </HomeShell>
     );
   }
 
@@ -504,10 +510,10 @@ function HomeInfusionApp() {
   if (screen === "sash") {
     if (!isModule("sashGuide")) {
       return (
-        <Shell>
-          <Back onClick={function () { setScreen("dashboard"); }} />
+        <HomeShell>
+          <HomeBack onClick={function () { setScreen("dashboard"); }} />
           <p style={{ color: "rgba(255,255,255,0.65)" }}>The SASH guide is not available in this app configuration.</p>
-        </Shell>
+        </HomeShell>
       );
     }
     var steps = getVisibleSashSteps();
@@ -515,6 +521,7 @@ function HomeInfusionApp() {
     var progress = (sashStep + 1) / steps.length;
     var timerPct = doseTimer ? STORE.getDoseTimerProgress(doseTimer) : 0;
     var timerDone = doseTimer && STORE.isDoseTimerComplete(doseTimer);
+    void tick;
 
     function toggleCheck(id) {
       setChecked(function (c) {
@@ -545,8 +552,8 @@ function HomeInfusionApp() {
     }
 
     return (
-      <Shell>
-        <Back onClick={function () { setScreen("dashboard"); setSashStep(0); setChecked({}); }} label="Dashboard" />
+      <HomeShell>
+        <HomeBack onClick={function () { setScreen("dashboard"); setSashStep(0); setChecked({}); }} label="Dashboard" />
         <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 6px" }}>SASH guide</h1>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>{COPY.sashIntro}</p>
 
@@ -563,7 +570,7 @@ function HomeInfusionApp() {
 
           {step.hasTimer && (
             <div style={{ marginTop: 18 }}>
-              {!doseTimer && <Btn primary label="Start infusion timer" onClick={startHomeTimer} />}
+              {!doseTimer && <HomeBtn accentColor={col} primary label="Start infusion timer" onClick={startHomeTimer} />}
               {doseTimer && (
                 <div>
                   <div style={{ fontSize: 36, fontWeight: 800, color: col, textAlign: "center", marginBottom: 8 }}>
@@ -586,7 +593,7 @@ function HomeInfusionApp() {
           <span>I completed this step (or followed my care team's version)</span>
         </label>
 
-        <Btn
+        <HomeBtn accentColor={col}
           primary
           disabled={!checked[step.id] || (step.hasTimer && doseTimer && !timerDone)}
           label={step.id === "log_dose" ? "Mark dose complete & finish" : "Next step →"}
@@ -610,15 +617,15 @@ function HomeInfusionApp() {
           Step {sashStep + 1} of {steps.length}
         </p>
         <CareTeamContact variant="help" accentColor={col} showEmergency={false} />
-      </Shell>
+      </HomeShell>
     );
   }
 
   // ── WARNING SIGNS ──────────────────────────────────────────────────────────
   if (screen === "warnings") {
     return (
-      <Shell>
-        <Back onClick={function () { setScreen("dashboard"); }} />
+      <HomeShell>
+        <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Warning signs</h1>
         <div style={card}>
           <div style={{ ...label, color: "#f4a261" }}>Call your care team if</div>
@@ -637,7 +644,7 @@ function HomeInfusionApp() {
           </ul>
         </div>
         <CareTeamContact variant="full" accentColor={col} />
-      </Shell>
+      </HomeShell>
     );
   }
 
@@ -645,15 +652,15 @@ function HomeInfusionApp() {
   if (screen === "lineCare") {
     if (!isModule("lineCare")) {
       return (
-        <Shell>
-          <Back onClick={function () { setScreen("dashboard"); }} />
+        <HomeShell>
+          <HomeBack onClick={function () { setScreen("dashboard"); }} />
           <p style={{ color: "rgba(255,255,255,0.65)" }}>Line care information is not available in this app configuration.</p>
-        </Shell>
+        </HomeShell>
       );
     }
     return (
-      <Shell>
-        <Back onClick={function () { setScreen("dashboard"); }} />
+      <HomeShell>
+        <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Line care</h1>
         <div style={card}>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
@@ -663,7 +670,7 @@ function HomeInfusionApp() {
           </ul>
         </div>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>{cfg.disclaimers.lineCare || COPY.careTeamNote}</p>
-      </Shell>
+      </HomeShell>
     );
   }
 
@@ -671,17 +678,17 @@ function HomeInfusionApp() {
   if (screen === "medInfo") {
     if (!isModule("medicationEducation")) {
       return (
-        <Shell>
-          <Back onClick={function () { setScreen("dashboard"); }} />
+        <HomeShell>
+          <HomeBack onClick={function () { setScreen("dashboard"); }} />
           <p style={{ color: "rgba(255,255,255,0.65)" }}>Medication education is not available in this app configuration.</p>
-        </Shell>
+        </HomeShell>
       );
     }
     var drug = STORE.getMedicationDrug(settings, ALL_DRUGS);
     var ed = drug ? getEd(drug) : getEd(null);
     return (
-      <Shell>
-        <Back onClick={function () { setScreen("dashboard"); }} />
+      <HomeShell>
+        <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: col }}>
           {STORE.getMedicationDisplay(settings, ALL_DRUGS)}
         </h1>
@@ -720,8 +727,8 @@ function HomeInfusionApp() {
         )}
         <CareTeamContact variant="full" accentColor={col} />
         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>{cfg.disclaimers.medication}</p>
-        {drug && isModule("infusionArcade") && <Btn primary label="Learn what this medication is doing (play game)" onClick={goPlayGame} />}
-      </Shell>
+        {drug && isModule("infusionArcade") && <HomeBtn accentColor={col} primary label="Learn what this medication is doing (play game)" onClick={goPlayGame} />}
+      </HomeShell>
     );
   }
 
@@ -729,15 +736,15 @@ function HomeInfusionApp() {
   if (screen === "appointment") {
     if (!isModule("appointmentReminders")) {
       return (
-        <Shell>
-          <Back onClick={function () { setScreen("dashboard"); }} />
+        <HomeShell>
+          <HomeBack onClick={function () { setScreen("dashboard"); }} />
           <p style={{ color: "rgba(255,255,255,0.65)" }}>Appointment reminders are not available in this app configuration.</p>
-        </Shell>
+        </HomeShell>
       );
     }
     return (
-      <Shell>
-        <Back onClick={function () { setScreen("dashboard"); }} />
+      <HomeShell>
+        <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Lab / follow-up visit</h1>
         <div style={card}>
           <div style={label}>Next visit date</div>
@@ -763,18 +770,17 @@ function HomeInfusionApp() {
           </select>
         </div>
         <CareTeamContact variant="compact" accentColor={col} />
-        <Btn primary label="Save" onClick={function () { setScreen("dashboard"); }} />
-      </Shell>
+        <HomeBtn accentColor={col} primary label="Save" onClick={function () { setScreen("dashboard"); }} />
+      </HomeShell>
     );
   }
 
   // ── DASHBOARD ──────────────────────────────────────────────────────────────
   var dayInfo = STORE.getTreatmentDayInfo(settings);
   var apptDate = isModule("appointmentReminders") ? STORE.getNextAppointmentDate(settings) : "";
-  void tick;
 
   return (
-    <Shell>
+    <HomeShell>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>Dosecraft</div>
@@ -788,7 +794,7 @@ function HomeInfusionApp() {
       {!STORE.isSetupComplete(settings) && (
         <div style={{ ...card, borderColor: "#f4a26188" }}>
           <p style={{ margin: 0 }}>Complete treatment setup to see your schedule and next dose.</p>
-          <Btn primary label="Set up treatment" onClick={function () { setScreen("setup"); }} />
+          <HomeBtn accentColor={col} primary label="Set up treatment" onClick={function () { setScreen("setup"); }} />
         </div>
       )}
 
@@ -797,7 +803,7 @@ function HomeInfusionApp() {
           <p style={{ margin: "0 0 12px", fontSize: 16 }}>
             Your saved medication is not available in this app. Please update your treatment setup.
           </p>
-          <Btn primary label="Update medication" onClick={function () { setScreen("setup"); }} />
+          <HomeBtn accentColor={col} primary label="Update medication" onClick={function () { setScreen("setup"); }} />
         </div>
       )}
 
@@ -842,7 +848,7 @@ function HomeInfusionApp() {
         <div style={card}>
           <div style={label}>Next lab / visit</div>
           <p style={{ margin: "0 0 10px", fontSize: 15, color: "rgba(255,255,255,0.55)" }}>No visit scheduled yet.</p>
-          <Btn label="Add visit date" onClick={function () { goToScreen("appointment"); }} />
+          <HomeBtn accentColor={col} label="Add visit date" onClick={function () { goToScreen("appointment"); }} />
         </div>
       )}
 
@@ -851,23 +857,23 @@ function HomeInfusionApp() {
       <div style={{ marginTop: 8 }}>
         <div style={label}>Quick actions</div>
         {isModule("sashGuide") && (
-          <Btn primary label="Start dose (SASH guide)" onClick={function () { setSashStep(0); setChecked({}); setDoseTimer(STORE.loadDoseTimer()); goToScreen("sash"); }} />
+          <HomeBtn accentColor={col} primary label="Start dose (SASH guide)" onClick={function () { setSashStep(0); setChecked({}); setDoseTimer(STORE.loadDoseTimer()); goToScreen("sash"); }} />
         )}
-        <Btn label="Warning signs" onClick={function () { goToScreen("warnings"); }} />
+        <HomeBtn accentColor={col} label="Warning signs" onClick={function () { goToScreen("warnings"); }} />
         {isModule("medicationEducation") && (
-          <Btn label="Medication info" onClick={function () { goToScreen("medInfo"); }} />
+          <HomeBtn accentColor={col} label="Medication info" onClick={function () { goToScreen("medInfo"); }} />
         )}
         {isModule("lineCare") && (
-          <Btn label="Line care" onClick={function () { goToScreen("lineCare"); }} />
+          <HomeBtn accentColor={col} label="Line care" onClick={function () { goToScreen("lineCare"); }} />
         )}
         {isModule("infusionArcade") && (
-          <Btn label="Play game" onClick={goPlayGame} />
+          <HomeBtn accentColor={col} label="Play game" onClick={goPlayGame} />
         )}
       </div>
 
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
         {isModule("clinicInfusion") && (
-          <Btn label="Switch to clinic infusion mode" onClick={goClinicMode} />
+          <HomeBtn accentColor={col} label="Switch to clinic infusion mode" onClick={goClinicMode} />
         )}
         {cfg.branding.showPoweredByDosecraft !== false && (
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: 0 }}>
@@ -875,7 +881,7 @@ function HomeInfusionApp() {
           </p>
         )}
       </div>
-    </Shell>
+    </HomeShell>
   );
 }
 

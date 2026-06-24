@@ -371,7 +371,11 @@
       scope '/' → '/dosecraft/' below AND in manifest.json's start_url/scope.
   -->
   <script>
-    if ('serviceWorker' in navigator) {
+    function dosecraftShouldRegisterServiceWorker() {
+      var host = window.location.hostname;
+      return host !== "localhost" && host !== "127.0.0.1";
+    }
+    if ('serviceWorker' in navigator && dosecraftShouldRegisterServiceWorker()) {
       window.addEventListener('load', function () {
         navigator.serviceWorker
           .register('/sw.js', { scope: '/' })
@@ -379,7 +383,6 @@
             console.log('[Dosecraft SW] Registered. Scope:', reg.scope);
           })
           .catch(function (err) {
-            // Safe fallback — game continues normally without the SW.
             console.warn('[Dosecraft SW] Registration skipped:', err.message);
           });
       });
