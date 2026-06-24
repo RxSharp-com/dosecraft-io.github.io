@@ -113,7 +113,9 @@ const DRUGS = window.DOSECRAFT_DRUGS || [];
 const DRUG_GROUPS = window.DOSECRAFT_DRUG_GROUPS || [];
 
 function drugsForGroup(group) {
-  return group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
+  const drugs = group.drugIds.map(id => DRUGS.find(d => d.id === id)).filter(Boolean);
+  if (window.DOSECRAFT_filterEnabledDrugs) return window.DOSECRAFT_filterEnabledDrugs(drugs);
+  return drugs;
 }
 
 
@@ -411,7 +413,7 @@ function pickRoundSetup(gameType, roundCount) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function InfusionArcade({ initialDrug }) {
+function InfusionArcade({ initialDrug, returnHome = false }) {
   const canvasRef = useRef(null);
   const stateRef = useRef(null);
   const animRef = useRef(null);
@@ -649,7 +651,14 @@ function InfusionArcade({ initialDrug }) {
 
   // Auto-select drug from URL param — skips the in-game menu entirely
   useEffect(() => {
-    if (initialDrug) startDrug(initialIdx);
+    if (initialDrug) {
+      const drug = DRUGS[initialIdx];
+      if (drug && window.DOSECRAFT_isMedicationEnabled && !window.DOSECRAFT_isMedicationEnabled(drug.id)) {
+        setScreen("menu");
+        return;
+      }
+      startDrug(initialIdx);
+    }
   }, []); // intentionally runs once on mount only
 
   const drug = DRUGS[drugIdx];
@@ -2004,6 +2013,8 @@ function InfusionArcade({ initialDrug }) {
   );
 
   if (screen === "menu") {
+    // TODO: When enabledModules.infusionArcade is false, consider a companion-only
+    // clinic path that skips canvas gameplay without breaking intro/timer flows.
     const groups = DRUG_GROUPS.map(grp => ({
       label: grp.label,
       color: grp.color,
@@ -2038,6 +2049,16 @@ function InfusionArcade({ initialDrug }) {
             </div>
           ))}
           <div style={{ textAlign: "center", marginTop: 8, fontSize: 14, color: "rgba(255,255,255,0.3)", lineHeight: 1.8 }}>Tap your medication · Slide to play · Just your treatment working</div>
+          {returnHome && (
+            <div style={{ marginTop: 16 }}>
+              <BigBtn label="← Back to home dashboard" onClick={() => { window.location.href = "index.html"; }} />
+            </div>
+          )}
+          <div style={{ marginTop: returnHome ? 8 : 16 }}>
+            {window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("homeInfusion") && (
+              <BigBtn label="🏠 Home infusion companion" onClick={() => { window.location.href = "index.html"; }} />
+            )}
+          </div>
           <MusicToggle />
           <ShareBtn />
           <BigBtn label="💬 Share feedback" onClick={handleFeedback} />
@@ -2514,12 +2535,39 @@ function InfusionArcade({ initialDrug }) {
             )}
           </div>
 
+          {(() => {
+            const homeCopy = window.DOSECRAFT_HOME_COPY;
+            const homeStore = window.DOSECRAFT_HOME_STORE;
+            const appt = homeStore && homeStore.getNextAppointmentDate(homeStore.loadSettings());
+            if (!homeCopy) return null;
+            return (
+              <>
+                {drug.gameType === "ivig" && (
+                  <div style={{ background: "rgba(231,111,81,0.12)", border: "1px solid rgba(231,111,81,0.35)", borderRadius: 14, padding: "16px 18px", marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, letterSpacing: 2, color: "#e76f51", textTransform: "uppercase", marginBottom: 10 }}>During infusion — tell your nurse if</div>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 15, lineHeight: 1.65, color: "rgba(255,255,255,0.85)" }}>
+                      {(homeCopy.clinicReactionWarnings || []).map((item, i) => (
+                        <li key={i} style={{ marginBottom: 6 }}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {appt && (
+                  <div style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, padding: "14px 18px", marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase", marginBottom: 6 }}>Next lab / follow-up</div>
+                    <div style={{ fontSize: 17, fontWeight: 600 }}>{new Date(appt + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
           {/* Buttons */}
           <div style={{ display: "flex", gap: 10, flexDirection: "column" }}>
             {!isComplete && (
               <BigBtn label="▶ Play another round" onClick={() => startDrug(drugIdx)} primary />
             )}
-            {!isComplete && (
+            {!isComplete && window.DOSECRAFT_isModuleEnabled && window.DOSECRAFT_isModuleEnabled("infusionArcade") && (
               <BigBtn label="🎮 Choose a different game" onClick={() => setScreen("menu")} />
             )}
             {isComplete && (

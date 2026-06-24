@@ -31,8 +31,69 @@
       brickLabel: o.brickLabel,
       ivigNote: o.ivigNote,
       pharmacistReviewNotes: o.pharmacistReviewNotes || "",
+      patientEducation: o.patientEducation || null,
     };
   }
+
+  var GENERIC_ANTIBIOTIC_EDUCATION = {
+    plainLanguagePurpose: "This antibiotic helps your body fight a bacterial infection.",
+    commonSideEffects: [
+      "Mild nausea or upset stomach",
+      "Diarrhea",
+      "Mild rash or itching",
+    ],
+    callClinicIf: [
+      "Fever or worsening infection symptoms",
+      "New rash, itching, or concerning side effects",
+      "Persistent or concerning diarrhea",
+      "PICC or line redness, pain, swelling, drainage, or leaking",
+      "Missed dose or unsure if dose infused correctly",
+    ],
+    seekUrgentCareIf: [
+      "Trouble breathing",
+      "Swelling of face, lips, or tongue",
+      "Chest pain",
+      "Severe dizziness or fainting",
+      "Severe allergic reaction symptoms",
+    ],
+    howWeMonitor: [
+      "Your care team may check labs, symptoms, and how you are feeling over time",
+      "Keep your follow-up appointments and lab visits as scheduled",
+    ],
+    lineCareReminders: [
+      "Keep dressing clean and dry",
+      "Do not pull or tug the line",
+      "Call your care team if flushing is hard — do not force it",
+    ],
+    thingsToAskCareTeam: [
+      "When should I take my next dose?",
+      "What side effects should I watch for?",
+      "When is my next lab or follow-up visit?",
+    ],
+    reassuranceNote: "Home infusion antibiotics are a common part of treatment. Your care team is monitoring your progress.",
+    disclaimer: "This app does not replace your care team's instructions. If you are unsure, call your care team.",
+  };
+
+  function buildPatientEducation(o) {
+    if (o.patientEducation) {
+      return Object.assign({}, GENERIC_ANTIBIOTIC_EDUCATION, o.patientEducation, {
+        howItWorks: (o.patientEducation.howItWorks || o.howItWorks || ""),
+        plainLanguagePurpose: (o.patientEducation.plainLanguagePurpose || o.description || GENERIC_ANTIBIOTIC_EDUCATION.plainLanguagePurpose),
+      });
+    }
+    if (o.gameType === "ivig") return null;
+    return Object.assign({}, GENERIC_ANTIBIOTIC_EDUCATION, {
+      plainLanguagePurpose: o.description || GENERIC_ANTIBIOTIC_EDUCATION.plainLanguagePurpose,
+      howItWorks: o.howItWorks || "",
+      reassuranceNote: o.encouragement || GENERIC_ANTIBIOTIC_EDUCATION.reassuranceNote,
+    });
+  }
+
+  window.DOSECRAFT_getPatientEducation = function (drug) {
+    if (!drug) return GENERIC_ANTIBIOTIC_EDUCATION;
+    if (drug.patientEducation) return buildPatientEducation(drug);
+    return buildPatientEducation(drug);
+  };
 
   window.DOSECRAFT_DRUGS = [
     drug({

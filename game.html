@@ -310,18 +310,40 @@
     so the hooks declared above are available inside InfusionArcade.js.
     Both scripts must be type="text/babel" for this to work.
   -->
+  <script src="clinicConfig.js"></script>
   <script src="drugCatalog.js"></script>
+  <script src="homeInfusionCopy.js"></script>
+  <script src="homeInfusionStore.js"></script>
+  <script type="text/babel" src="careTeamContact.js"></script>
+  <script type="text/babel" src="homeInfusionApp.js"></script>
   <script type="text/babel" src="InfusionArcade.js"></script>
 
   <script type="text/babel">
     // ── MOUNT ─────────────────────────────────────────────────────────────────
-    function App() {
+    function getReturnHome() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('return') === 'home';
+    }
+
+    function GameEntry() {
+      const STORE = window.DOSECRAFT_HOME_STORE;
+      const isModule = window.DOSECRAFT_isModuleEnabled;
+
+      if (!STORE.hasModeChoice()) {
+        return <HomeModeSelector />;
+      }
+
+      if (!isModule("clinicInfusion") && isModule("homeInfusion")) {
+        window.location.replace("index.html");
+        return null;
+      }
+
       const drugName = getDrugNameFromURL();
-      return <InfusionArcade initialDrug={drugName} />;
+      return <InfusionArcade initialDrug={drugName} returnHome={getReturnHome()} />;
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    root.render(<GameEntry />);
   </script>
 
   <!--
@@ -349,7 +371,11 @@
       scope '/' → '/dosecraft/' below AND in manifest.json's start_url/scope.
   -->
   <script>
-    if ('serviceWorker' in navigator) {
+    function dosecraftShouldRegisterServiceWorker() {
+      var host = window.location.hostname;
+      return host !== "localhost" && host !== "127.0.0.1";
+    }
+    if ('serviceWorker' in navigator && dosecraftShouldRegisterServiceWorker()) {
       window.addEventListener('load', function () {
         navigator.serviceWorker
           .register('/sw.js', { scope: '/' })
@@ -357,7 +383,6 @@
             console.log('[Dosecraft SW] Registered. Scope:', reg.scope);
           })
           .catch(function (err) {
-            // Safe fallback — game continues normally without the SW.
             console.warn('[Dosecraft SW] Registration skipped:', err.message);
           });
       });
