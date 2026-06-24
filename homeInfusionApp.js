@@ -569,6 +569,7 @@ function HomeInfusionApp() {
         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
           Step {sashStep + 1} of {steps.length}
         </p>
+        <CareTeamContact variant="help" accentColor={col} showEmergency={false} />
       </Shell>
     );
   }
@@ -595,7 +596,7 @@ function HomeInfusionApp() {
             })}
           </ul>
         </div>
-        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>{COPY.disclaimer}</p>
+        <CareTeamContact variant="full" accentColor={col} />
       </Shell>
     );
   }
@@ -661,7 +662,7 @@ function HomeInfusionApp() {
             <p style={{ margin: 0, color: col }}>{ed.reassuranceNote}</p>
           </div>
         )}
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>{ed.disclaimer || COPY.disclaimer}</p>
+        <CareTeamContact variant="full" accentColor={col} />
         {drug && <Btn primary label="Learn what this medication is doing (play game)" onClick={goPlayGame} />}
       </Shell>
     );
@@ -696,6 +697,7 @@ function HomeInfusionApp() {
             <option value="custom">Custom (days)</option>
           </select>
         </div>
+        <CareTeamContact variant="compact" accentColor={col} />
         <Btn primary label="Save" onClick={function () { setScreen("dashboard"); }} />
       </Shell>
     );
@@ -769,6 +771,8 @@ function HomeInfusionApp() {
           <Btn label="Add visit date" onClick={function () { setScreen("appointment"); }} />
         </div>
       )}
+
+      <CareTeamContact variant="full" accentColor={col} />
 
       <div style={{ marginTop: 8 }}>
         <div style={label}>Quick actions</div>
