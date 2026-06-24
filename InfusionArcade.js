@@ -27,6 +27,31 @@ const IVIG_SHOOTER_W = 70, IVIG_SHOOTER_H = 28;
 const PATHOGEN_W = 36, PATHOGEN_H = 36;
 const IVIG_TOTAL_WAVES = 2;
 
+// Tetracycline / ribosome shield constants
+const TETRA_RIBO_Y = Math.round(CANVAS_H * 0.52);
+const TETRA_OUTER_R = 200;
+const TETRA_ENTRY_R = 72;
+const TETRA_RING_R = 88;
+const TETRA_SHIELD_ARC = Math.PI * 0.385; // ~30% smaller than original 0.55 arc
+const TETRA_CARGO_R = 11;
+const TETRA_GOAL = 22;
+const TETRA_PROD_CAP = 10;
+const TETRA_SHIELD_HIT_R = TETRA_RING_R;
+
+function lerpAngle(current, target, t) {
+  let diff = target - current;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return current + diff * t;
+}
+
+function angleInArc(angle, center, halfArc) {
+  let diff = angle - center;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  return Math.abs(diff) <= halfArc;
+}
+
 // ── SIGNAL SWEEP (IVIG Wave 0) constants ──────────────────────────────────────
 const SS_PLAYER_W   = 60;   // player guide ship width
 const SS_PLAYER_H   = 22;   // player guide ship height
@@ -395,7 +420,9 @@ const ROUND_OBJECTIVES = [
   { id: "breach",     label: "Breach the membrane",      gameTypes: ["dapto"] },
   { id: "flood",      label: "Flood the receptors",      gameTypes: ["ivig"] },
   { id: "sweep",      label: "Calm the signal field",     gameTypes: ["ivig"] },
-  { id: "steady",     label: "Hold steady",              gameTypes: ["breakout","vanco","dapto","ivig"] },
+  { id: "stall",      label: "Stall protein production",  gameTypes: ["tetracycline"] },
+  { id: "sealEntry",  label: "Seal the ribosome entry",   gameTypes: ["tetracycline"] },
+  { id: "steady",     label: "Hold steady",              gameTypes: ["breakout","vanco","dapto","ivig","tetracycline"] },
 ];
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -737,6 +764,28 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
           wave: 0,
           waveTransition: 0,
         };
+      } else if (d.gameType === "tetracycline") {
+        const spawnRate = Math.round(90 / spawnMult);
+        stateRef.current = {
+          gameType: "tetracycline",
+          ribosomeX: CANVAS_W / 2,
+          ribosomeY: TETRA_RIBO_Y,
+          shieldAngle: -Math.PI / 2,
+          targetShieldAngle: -Math.PI / 2,
+          cargo: [],
+          particles: [],
+          spawnTimer: 0,
+          spawnRate,
+          speed: 1.35 * speed,
+          stalled: 0,
+          goal: TETRA_GOAL,
+          production: 0,
+          productionCap: TETRA_PROD_CAP,
+          chainSegments: 0,
+          nudgeMsg: "",
+          nudgeTimer: 0,
+          prodFlash: 0,
+        };
       } else if (d.gameType === "ivig") {
         // Wave 0: Signal Sweep — Galaga-inspired formation shooter
         // Wave 1: Receptor Blockade (unchanged)
@@ -807,6 +856,9 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       if (s.gameType === "breakout") s.targetPaddleX = Math.max(0, Math.min(CANVAS_W - PADDLE_W, pos.x - PADDLE_W / 2));
       else if (s.gameType === "vanco") s.targetVancoX = Math.max(0, Math.min(CANVAS_W - VANCO_W, pos.x - VANCO_W / 2));
       else if (s.gameType === "dapto") { s.targetDaptoX = Math.max(0, Math.min(CANVAS_W - DAPTO_W, pos.x - DAPTO_W / 2)); s.targetDaptoY = Math.max(38, Math.min(MEM_Y - DAPTO_H - 4, pos.y - DAPTO_H / 2)); }
+      else if (s.gameType === "tetracycline") {
+        s.targetShieldAngle = Math.atan2(pos.y - s.ribosomeY, pos.x - s.ribosomeX);
+      }
       else if (s.gameType === "ivig") {
         if (s.ivigWave === 0) {
           // Wave 0: Signal Sweep — move player ship left/right only
@@ -1039,6 +1091,246 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       ctx.fillStyle = "rgba(255,255,255,0.6)"; ctx.font = `12px ${SANS}`; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
       ctx.fillText("Slide to intercept building blocks before they reach the wall", CANVAS_W / 2, CANVAS_H - 38);
       drawHUD(pct, `Infection clearing: ${Math.round(pct * 100)}%`); return true;
+    }
+
+    // ── TETRACYCLINE — radial ribosome shield (protein factory blockade) ─────
+    function tickTetracycline(s, frozen) {
+      const rx = s.ribosomeX;
+      const ry = s.ribosomeY;
+
+      if (!frozen) {
+        s.shieldAngle = lerpAngle(s.shieldAngle, s.targetShieldAngle, 0.22);
+        s.spawnTimer++;
+        if (s.spawnTimer >= s.spawnRate && s.stalled < s.goal) {
+          s.spawnTimer = 0;
+          const angle = Math.random() * Math.PI * 2;
+          s.cargo.push({
+            angle,
+            dist: TETRA_OUTER_R,
+            speed: s.speed + (Math.random() - 0.5) * 0.3,
+            blocked: false,
+            absorbed: false,
+            opacity: 1,
+            flash: 0,
+          });
+        }
+
+        for (const c of s.cargo) {
+          if (c.deflectFrames > 0) {
+            c.dist += c.deflectSpeed;
+            c.deflectFrames--;
+            c.opacity -= 0.06;
+            if (c.flash > 0) c.flash--;
+            continue;
+          }
+          if (c.blocked || c.absorbed) { c.opacity -= 0.05; continue; }
+          c.dist -= c.speed;
+          if (c.flash > 0) c.flash--;
+
+          // Shield collision at the visible ring — not the inner ribosome
+          if (c.dist <= TETRA_SHIELD_HIT_R + TETRA_CARGO_R * 0.5) {
+            const blocked = angleInArc(c.angle, s.shieldAngle, TETRA_SHIELD_ARC / 2);
+            if (blocked) {
+              c.blocked = true;
+              c.dist = TETRA_SHIELD_HIT_R + 4;
+              c.deflectSpeed = 2.8;
+              c.deflectFrames = 14;
+              s.stalled++;
+              const px = rx + Math.cos(c.angle) * TETRA_SHIELD_HIT_R;
+              const py = ry + Math.sin(c.angle) * TETRA_SHIELD_HIT_R;
+              c.flash = 10;
+              setProgress(Math.min(1, s.stalled / s.goal));
+              SFX.play("vanco_intercept");
+              spawnP(s, px, py, dc, 14, 6);
+              continue;
+            }
+          }
+
+          // Miss: cargo reaches ribosome interior
+          if (c.dist <= TETRA_ENTRY_R) {
+            c.absorbed = true;
+            s.production++;
+            s.chainSegments = Math.min(12, s.chainSegments + 1);
+            const px = rx + Math.cos(c.angle) * TETRA_ENTRY_R;
+            const py = ry + Math.sin(c.angle) * TETRA_ENTRY_R;
+            spawnP(s, px, py, "rgba(255,200,120,0.9)", 8, 4);
+            if (s.production >= s.productionCap) {
+              s.production = s.productionCap;
+              s.prodFlash = 90;
+              s.nudgeMsg = "Too much protein got through — keep rotating the shield to block more cargo.";
+              s.nudgeTimer = 180;
+            }
+          }
+        }
+        if (s.prodFlash > 0) {
+          s.prodFlash--;
+          if (s.prodFlash === 0) {
+            s.production = 0;
+            s.chainSegments = Math.max(0, s.chainSegments - 3);
+          }
+        }
+        s.cargo = s.cargo.filter(c => c.opacity > 0 && (c.dist < TETRA_OUTER_R + 30 || c.deflectFrames > 0));
+        if (s.nudgeTimer > 0) s.nudgeTimer--;
+        else s.nudgeMsg = "";
+        tickP(s);
+        if (s.stalled >= s.goal) { handleRoundComplete(); return false; }
+      }
+
+      const pct = Math.min(1, s.stalled / s.goal);
+      drawBg();
+
+      // Outer approach ring (subtle)
+      ctx.save();
+      ctx.strokeStyle = dc + "22";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.arc(rx, ry, TETRA_OUTER_R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      // Growing protein chain ribbon below ribosome
+      const chainY = ry + 62;
+      const chainStartX = rx - Math.min(s.chainSegments, 10) * 7;
+      for (let i = 0; i < s.chainSegments; i++) {
+        const cx = chainStartX + i * 14;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,200,120,0.55)";
+        ctx.strokeStyle = "rgba(255,200,120,0.85)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(cx, chainY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      }
+      if (s.chainSegments > 0) {
+        ctx.fillStyle = "rgba(255,255,255,0.45)";
+        ctx.font = `9px ${SANS}`;
+        ctx.textAlign = "center";
+        ctx.fillText("Protein chain forming", rx, chainY + 18);
+      }
+
+      // Ribosome body
+      ctx.save();
+      ctx.shadowBlur = 18;
+      ctx.shadowColor = dc + "88";
+      ctx.fillStyle = dc + "28";
+      ctx.strokeStyle = dc + "cc";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 46, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.font = `bold 11px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("30S", rx, ry - 6);
+      ctx.font = `8px ${SANS}`;
+      ctx.fillStyle = dc + "dd";
+      ctx.fillText("Ribosome", rx, ry + 10);
+      ctx.restore();
+
+      // Entry ring
+      ctx.save();
+      ctx.strokeStyle = dc + "55";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(rx, ry, TETRA_RING_R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Player shield arc on ring
+      ctx.save();
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = dc;
+      ctx.strokeStyle = dc;
+      ctx.lineWidth = 13;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(rx, ry, TETRA_RING_R, s.shieldAngle - TETRA_SHIELD_ARC / 2, s.shieldAngle + TETRA_SHIELD_ARC / 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Shield label at arc midpoint
+      const labelR = TETRA_RING_R + 18;
+      const lx = rx + Math.cos(s.shieldAngle) * labelR;
+      const ly = ry + Math.sin(s.shieldAngle) * labelR;
+      ctx.fillStyle = "#0a2a24";
+      ctx.font = `bold 8px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(d.paddleLabel || "BLOCK", lx, ly);
+
+      drawP(s);
+
+      // Incoming cargo
+      for (const c of s.cargo) {
+        const px = rx + Math.cos(c.angle) * c.dist;
+        const py = ry + Math.sin(c.angle) * c.dist;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, c.opacity);
+        if (c.deflectFrames > 0) {
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = dc;
+          ctx.fillStyle = dc + "66";
+          ctx.strokeStyle = "#fff8";
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 3; i++) {
+            const frag = TETRA_CARGO_R * (0.35 + i * 0.2);
+            ctx.beginPath();
+            ctx.arc(px + (i - 1) * 5, py + (i - 1) * 3, frag, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+          continue;
+        }
+        ctx.shadowBlur = c.flash > 0 ? 18 : 8;
+        ctx.shadowColor = c.flash > 0 ? "#fff" : dc;
+        ctx.fillStyle = c.blocked ? dc + "22" : dc + "44";
+        ctx.strokeStyle = dc;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, TETRA_CARGO_R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (!c.blocked) {
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.font = `bold 8px ${SANS}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("aa", px, py);
+        }
+        ctx.restore();
+      }
+
+      // Protein output meter — fills on misses; flashes full on try-again
+      const prodPct = s.prodFlash > 0 ? 1 : Math.min(1, s.production / s.productionCap);
+      const pmX = 16, pmY = 58, pmW = 110, pmH = 7;
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      drawRoundRect(ctx, pmX, pmY, pmW, pmH, 3);
+      ctx.fill();
+      if (prodPct > 0) {
+        ctx.fillStyle = s.prodFlash > 0 ? "rgba(255,140,80,0.9)" : "rgba(255,200,120,0.75)";
+        drawRoundRect(ctx, pmX, pmY, Math.max(4, pmW * prodPct), pmH, 3);
+        ctx.fill();
+      }
+      ctx.fillStyle = s.prodFlash > 0 ? "rgba(255,180,120,0.9)" : "rgba(255,255,255,0.45)";
+      ctx.font = `8px ${SANS}`;
+      ctx.textAlign = "left";
+      ctx.fillText(s.prodFlash > 0 ? "Protein output — try again" : "Protein output", pmX, pmY - 4);
+
+      const hint = s.nudgeMsg || "Drag around the ribosome to rotate the shield and block cargo";
+      ctx.fillStyle = s.nudgeMsg ? dc + "cc" : "rgba(255,255,255,0.55)";
+      ctx.font = `11px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(hint, CANVAS_W / 2, CANVAS_H - 38);
+
+      drawHUD(pct, `Protein stalled: ${Math.round(pct * 100)}%`);
+      return true;
     }
 
     // ── DAPTOMYCIN — phase-based: insertion -> oligomerization -> pore -> depolarization
@@ -1889,6 +2181,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       if (s.gameType === "breakout") cont = tickBreakout(s, frozen);
       else if (s.gameType === "vanco")    cont = tickVanco(s, frozen);
       else if (s.gameType === "dapto")    cont = tickDapto(s, frozen);
+      else if (s.gameType === "tetracycline") cont = tickTetracycline(s, frozen);
       else                                cont = tickIvig(s, frozen);
       // When frozen, always keep looping (cont may be undefined from draw-only path)
       if (frozen || cont !== false) animRef.current = requestAnimationFrame(loop);
@@ -2296,6 +2589,16 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         ],
         hint: "Slide to aim · Tap to fire",
       },
+      tetracycline: {
+        icon: "🧬",
+        title: "Block the Protein Factory",
+        steps: [
+          { icon: "👆", text: "Drag your finger around the ribosome to rotate the medication shield on the entry ring." },
+          { icon: "⚛", text: "Amino-acid cargo approaches from all sides. Block it before it enters the ribosome protein factory." },
+          { icon: "✦",  text: "Stall protein production by blocking enough cargo. If too much gets through, keep rotating the shield and try again." },
+        ],
+        hint: "Drag around the ribosome",
+      },
     };
 
     const info = instructions[drug.gameType] || instructions.breakout;
@@ -2677,6 +2980,10 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
       what: "Guide the IgG ball to touch open receptor sites before autoimmune signals block them. Occupy at least 70% of the grid to complete the round.",
       why:  "IVIG helps calm and redirect immune activity by flooding receptors — rather than simply attacking one target.",
     },
+    tetracycline: {
+      what: "Drag around the ribosome to rotate the shield. Block amino-acid cargo before it enters the protein factory.",
+      why:  "This shows how tetracycline antibiotics block building pieces from entering the bacterial ribosome, slowing protein production.",
+    },
   };
 
   // Pick the right tutorial entry. IVIG uses wave-aware keys.
@@ -2761,7 +3068,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         <div style={overlayWrap}>
           <div style={overlayCard}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>
-              {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡" }[drug.gameType] || "🎮"}
+              {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡", tetracycline: "🧬" }[drug.gameType] || "🎮"}
             </div>
             <div style={{ fontSize: 13, letterSpacing: 3, color: col + "99", textTransform: "uppercase", marginBottom: 16 }}>How to play</div>
 
@@ -2830,7 +3137,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
             {/* ── HOW TO PLAY PANEL ── */}
             {pausePanel === "howToPlay" && (<>
               <div style={{ fontSize: 28, marginBottom: 8 }}>
-                {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡" }[drug.gameType] || "🎮"}
+                {{ breakout: "🧱", vanco: "🔒", dapto: "💥", ivig: "🛡", tetracycline: "🧬" }[drug.gameType] || "🎮"}
               </div>
               <div style={{ fontSize: 14, letterSpacing: 2, color: col + "99", textTransform: "uppercase", marginBottom: 16 }}>How to Play</div>
 

@@ -263,6 +263,20 @@
       encouragement: "Your Dalvance infusion is stopping bacterial walls from locking together right now.",
       winMessage: "Wall cross-linking blocked. Dalvance is working.",
     }),
+    drug({
+      id: 16, displayName: "Doxycycline", genericName: "Doxycycline",
+      brandName: "Doxy",
+      className: "Tetracycline-class antibiotic", groupName: "Tetracycline Antibiotics",
+      gameType: "tetracycline", mechanicTemplate: "tetracycline",
+      drugColor: "#14b8a6", bgGradient: ["#021a17", "#04332c"],
+      mode: "PROTEIN BLOCKER", tagline: "Stall the protein factory",
+      paddleLabel: "DOXY",
+      description: "Doxycycline is a tetracycline antibiotic used for certain bacterial infections, including some skin and respiratory infections.",
+      howItWorks: "Doxy blocks new building pieces from entering the bacterial protein factory. By shielding the ribosome entry site, it helps stop protein production from continuing.",
+      encouragement: "Your Doxycycline infusion is blocking the bacterial protein factory right now.",
+      winMessage: "Protein production stalled. Doxy is working.",
+      pharmacistReviewNotes: "Review indication scope. Mechanism: 30S ribosomal subunit binding blocks aminoacyl-tRNA entry. Keep detailed ribosome biochemistry in workflow notes unless simplified further for patients.",
+    }),
   ];
 
   window.DOSECRAFT_DRUG_GROUPS = [
@@ -271,6 +285,7 @@
     { id: "carbapenem", label: "Carbapenem Antibiotics", homepageLabel: "Carbapenem", color: "#f59e0b", drugIds: [5, 6] },
     { id: "glycopeptide", label: "Glycopeptide Antibiotics", homepageLabel: "Glycopeptide Antibiotics", color: "#c084fc", drugIds: [7, 14] },
     { id: "daptomycin", label: "Cubicin (Daptomycin)", homepageLabel: "Daptomycin", color: "#eab308", drugIds: [8] },
+    { id: "tetracycline", label: "Tetracycline Antibiotics", homepageLabel: "Tetracycline", color: "#14b8a6", drugIds: [16] },
     { id: "immunoglobulin", label: "Immunoglobulin Therapy (IVIG / SCIG)", homepageLabel: "Immunoglobulin", color: "#f4a261", drugIds: [9, 10, 11, 12] },
   ];
 
@@ -279,5 +294,6 @@
     { label: "Block Attack", icon: "🔒", color: "#c084fc", desc: "Glycopeptide antibiotics" },
     { label: "Membrane Breach", icon: "💥", color: "#eab308", desc: "Membrane antibiotics" },
     { label: "Immune Defense", icon: "🛡", color: "#f4a261", desc: "IVIG / SCIG" },
+    { label: "Protein Blocker", icon: "🧬", color: "#14b8a6", desc: "Protein synthesis blockers / ribosome blockers" },
   ];
 })();

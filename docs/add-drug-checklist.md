@@ -15,7 +15,7 @@ Quick reference for adding a drug via `drugCatalog.js`. See `.cursor/skills/add-
 - [ ] `gameType` and `mechanicTemplate` match chosen mechanic
 - [ ] `mode`, `tagline`, `drugColor`, `bgGradient` set
 - [ ] Patient copy: `description`, `howItWorks`, `encouragement`, `winMessage`
-- [ ] `paddleLabel` / `brickLabel` if `breakout` or `vanco`
+- [ ] `paddleLabel` if `breakout`, `vanco`, or `tetracycline`
 - [ ] `ivigNote` if `ivig`
 - [ ] `pharmacistReviewNotes` filled (workflow only — not shown to patients)
 - [ ] New `id` appended to correct `DOSECRAFT_DRUG_GROUPS[].drugIds`
@@ -35,6 +35,7 @@ Quick reference for adding a drug via `drugCatalog.js`. See `.cursor/skills/add-
 | Glycopeptide / D-Ala-D-Ala | `vanco` | Dalvance, Vancomycin |
 | Membrane disruption | `dapto` | Cubicin |
 | IVIG / SCIG | `ivig` | Bivigam, Hyqvia |
+| Tetracycline / ribosome blockade | `tetracycline` | Doxycycline |
 
 ## Checks
 
