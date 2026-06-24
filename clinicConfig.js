@@ -48,6 +48,15 @@
         "Medication information may not include every possible side effect or instruction. Follow your care team's instructions.",
       lineCare:
         "Line care instructions may vary. Follow the instructions given by your nurse, pharmacist, or prescriber.",
+      privacyAnalytics:
+        "Dosecraft saves your setup on this device only. If anonymous usage analytics are enabled, Dosecraft does not send your medication schedule, appointment times, symptoms, or personal identifying information.",
+    },
+
+    analytics: {
+      enabled: true,
+      arcadeRemoteAnalytics: true,
+      companionRemoteAnalytics: false,
+      anonymizeIp: true,
     },
   };
 
@@ -91,6 +100,7 @@
     merged.enabledModules = deepMerge(DEFAULT_CLINIC_CONFIG.enabledModules, merged.enabledModules || {});
     merged.branding = deepMerge(DEFAULT_CLINIC_CONFIG.branding, merged.branding || {});
     merged.disclaimers = deepMerge(DEFAULT_CLINIC_CONFIG.disclaimers, merged.disclaimers || {});
+    merged.analytics = deepMerge(DEFAULT_CLINIC_CONFIG.analytics, merged.analytics || {});
     if (!Array.isArray(merged.enabledMedications)) merged.enabledMedications = [];
     return merged;
   }

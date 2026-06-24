@@ -272,13 +272,9 @@
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
     gtag('config', 'G-C34V4019DW');
-
-    function trackEvent(eventName, params = {}) {
-      try {
-        if (typeof gtag === 'function') { gtag('event', eventName, params); }
-      } catch (e) { console.warn('Analytics event failed:', e); }
-    }
   </script>
+  <script src="clinicConfig.js"></script>
+  <script src="dosecraftAnalytics.js"></script>
 
   <!-- React + ReactDOM via CDN (production builds) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -310,7 +306,6 @@
     so the hooks declared above are available inside InfusionArcade.js.
     Both scripts must be type="text/babel" for this to work.
   -->
-  <script src="clinicConfig.js"></script>
   <script src="drugCatalog.js"></script>
   <script src="homeInfusionCopy.js"></script>
   <script src="homeInfusionStore.js"></script>

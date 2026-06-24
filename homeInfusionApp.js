@@ -79,6 +79,7 @@ function HomeInfusionApp() {
 
   var _useState = React.useState;
   var _useEffect = React.useEffect;
+  var _useRef = React.useRef;
 
   var _screen = _useState(function () {
     return STORE.isSetupComplete(STORE.loadSettings()) ? "dashboard" : "setup";
@@ -105,6 +106,48 @@ function HomeInfusionApp() {
     var id = setInterval(function () { setTick(function (t) { return t + 1; }); }, 1000);
     return function () { clearInterval(id); };
   }, [screen, doseTimer]);
+
+  var companionOpenedRef = _useRef(false);
+  var setupStartedRef = _useRef(false);
+  var appointmentCardViewedRef = _useRef(false);
+
+  _useEffect(function () {
+    if (!window.trackCompanionScreen || companionOpenedRef.current) return;
+    companionOpenedRef.current = true;
+    window.trackCompanionScreen("companion_opened", "dashboard", { mode: "home" });
+    window.trackCompanionScreen("privacy_notice_viewed", "dashboard", { mode: "home" });
+  }, []);
+
+  _useEffect(function () {
+    if (!window.trackCompanionScreen) return;
+    if (screen === "setup" && !setupStartedRef.current) {
+      setupStartedRef.current = true;
+      window.trackCompanionScreen("companion_setup_started", "setup", { mode: "home" });
+    }
+    if (screen === "sash") {
+      window.trackCompanionScreen("sash_guide_started", "sash", { mode: "home" });
+    }
+    if (screen === "warnings") {
+      window.trackCompanionScreen("warning_signs_viewed", "warnings", { mode: "home" });
+    }
+    if (screen === "lineCare") {
+      window.trackCompanionScreen("line_care_viewed", "line_care", { mode: "home" });
+    }
+    if (screen === "medInfo") {
+      window.trackCompanionScreen("medication_info_viewed", "medication_info", { mode: "home" });
+    }
+    if (screen === "appointment") {
+      window.trackCompanionScreen("appointment_card_viewed", "appointment", { mode: "home" });
+    }
+  }, [screen]);
+
+  _useEffect(function () {
+    if (!window.trackCompanionScreen || screen !== "dashboard") return;
+    if (!isModule("appointmentReminders") || appointmentCardViewedRef.current) return;
+    if (!STORE.isSetupComplete(settings)) return;
+    appointmentCardViewedRef.current = true;
+    window.trackCompanionScreen("appointment_card_viewed", "dashboard", { mode: "home" });
+  }, [screen, settings]);
 
   function persist(next) {
     setSettings(next);
@@ -155,6 +198,9 @@ function HomeInfusionApp() {
 
   function goPlayGame() {
     if (!isModule("infusionArcade")) return;
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("arcade_opened_from_companion", "dashboard", { mode: "home" });
+    }
     var d = STORE.getMedicationDrug(settings, ALL_DRUGS);
     if (d && !window.DOSECRAFT_isMedicationEnabled(d.id)) {
       goToScreen("setup");
@@ -199,6 +245,9 @@ function HomeInfusionApp() {
     }
     function saveSetup() {
       persist(settings);
+      if (window.trackCompanionScreen) {
+        window.trackCompanionScreen("companion_setup_completed", "setup", { mode: "home", completed: true });
+      }
       setScreen("dashboard");
     }
 
@@ -599,6 +648,15 @@ function HomeInfusionApp() {
           label={step.id === "log_dose" ? "Mark dose complete & finish" : "Next step →"}
           onClick={function () {
             if (step.id === "log_dose") {
+              if (window.trackCompanionScreen) {
+                window.trackCompanionScreen("sash_guide_completed", "sash", {
+                  mode: "home",
+                  completed: true,
+                  duration_bucket: window.dosecraftCompanionDurationBucket
+                    ? window.dosecraftCompanionDurationBucket(settings.infusionDurationMins)
+                    : undefined,
+                });
+              }
               STORE.logDoseComplete(
                 doseTimer && doseTimer.scheduledFor,
                 settings.infusionDurationMins
@@ -876,8 +934,13 @@ function HomeInfusionApp() {
           <HomeBtn accentColor={col} label="Switch to clinic infusion mode" onClick={goClinicMode} />
         )}
         {cfg.branding.showPoweredByDosecraft !== false && (
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: 0 }}>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "8px 0 0" }}>
             IVIG and in-clinic infusions · SharpRX Interactive
+          </p>
+        )}
+        {cfg.disclaimers.privacyAnalytics && (
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", textAlign: "center", margin: "12px 0 0", lineHeight: 1.5 }}>
+            {cfg.disclaimers.privacyAnalytics}
           </p>
         )}
       </div>
