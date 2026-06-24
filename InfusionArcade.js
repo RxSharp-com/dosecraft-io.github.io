@@ -32,10 +32,11 @@ const TETRA_RIBO_Y = Math.round(CANVAS_H * 0.52);
 const TETRA_OUTER_R = 200;
 const TETRA_ENTRY_R = 72;
 const TETRA_RING_R = 88;
-const TETRA_SHIELD_ARC = Math.PI * 0.55;
+const TETRA_SHIELD_ARC = Math.PI * 0.385; // ~30% smaller than original 0.55 arc
 const TETRA_CARGO_R = 11;
 const TETRA_GOAL = 22;
-const TETRA_PROD_CAP = 14;
+const TETRA_PROD_CAP = 10;
+const TETRA_SHIELD_HIT_R = TETRA_RING_R;
 
 function lerpAngle(current, target, t) {
   let diff = target - current;
@@ -783,6 +784,7 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
           chainSegments: 0,
           nudgeMsg: "",
           nudgeTimer: 0,
+          prodFlash: 0,
         };
       } else if (d.gameType === "ivig") {
         // Wave 0: Signal Sweep — Galaga-inspired formation shooter
@@ -1114,38 +1116,60 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         }
 
         for (const c of s.cargo) {
+          if (c.deflectFrames > 0) {
+            c.dist += c.deflectSpeed;
+            c.deflectFrames--;
+            c.opacity -= 0.06;
+            if (c.flash > 0) c.flash--;
+            continue;
+          }
           if (c.blocked || c.absorbed) { c.opacity -= 0.05; continue; }
           c.dist -= c.speed;
           if (c.flash > 0) c.flash--;
 
-          if (c.dist <= TETRA_ENTRY_R) {
+          // Shield collision at the visible ring — not the inner ribosome
+          if (c.dist <= TETRA_SHIELD_HIT_R + TETRA_CARGO_R * 0.5) {
             const blocked = angleInArc(c.angle, s.shieldAngle, TETRA_SHIELD_ARC / 2);
             if (blocked) {
               c.blocked = true;
+              c.dist = TETRA_SHIELD_HIT_R + 4;
+              c.deflectSpeed = 2.8;
+              c.deflectFrames = 14;
               s.stalled++;
-              const px = rx + Math.cos(c.angle) * TETRA_ENTRY_R;
-              const py = ry + Math.sin(c.angle) * TETRA_ENTRY_R;
-              c.flash = 8;
+              const px = rx + Math.cos(c.angle) * TETRA_SHIELD_HIT_R;
+              const py = ry + Math.sin(c.angle) * TETRA_SHIELD_HIT_R;
+              c.flash = 10;
               setProgress(Math.min(1, s.stalled / s.goal));
               SFX.play("vanco_intercept");
-              spawnP(s, px, py, dc, 10, 5);
-            } else {
-              c.absorbed = true;
-              s.production++;
-              s.chainSegments = Math.min(12, s.chainSegments + 1);
-              const px = rx + Math.cos(c.angle) * (TETRA_ENTRY_R - 8);
-              const py = ry + Math.sin(c.angle) * (TETRA_ENTRY_R - 8);
-              spawnP(s, px, py, "rgba(255,200,120,0.9)", 6, 3);
-              if (s.production >= s.productionCap) {
-                s.production = Math.max(0, Math.round(s.production * 0.7));
-                s.chainSegments = Math.max(0, s.chainSegments - 2);
-                s.nudgeMsg = "Protein is still being made — rotate the shield to block more cargo.";
-                s.nudgeTimer = 150;
-              }
+              spawnP(s, px, py, dc, 14, 6);
+              continue;
+            }
+          }
+
+          // Miss: cargo reaches ribosome interior
+          if (c.dist <= TETRA_ENTRY_R) {
+            c.absorbed = true;
+            s.production++;
+            s.chainSegments = Math.min(12, s.chainSegments + 1);
+            const px = rx + Math.cos(c.angle) * TETRA_ENTRY_R;
+            const py = ry + Math.sin(c.angle) * TETRA_ENTRY_R;
+            spawnP(s, px, py, "rgba(255,200,120,0.9)", 8, 4);
+            if (s.production >= s.productionCap) {
+              s.production = s.productionCap;
+              s.prodFlash = 90;
+              s.nudgeMsg = "Too much protein got through — keep rotating the shield to block more cargo.";
+              s.nudgeTimer = 180;
             }
           }
         }
-        s.cargo = s.cargo.filter(c => c.opacity > 0 && c.dist > -20);
+        if (s.prodFlash > 0) {
+          s.prodFlash--;
+          if (s.prodFlash === 0) {
+            s.production = 0;
+            s.chainSegments = Math.max(0, s.chainSegments - 3);
+          }
+        }
+        s.cargo = s.cargo.filter(c => c.opacity > 0 && (c.dist < TETRA_OUTER_R + 30 || c.deflectFrames > 0));
         if (s.nudgeTimer > 0) s.nudgeTimer--;
         else s.nudgeMsg = "";
         tickP(s);
@@ -1248,38 +1272,55 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
         const py = ry + Math.sin(c.angle) * c.dist;
         ctx.save();
         ctx.globalAlpha = Math.min(1, c.opacity);
+        if (c.deflectFrames > 0) {
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = dc;
+          ctx.fillStyle = dc + "66";
+          ctx.strokeStyle = "#fff8";
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 3; i++) {
+            const frag = TETRA_CARGO_R * (0.35 + i * 0.2);
+            ctx.beginPath();
+            ctx.arc(px + (i - 1) * 5, py + (i - 1) * 3, frag, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+          continue;
+        }
         ctx.shadowBlur = c.flash > 0 ? 18 : 8;
         ctx.shadowColor = c.flash > 0 ? "#fff" : dc;
-        ctx.fillStyle = dc + "44";
+        ctx.fillStyle = c.blocked ? dc + "22" : dc + "44";
         ctx.strokeStyle = dc;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.arc(px, py, TETRA_CARGO_R, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = "rgba(255,255,255,0.9)";
-        ctx.font = `bold 8px ${SANS}`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("aa", px, py);
+        if (!c.blocked) {
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.font = `bold 8px ${SANS}`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("aa", px, py);
+        }
         ctx.restore();
       }
 
-      // Production pressure meter (small, near top of play area)
-      const prodPct = Math.min(1, s.production / s.productionCap);
-      const pmX = 16, pmY = 58, pmW = 100, pmH = 6;
+      // Protein output meter — fills on misses; flashes full on try-again
+      const prodPct = s.prodFlash > 0 ? 1 : Math.min(1, s.production / s.productionCap);
+      const pmX = 16, pmY = 58, pmW = 110, pmH = 7;
       ctx.fillStyle = "rgba(255,255,255,0.1)";
       drawRoundRect(ctx, pmX, pmY, pmW, pmH, 3);
       ctx.fill();
       if (prodPct > 0) {
-        ctx.fillStyle = "rgba(255,200,120,0.75)";
+        ctx.fillStyle = s.prodFlash > 0 ? "rgba(255,140,80,0.9)" : "rgba(255,200,120,0.75)";
         drawRoundRect(ctx, pmX, pmY, Math.max(4, pmW * prodPct), pmH, 3);
         ctx.fill();
       }
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
+      ctx.fillStyle = s.prodFlash > 0 ? "rgba(255,180,120,0.9)" : "rgba(255,255,255,0.45)";
       ctx.font = `8px ${SANS}`;
       ctx.textAlign = "left";
-      ctx.fillText("Protein output", pmX, pmY - 4);
+      ctx.fillText(s.prodFlash > 0 ? "Protein output — try again" : "Protein output", pmX, pmY - 4);
 
       const hint = s.nudgeMsg || "Drag around the ribosome to rotate the shield and block cargo";
       ctx.fillStyle = s.nudgeMsg ? dc + "cc" : "rgba(255,255,255,0.55)";
