@@ -13,7 +13,7 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.20';
+const CACHE_VERSION = 'v1.0.21';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
 // clinicConfig.js is intentionally NOT pre-cached — see network-first handler below
@@ -141,4 +141,47 @@ self.addEventListener('fetch', (event) => {
       });
     })
   );
+});
+
+// ─── Reminder notifications (posted from main thread) ─────────────────────────
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  if (!data || data.type !== 'SHOW_REMINDER') return;
+
+  const title = data.title || 'Dosecraft — Dose Reminder';
+  const body = data.body || '';
+  const tag = data.tag || 'dc-reminder';
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      tag: tag,
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
+      data: { url: '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url.indexOf(self.location.origin) === 0 && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
+self.addEventListener('notificationclose', (event) => {
+  // no-op — dismissal does not change reminder state
 });

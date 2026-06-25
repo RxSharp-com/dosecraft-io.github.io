@@ -299,6 +299,279 @@ function MedicationEducationPanel(props) {
   );
 }
 
+var REMINDER_LEAD_OPTIONS = [
+  [15, "15 minutes"],
+  [30, "30 minutes"],
+  [60, "60 minutes"],
+  [90, "90 minutes"],
+];
+
+var REMINDER_SCHEDULE_DAYS = 7;
+var activeReminderTimeouts = [];
+
+function isStandalonePwa() {
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.navigator && window.navigator.standalone === true) return true;
+  } catch (e) {}
+  return false;
+}
+
+function isIosDevice() {
+  try {
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent || "");
+  } catch (e) {
+    return false;
+  }
+}
+
+function getNotificationPermission() {
+  try {
+    if (typeof Notification === "undefined") return "unsupported";
+    return Notification.permission || "default";
+  } catch (e) {
+    return "unsupported";
+  }
+}
+
+function postReminderToServiceWorker(payload) {
+  if (!("serviceWorker" in navigator)) return;
+  var message = Object.assign({ type: "SHOW_REMINDER" }, payload);
+  if (navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage(message);
+    return;
+  }
+  navigator.serviceWorker.ready.then(function (reg) {
+    var sw = reg.active || reg.installing || reg.waiting;
+    if (sw) sw.postMessage(message);
+  }).catch(function () {});
+}
+
+function fireReminderNotification(STORE, tag, reminderType, leadMinutes) {
+  var prefs = STORE.loadReminderPrefs();
+  if (!prefs.enabled) return;
+  if (getNotificationPermission() !== "granted") return;
+
+  var title = "Dosecraft — Dose Reminder";
+  var body;
+  if (reminderType === "headsup") {
+    body = "Your infusion dose is coming up in " + leadMinutes + " minutes. If your medication is refrigerated, now is a good time to take it out so it can warm up before your infusion.";
+  } else {
+    body = "Your infusion dose is due now. Open Dosecraft to start your session.";
+  }
+
+  postReminderToServiceWorker({ tag: tag, title: title, body: body });
+}
+
+function registerReminderTimeout(STORE, tag, fireTime, reminderType, leadMinutes) {
+  var delay = fireTime - Date.now();
+  if (delay <= 0) return;
+  var id = setTimeout(function () {
+    fireReminderNotification(STORE, tag, reminderType, leadMinutes);
+  }, delay);
+  activeReminderTimeouts.push(id);
+}
+
+function clearActiveReminderTimeouts() {
+  for (var i = 0; i < activeReminderTimeouts.length; i++) {
+    clearTimeout(activeReminderTimeouts[i]);
+  }
+  activeReminderTimeouts = [];
+}
+
+function collectUpcomingDosesForReminders(STORE, settings) {
+  var now = new Date();
+  var cutoff = now.getTime() + REMINDER_SCHEDULE_DAYS * 24 * 60 * 60 * 1000;
+  var seen = {};
+  var doses = [];
+
+  function addDose(dose) {
+    if (!dose || !dose.scheduledFor) return;
+    var t = dose.scheduledFor.getTime();
+    if (t <= now.getTime()) return;
+    if (t > cutoff) return;
+    var key = String(t);
+    if (seen[key]) return;
+    seen[key] = true;
+    doses.push(dose);
+  }
+
+  STORE.getTodayMedicationDoses(settings, now).forEach(addDose);
+
+  var meds = STORE.getTreatmentMedications(settings);
+  meds.forEach(function (med) {
+    var cursor = now;
+    var safety = 0;
+    while (safety < 200) {
+      safety += 1;
+      var next = STORE.getNextDoseForMedication(settings, med, cursor);
+      if (!next) break;
+      if (next.scheduledFor.getTime() > cutoff) break;
+      addDose(next);
+      cursor = new Date(next.scheduledFor.getTime() + 60000);
+    }
+  });
+
+  doses.sort(function (a, b) {
+    return a.scheduledFor - b.scheduledFor;
+  });
+  return doses;
+}
+
+function resumePendingReminders(STORE) {
+  clearActiveReminderTimeouts();
+  var list = STORE.loadScheduledNotifications();
+  var now = Date.now();
+  var remaining = [];
+  var prefs = STORE.loadReminderPrefs();
+
+  list.forEach(function (entry) {
+    if (!entry || !entry.fireTime || entry.fireTime <= now) return;
+    remaining.push(entry);
+    var leadMinutes = prefs.leadMinutes || 60;
+    registerReminderTimeout(STORE, entry.tag, entry.fireTime, entry.type, leadMinutes);
+  });
+
+  STORE.saveScheduledNotifications(remaining);
+}
+
+function scheduleDoseReminders(STORE, settings, prefs) {
+  clearActiveReminderTimeouts();
+  var doses = collectUpcomingDosesForReminders(STORE, settings);
+  var scheduled = [];
+  var now = Date.now();
+  var leadMs = (prefs.leadMinutes || 60) * 60000;
+
+  doses.forEach(function (dose) {
+    var scheduledFor = dose.scheduledFor.getTime();
+    var isoTs = dose.scheduledFor.toISOString();
+
+    var headsUpTime = scheduledFor - leadMs;
+    if (headsUpTime > now) {
+      var headsTag = "dc-reminder-headsup-" + isoTs;
+      registerReminderTimeout(STORE, headsTag, headsUpTime, "headsup", prefs.leadMinutes || 60);
+      scheduled.push({ tag: headsTag, fireTime: headsUpTime, type: "headsup" });
+    }
+
+    if (prefs.atTimeEnabled !== false && scheduledFor > now) {
+      var attimeTag = "dc-reminder-attime-" + isoTs;
+      registerReminderTimeout(STORE, attimeTag, scheduledFor, "attime", 0);
+      scheduled.push({ tag: attimeTag, fireTime: scheduledFor, type: "attime" });
+    }
+  });
+
+  STORE.saveScheduledNotifications(scheduled);
+  STORE.saveReminderPrefs(prefs);
+  return scheduled.length;
+}
+
+function reminderAnalyticsProps(prefs) {
+  return {
+    mode: "home",
+    lead_minutes_bucket: String(prefs.leadMinutes || 60),
+    at_time_enabled: prefs.atTimeEnabled !== false,
+  };
+}
+
+function PwaInstallSetupCard(props) {
+  var col = props.accentColor || "#2a9d8f";
+  var card = props.cardStyle;
+  if (props.standalone) return null;
+  return (
+    <div style={Object.assign({}, card, { marginTop: 14 })}>
+      <p style={{ margin: "0 0 12px", fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
+        For the most reliable reminders, add Dosecraft to your home screen. Tap the share button in your browser and select &apos;Add to Home Screen,&apos; or use the button below if available.
+      </p>
+      {props.installPromptReady && (
+        <button
+          type="button"
+          onClick={props.onInstall}
+          style={{
+            display: "block",
+            width: "100%",
+            minHeight: 52,
+            padding: "14px 20px",
+            borderRadius: 12,
+            border: "none",
+            background: col,
+            color: "#041018",
+            fontSize: 17,
+            fontWeight: 700,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          Add to Home Screen
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DashboardInstallCard(props) {
+  if (props.standalone || props.dismissed) return null;
+  return (
+    <div
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 10,
+        padding: "12px 14px",
+        marginTop: 16,
+        marginBottom: 8,
+        position: "relative",
+      }}
+    >
+      <button
+        type="button"
+        onClick={props.onDismiss}
+        aria-label="Dismiss install prompt"
+        style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          background: "transparent",
+          border: "none",
+          color: "rgba(255,255,255,0.35)",
+          fontSize: 18,
+          lineHeight: 1,
+          minWidth: 52,
+          minHeight: 52,
+          cursor: "pointer",
+          padding: 0,
+        }}
+      >
+        ×
+      </button>
+      <p style={{ margin: "0 32px 10px 0", fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.45 }}>
+        Add Dosecraft to your home screen for the best experience.
+      </p>
+      {props.installPromptReady && (
+        <button
+          type="button"
+          onClick={props.onInstall}
+          style={{
+            display: "block",
+            width: "100%",
+            minHeight: 52,
+            padding: "12px 16px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.05)",
+            color: "rgba(255,255,255,0.65)",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            touchAction: "manipulation",
+          }}
+        >
+          Add to Home Screen
+        </button>
+      )}
+    </div>
+  );
+}
+
 function HomeInfusionApp() {
   var STORE = window.DOSECRAFT_HOME_STORE;
   var COPY = window.DOSECRAFT_HOME_COPY;
@@ -356,6 +629,21 @@ function HomeInfusionApp() {
   var _medInfoKey = _useState(null);
   var medInfoKey = _medInfoKey[0], setMedInfoKey = _medInfoKey[1];
 
+  var _reminderPrefs = _useState(function () { return STORE.loadReminderPrefs(); });
+  var reminderPrefs = _reminderPrefs[0], setReminderPrefs = _reminderPrefs[1];
+
+  var _permissionBlockedMsg = _useState("");
+  var permissionBlockedMsg = _permissionBlockedMsg[0], setPermissionBlockedMsg = _permissionBlockedMsg[1];
+
+  var _installPromptReady = _useState(false);
+  var installPromptReady = _installPromptReady[0], setInstallPromptReady = _installPromptReady[1];
+
+  var _installDismissed = _useState(function () { return STORE.isInstallPromptDismissed(); });
+  var installDismissed = _installDismissed[0], setInstallDismissed = _installDismissed[1];
+
+  var installPromptEventRef = _useRef(null);
+  var standalonePwa = isStandalonePwa();
+
   var activeTimer = STORE.getActiveInfusionTimer(settings);
 
   _useEffect(function () {
@@ -377,6 +665,107 @@ function HomeInfusionApp() {
     var idx = STORE.findResumeStepIndex(steps, stored, STORE.getActiveInfusionTimer(settings));
     setSashStep(idx);
   }, [screen]);
+
+  _useEffect(function () {
+    resumePendingReminders(STORE);
+  }, []);
+
+  _useEffect(function () {
+    function onBeforeInstallPrompt(e) {
+      e.preventDefault();
+      installPromptEventRef.current = e;
+      setInstallPromptReady(true);
+    }
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    return function () {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
+    };
+  }, []);
+
+  _useEffect(function () {
+    if (getNotificationPermission() === "denied") {
+      setPermissionBlockedMsg("Notifications are blocked in your browser settings.");
+      setReminderPrefs(function (prev) {
+        var next = Object.assign({}, prev, { enabled: false, permissionGranted: false });
+        STORE.saveReminderPrefs(next);
+        return next;
+      });
+    }
+  }, []);
+
+  function handlePwaInstallClick() {
+    var evt = installPromptEventRef.current;
+    if (!evt || !evt.prompt) return;
+    evt.prompt();
+    if (evt.userChoice && evt.userChoice.then) {
+      evt.userChoice.then(function () {
+        installPromptEventRef.current = null;
+        setInstallPromptReady(false);
+      });
+    }
+  }
+
+  function dismissDashboardInstallPrompt() {
+    STORE.setInstallPromptDismissed();
+    setInstallDismissed(true);
+  }
+
+  function handleReminderToggleChange(checked) {
+    if (getNotificationPermission() === "denied") return;
+
+    if (!checked) {
+      var offPrefs = Object.assign({}, reminderPrefs, {
+        enabled: false,
+        permissionGranted: getNotificationPermission() === "granted",
+      });
+      setReminderPrefs(offPrefs);
+      STORE.saveReminderPrefs(offPrefs);
+      STORE.saveScheduledNotifications([]);
+      clearActiveReminderTimeouts();
+      setPermissionBlockedMsg("");
+      return;
+    }
+
+    if (typeof Notification === "undefined" || !Notification.requestPermission) {
+      setPermissionBlockedMsg("Notifications are not supported in this browser.");
+      return;
+    }
+
+    Notification.requestPermission().then(function (result) {
+      if (result === "granted") {
+        var onPrefs = Object.assign({}, reminderPrefs, {
+          enabled: true,
+          permissionGranted: true,
+        });
+        setReminderPrefs(onPrefs);
+        STORE.saveReminderPrefs(onPrefs);
+        setPermissionBlockedMsg("");
+        if (window.trackCompanionScreen) {
+          window.trackCompanionScreen("reminder_enabled", "additional_settings", reminderAnalyticsProps(onPrefs));
+        }
+      } else {
+        var deniedPrefs = Object.assign({}, reminderPrefs, {
+          enabled: false,
+          permissionGranted: false,
+        });
+        setReminderPrefs(deniedPrefs);
+        STORE.saveReminderPrefs(deniedPrefs);
+        setPermissionBlockedMsg("Notifications are blocked. Please allow notifications for Dosecraft in your browser or device settings.");
+      }
+    });
+  }
+
+  function handleScheduleReminders() {
+    var prefs = Object.assign({}, reminderPrefs, {
+      enabled: true,
+      permissionGranted: getNotificationPermission() === "granted",
+    });
+    scheduleDoseReminders(STORE, settings, prefs);
+    setReminderPrefs(prefs);
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("reminder_scheduled", "additional_settings", reminderAnalyticsProps(prefs));
+    }
+  }
 
   var companionOpenedRef = _useRef(false);
   var setupStartedRef = _useRef(false);
@@ -1797,6 +2186,12 @@ function HomeInfusionApp() {
   // ── ADDITIONAL SETTINGS ────────────────────────────────────────────────────
   if (screen === "additionalSettings") {
     var addTs = treatmentSet();
+    var addNotifPerm = getNotificationPermission();
+    var addPermDenied = addNotifPerm === "denied";
+    var addRemindersOn = !!reminderPrefs.enabled && !addPermDenied;
+    var addSchedulableDoses = collectUpcomingDosesForReminders(STORE, settings);
+    var addCanSchedule = addRemindersOn && addSchedulableDoses.length > 0;
+    var addBlockedText = permissionBlockedMsg || (addPermDenied ? "Notifications are blocked in your browser settings." : "");
     return (
       <HomeShell>
         {renderGlobalTimerBanner()}
@@ -1897,22 +2292,96 @@ function HomeInfusionApp() {
           </div>
         )}
 
-        <div style={card}>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <input
-              type="checkbox"
-              checked={!!addTs.remindersEnabled}
-              onChange={function (e) {
-                var next = Object.assign({}, settings);
-                next.treatmentSet = Object.assign({}, treatmentSet());
-                next.treatmentSet.remindersEnabled = e.target.checked;
-                persist(next);
-              }}
-              style={{ marginTop: 4 }}
-            />
-            <span>Enable dose reminders (browser notifications — coming soon)</span>
-          </label>
-        </div>
+        {isModule("doseReminders") && STORE.isSetupComplete(settings) && (
+          <div style={card}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: addPermDenied ? "default" : "pointer" }}>
+              <input
+                type="checkbox"
+                checked={addRemindersOn}
+                disabled={addPermDenied}
+                onChange={function (e) { handleReminderToggleChange(e.target.checked); }}
+                style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
+              />
+              <span>Dose reminders</span>
+            </label>
+
+            {addBlockedText && (
+              <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }} role="alert">
+                {addBlockedText}
+              </p>
+            )}
+
+            {addRemindersOn && (
+              <div style={{ marginTop: 16 }}>
+                <div style={label}>Heads-up reminder</div>
+                <select
+                  value={String(reminderPrefs.leadMinutes || 60)}
+                  onChange={function (e) {
+                    var next = Object.assign({}, reminderPrefs, { leadMinutes: parseInt(e.target.value, 10) });
+                    setReminderPrefs(next);
+                    STORE.saveReminderPrefs(next);
+                  }}
+                  style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 14 }}
+                >
+                  {REMINDER_LEAD_OPTIONS.map(function (pair) {
+                    return <option key={pair[0]} value={String(pair[0])}>{pair[1]}</option>;
+                  })}
+                </select>
+
+                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14 }}>
+                  <input
+                    type="checkbox"
+                    checked={reminderPrefs.atTimeEnabled !== false}
+                    onChange={function (e) {
+                      var next = Object.assign({}, reminderPrefs, { atTimeEnabled: e.target.checked });
+                      setReminderPrefs(next);
+                      STORE.saveReminderPrefs(next);
+                    }}
+                    style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
+                  />
+                  <span>Reminder at dose time</span>
+                </label>
+
+                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                  <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                    Reminders work best when Dosecraft is installed on your home screen and your device allows background activity. If you change your dose schedule, turn reminders off and back on to update them.
+                  </p>
+                </div>
+
+                <PwaInstallSetupCard
+                  standalone={standalonePwa}
+                  installPromptReady={installPromptReady}
+                  onInstall={handlePwaInstallClick}
+                  accentColor={col}
+                  cardStyle={card}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleScheduleReminders}
+                  disabled={!addCanSchedule}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    minHeight: 52,
+                    padding: "14px 20px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: addCanSchedule ? col : "rgba(255,255,255,0.08)",
+                    color: addCanSchedule ? "#041018" : "rgba(255,255,255,0.45)",
+                    fontSize: 17,
+                    fontWeight: 700,
+                    cursor: addCanSchedule ? "pointer" : "default",
+                    opacity: addCanSchedule ? 1 : 0.6,
+                    touchAction: "manipulation",
+                  }}
+                >
+                  {addSchedulableDoses.length === 0 ? "No doses scheduled yet." : "Schedule reminders"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />
       </HomeShell>
@@ -2051,6 +2520,15 @@ function HomeInfusionApp() {
       </div>
 
       <div style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+        {STORE.isSetupComplete(settings) && !standalonePwa && !installDismissed && (
+          <DashboardInstallCard
+            standalone={standalonePwa}
+            dismissed={installDismissed}
+            installPromptReady={installPromptReady}
+            onInstall={handlePwaInstallClick}
+            onDismiss={dismissDashboardInstallPrompt}
+          />
+        )}
         {isModule("clinicInfusion") && (
           <HomeBtn accentColor={col} label="Switch to clinic infusion mode" onClick={goClinicMode} />
         )}

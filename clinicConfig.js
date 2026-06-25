@@ -32,6 +32,7 @@
       appointmentReminders: true,
       medicationEducation: true,
       lineCare: true,
+      doseReminders: false,
     },
 
     enabledMedications: [],

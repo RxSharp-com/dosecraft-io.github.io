@@ -7,6 +7,9 @@
   var MODE_SEEN_KEY = "dc_mode_choice_seen";
   var ACTIVE_SESSION_KEY = "dc_home_active_session";
   var STORAGE_CRYPTO_KEY_ID = "dc_home_storage_kid";
+  var REMINDER_PREFS_KEY = "dc_reminder_prefs";
+  var SCHEDULED_NOTIFICATIONS_KEY = "dc_scheduled_notifications";
+  var INSTALL_PROMPT_DISMISSED_KEY = "dc_install_prompt_dismissed";
 
   function bytesToBase64(bytes) {
     var bin = "";
@@ -1357,6 +1360,51 @@
     return buildDoseSessionSteps(dueDoses, settings, copy);
   }
 
+  function defaultReminderPrefs() {
+    return {
+      enabled: false,
+      leadMinutes: 60,
+      atTimeEnabled: true,
+      permissionGranted: false,
+    };
+  }
+
+  function loadReminderPrefs() {
+    var raw = localStorage.getItem(REMINDER_PREFS_KEY);
+    if (!raw) return defaultReminderPrefs();
+    var parsed = safeParse(raw, null);
+    if (!parsed || typeof parsed !== "object") return defaultReminderPrefs();
+    return {
+      enabled: !!parsed.enabled,
+      leadMinutes: parsed.leadMinutes != null ? parsed.leadMinutes : 60,
+      atTimeEnabled: parsed.atTimeEnabled !== false,
+      permissionGranted: !!parsed.permissionGranted,
+    };
+  }
+
+  function saveReminderPrefs(prefs) {
+    localStorage.setItem(REMINDER_PREFS_KEY, JSON.stringify(prefs || defaultReminderPrefs()));
+  }
+
+  function loadScheduledNotifications() {
+    var raw = localStorage.getItem(SCHEDULED_NOTIFICATIONS_KEY);
+    if (!raw) return [];
+    var parsed = safeParse(raw, null);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  function saveScheduledNotifications(list) {
+    localStorage.setItem(SCHEDULED_NOTIFICATIONS_KEY, JSON.stringify(list || []));
+  }
+
+  function isInstallPromptDismissed() {
+    return localStorage.getItem(INSTALL_PROMPT_DISMISSED_KEY) === "true";
+  }
+
+  function setInstallPromptDismissed() {
+    localStorage.setItem(INSTALL_PROMPT_DISMISSED_KEY, "true");
+  }
+
   window.DOSECRAFT_HOME_STORE = {
     SETTINGS_KEY: SETTINGS_KEY,
     WEEKDAY_LABELS: WEEKDAY_LABELS,
@@ -1382,6 +1430,7 @@
     getEstimatedSessionMinutesForDueMeds: getEstimatedSessionMinutesForDueMeds,
     hasMultipleTreatmentMedications: hasMultipleTreatmentMedications,
     getNextDueMedicationDose: getNextDueMedicationDose,
+    getNextDoseForMedication: getNextDoseForMedication,
     getDueMedicationDosesForNow: getDueMedicationDosesForNow,
     getTodayMedicationDoses: getTodayMedicationDoses,
     getRemainingTodayDoses: getRemainingTodayDoses,
@@ -1435,5 +1484,15 @@
     frequencyLabel: frequencyLabel,
     formatDateISO: formatDateISO,
     formatTimeShort: formatTimeShort,
+    REMINDER_PREFS_KEY: REMINDER_PREFS_KEY,
+    SCHEDULED_NOTIFICATIONS_KEY: SCHEDULED_NOTIFICATIONS_KEY,
+    INSTALL_PROMPT_DISMISSED_KEY: INSTALL_PROMPT_DISMISSED_KEY,
+    defaultReminderPrefs: defaultReminderPrefs,
+    loadReminderPrefs: loadReminderPrefs,
+    saveReminderPrefs: saveReminderPrefs,
+    loadScheduledNotifications: loadScheduledNotifications,
+    saveScheduledNotifications: saveScheduledNotifications,
+    isInstallPromptDismissed: isInstallPromptDismissed,
+    setInstallPromptDismissed: setInstallPromptDismissed,
   };
 })();
