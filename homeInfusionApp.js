@@ -181,6 +181,7 @@ function wizardStepIndicator(wizardScreen, wizardMedIndex, twoMedPath) {
   return "";
 }
 
+function CompactTimerBanner(props) {
   var timer = props.timer;
   var STORE = props.store;
   var COPY = props.copy;
