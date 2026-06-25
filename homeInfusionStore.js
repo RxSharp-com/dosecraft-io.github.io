@@ -25,7 +25,14 @@
   }
 
   function uid() {
-    return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    var bytes = new Uint8Array(8);
+    globalThis.crypto.getRandomValues(bytes);
+    var rand = Array.prototype.map
+      .call(bytes, function (b) {
+        return b.toString(16).padStart(2, "0");
+      })
+      .join("");
+    return "s" + Date.now().toString(36) + rand;
   }
 
   function defaultMedicationSchedule() {
