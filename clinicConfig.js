@@ -58,12 +58,17 @@
       companionRemoteAnalytics: false,
       anonymizeIp: true,
     },
+
+    lineCare: {
+      heparinDefaultOn: false,
+    },
   };
 
   var EMERGENCY_FALLBACK =
     "For severe or life-threatening symptoms, call 911 or your local emergency number.";
 
   // Clinic-specific overrides — edit this object for each licensed deployment.
+  // Example: window.DOSECRAFT_CLINIC_CONFIG = { lineCare: { heparinDefaultOn: true } };
   window.DOSECRAFT_CLINIC_CONFIG = window.DOSECRAFT_CLINIC_CONFIG || {};
 
   function isPlainObject(val) {
@@ -101,6 +106,7 @@
     merged.branding = deepMerge(DEFAULT_CLINIC_CONFIG.branding, merged.branding || {});
     merged.disclaimers = deepMerge(DEFAULT_CLINIC_CONFIG.disclaimers, merged.disclaimers || {});
     merged.analytics = deepMerge(DEFAULT_CLINIC_CONFIG.analytics, merged.analytics || {});
+    merged.lineCare = deepMerge(DEFAULT_CLINIC_CONFIG.lineCare, merged.lineCare || {});
     if (!Array.isArray(merged.enabledMedications)) merged.enabledMedications = [];
     return merged;
   }
@@ -174,10 +180,23 @@
   }
 
   function isSavedMedicationDisabled(settings) {
-    if (!settings || settings.medicationIsOther) return false;
-    if (settings.medicationOtherName && (settings.medicationOtherName || "").trim()) return false;
-    if (settings.medicationId == null) return false;
-    return !isMedicationEnabled(settings.medicationId);
+    if (!settings) return false;
+    var meds = [];
+    if (settings.treatmentSet && settings.treatmentSet.medications) {
+      meds = settings.treatmentSet.medications;
+    } else if (settings.medicationId != null || settings.medicationIsOther) {
+      meds = [{
+        medicationId: settings.medicationId,
+        medicationIsOther: settings.medicationIsOther,
+        medicationOtherName: settings.medicationOtherName,
+      }];
+    }
+    return meds.some(function (med) {
+      if (med.medicationIsOther) return false;
+      if (med.medicationOtherName && (med.medicationOtherName || "").trim()) return false;
+      if (med.medicationId == null) return false;
+      return !isMedicationEnabled(med.medicationId);
+    });
   }
 
   window.DOSECRAFT_DEFAULT_CLINIC_CONFIG = DEFAULT_CLINIC_CONFIG;

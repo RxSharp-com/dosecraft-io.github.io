@@ -8,8 +8,165 @@
     disclaimer:
       "This app does not replace your care team's instructions. If you are unsure, call your care team. For severe or life-threatening symptoms, seek emergency care.",
 
+    treatmentSetupIntro:
+      "Choose the medication(s) in your treatment. Each medication may have its own dose times. Put medications in the order your care team told you to give them. If two medications are due at the same time, your Companion can guide them one after another. Follow the exact instructions from your care team.",
+
+    multiMedSafetyNote:
+      "Follow your care team's exact order and flushing instructions. If your printed instructions are different, follow those instructions. Contact your care team if your line will not flush, your pump does not seem to be working, or you are unsure what to do.",
+
     sashIntro:
-      "SASH stands for Saline, Administer medication, Saline, and Heparin (if prescribed). This walkthrough supports PICC line elastomeric pump administration. Your steps may differ — follow your care team's instructions.",
+      "This guided session walks you through your dose step by step. Follow your care team's exact instructions. If your printed instructions are different, follow those instructions.",
+
+    sessionStepCopy: {
+      prep: "Wash your hands with soap and water. Gather saline syringes, alcohol prep pads, your medication supply, and heparin only if your care team prescribed it.",
+      salinePre: "Flush with saline as your care team directed before starting medication. Do not force a flush — contact your care team if you meet resistance.",
+      salineBetween: "Flush with saline between medications as your care team directed. Do not force a flush — contact your care team if you meet resistance.",
+      startInfusion: "Connect {medication} as your care team instructed. Open the clamp when directed. Start the timer when the medication begins flowing.",
+      activeTimer: "Your {medication} infusion is running. You can leave this guide and use the rest of the Companion while you wait. Mark complete when the infusion has finished.",
+      salinePostSingle: "Flush with saline after medication as your care team directed.",
+      salinePostFinal: "Flush with saline after the final medication as your care team directed.",
+      heparin: "Use heparin only if your care team prescribed it. Scrub the hub, flush as directed, remove the syringe, and clamp the line if instructed.",
+      sessionComplete: "You have finished this dose session. Your dashboard will show what is due next.",
+    },
+
+    intervalScheduleHint: "First dose time. Your Companion will calculate the repeating interval from this time.",
+
+    wizard: {
+      medicationTitle: "Choose your medication",
+      medicationHint: "Select the IV antibiotic or therapy your care team prescribed for home infusion.",
+      medicationOtherLabel: "Medication name",
+      scheduleTitle: "Dosing schedule",
+      scheduleIntervalHint: "Your Companion will calculate dose times from your first dose and interval.",
+      firstDoseTimeLabel: "Time of first dose",
+      customHoursLabel: "Every how many hours?",
+      customHoursError: "Please enter a number between 1 and 72.",
+      useSpecificTimes: "Use specific times instead",
+      useIntervalInstead: "Use interval instead",
+      durationTitle: "Infusion duration",
+      durationHint: "How long does each infusion usually take? Follow your care team's instructions.",
+      startDateTitle: "Treatment start date",
+      startDateLabel: "When did or will your treatment start?",
+      addAnotherTitle: "Add another medication?",
+      addAnotherHint: "Some home infusion treatments include more than one IV medication.",
+      addAnotherYes: "Yes, add another medication",
+      addAnotherNo: "No, I'm done",
+      saveTitle: "You're all set",
+      saveHint: "You can update medications and schedules anytime from Edit setup. Line care and visit reminders are in Additional settings.",
+      saveButton: "Save and continue",
+      additionalSettingsTitle: "Additional settings",
+    },
+
+    sessionPrepSteps: [
+      {
+        id: "wash_hands",
+        title: "Wash your hands",
+        body: "Wash with soap and water for 40–60 seconds and dry with a clean towel or paper towel.",
+        phase: "prep",
+      },
+      {
+        id: "gather_supplies",
+        title: "Gather supplies",
+        body: "Saline syringes, alcohol prep pads, your medication ball(s) or pump supplies, and heparin syringe only if your care team prescribed it.",
+        phase: "prep",
+      },
+      {
+        id: "multi_med_safety",
+        title: "Follow your care team's order",
+        body: "Follow your care team's exact order and flushing instructions. If your printed instructions are different, follow those instructions.",
+        phase: "prep",
+      },
+    ],
+
+    betweenMedicationFlushStep: {
+      id: "saline_between",
+      title: "Saline flush between medications",
+      body: "Flush with saline between medications as your care team directed. Do not force a flush — if you meet resistance, call your care team.",
+      phase: "sash",
+      letter: "S",
+    },
+
+    sessionPostSteps: [
+      {
+        id: "saline_post_final",
+        title: "Saline flush (after final medication)",
+        body: "Repeat the saline flush steps your care team taught you after disconnecting the final medication.",
+        phase: "sash",
+        letter: "S",
+      },
+      {
+        id: "heparin",
+        title: "Heparin flush (if prescribed)",
+        body: "Use heparin only if your care team prescribed it. Some PICC lines use saline only. Scrub the hub, attach the heparin syringe, flush as directed, remove the syringe, and clamp the line if instructed.",
+        phase: "sash",
+        letter: "H",
+        conditionalHeparin: true,
+      },
+    ],
+
+    perMedicationSteps: [
+      {
+        id: "check_label",
+        title: "Check the medication label",
+        body: "Confirm the medication name and that it matches what your care team prescribed. Call your care team if anything looks wrong.",
+        phase: "prep",
+      },
+      {
+        id: "inspect_device",
+        title: "Inspect the medication and device",
+        body: "Look for leaks, cracks, or cloudiness. Do not use a damaged device. If the solution was refrigerated, your care team may ask you to let it warm at room temperature before use — follow their instructions.",
+        phase: "prep",
+      },
+      {
+        id: "scrub_hub",
+        title: "Scrub the hub",
+        body: "Scrub the end of your PICC line with an alcohol prep pad for at least 15 seconds. Allow it to dry. Do not blow on it.",
+        phase: "sash",
+        letter: "S",
+      },
+      {
+        id: "saline_pre",
+        title: "Saline flush (before medication)",
+        body: "Remove air from the saline syringe. Twist onto the line, open the clamp, and flush with saline as your care team directed. Remove the syringe. Do not force a flush — if you meet resistance, make sure clamps are open and call your care team.",
+        phase: "sash",
+        letter: "S",
+      },
+      {
+        id: "connect_med",
+        title: "Connect medication",
+        body: "Scrub the hub again with a new alcohol pad for 15 seconds. Attach the elastomeric pump tubing to your line as directed.",
+        phase: "sash",
+        letter: "A",
+      },
+      {
+        id: "open_clamp",
+        title: "Open the clamp",
+        body: "Open the clamp on the medication tubing so the infusion can run. Check that there are no kinks in the line.",
+        phase: "sash",
+        letter: "A",
+      },
+      {
+        id: "start_timer",
+        title: "Start infusion timer",
+        body: "Start the timer when the medication begins flowing. Follow your care team's timing for this medication.",
+        phase: "sash",
+        letter: "A",
+        hasTimer: true,
+      },
+      {
+        id: "confirm_empty",
+        title: "Confirm medication is finished",
+        body: "When the ball appears empty and the infusion is complete, close the clamp if your care team instructed you to.",
+        phase: "sash",
+        letter: "A",
+      },
+      {
+        id: "disconnect",
+        title: "Disconnect medication",
+        body: "Disconnect the medication tubing from your line as instructed.",
+        phase: "sash",
+        letter: "A",
+      },
+    ],
 
     sashSteps: [
       {

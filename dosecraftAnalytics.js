@@ -9,8 +9,17 @@
 
   var COMPANION_EVENT_ALLOWLIST = {
     companion_opened: true,
+    companion_setup_wizard_started: true,
     companion_setup_started: true,
     companion_setup_completed: true,
+    companion_treatment_setup_started: true,
+    companion_treatment_setup_completed: true,
+    companion_infusion_timer_started: true,
+    companion_infusion_timer_completed: true,
+    companion_active_timer_game_opened: true,
+    companion_active_timer_med_info_opened: true,
+    companion_dose_walkthrough_started: true,
+    companion_dose_session_completed: true,
     sash_guide_started: true,
     sash_guide_completed: true,
     line_care_viewed: true,
