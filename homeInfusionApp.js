@@ -417,6 +417,11 @@ function resumePendingReminders(STORE) {
   var remaining = [];
   var prefs = STORE.loadReminderPrefs();
 
+  if (!prefs.enabled || getNotificationPermission() !== "granted") {
+    STORE.saveScheduledNotifications([]);
+    return;
+  }
+
   list.forEach(function (entry) {
     if (!entry || !entry.fireTime || entry.fireTime <= now) return;
     remaining.push(entry);
@@ -467,10 +472,18 @@ function reminderAnalyticsProps(prefs) {
 
 function PwaInstallSetupCard(props) {
   var col = props.accentColor || "#2a9d8f";
-  var card = props.cardStyle;
   if (props.standalone) return null;
   return (
-    <div style={Object.assign({}, card, { marginTop: 14 })}>
+    <div
+      style={{
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 10,
+        padding: "12px 14px",
+        marginTop: 14,
+        marginBottom: 14,
+      }}
+    >
       <p style={{ margin: "0 0 12px", fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.5 }}>
         For the most reliable reminders, add Dosecraft to your home screen. Tap the share button in your browser and select &apos;Add to Home Screen,&apos; or use the button below if available.
       </p>
@@ -624,6 +637,9 @@ function HomeInfusionApp() {
   var _reminderPrefs = _useState(function () { return STORE.loadReminderPrefs(); });
   var reminderPrefs = _reminderPrefs[0], setReminderPrefs = _reminderPrefs[1];
 
+  var _reminderPanelOpen = _useState(function () { return !!STORE.loadReminderPrefs().enabled; });
+  var reminderPanelOpen = _reminderPanelOpen[0], setReminderPanelOpen = _reminderPanelOpen[1];
+
   var _permissionBlockedMsg = _useState("");
   var permissionBlockedMsg = _permissionBlockedMsg[0], setPermissionBlockedMsg = _permissionBlockedMsg[1];
 
@@ -677,6 +693,7 @@ function HomeInfusionApp() {
   _useEffect(function () {
     if (getNotificationPermission() === "denied") {
       setPermissionBlockedMsg("Notifications are blocked in your browser settings.");
+      setReminderPanelOpen(false);
       setReminderPrefs(function (prev) {
         var next = Object.assign({}, prev, { enabled: false, permissionGranted: false });
         STORE.saveReminderPrefs(next);
@@ -706,6 +723,7 @@ function HomeInfusionApp() {
     if (getNotificationPermission() === "denied") return;
 
     if (!checked) {
+      setReminderPanelOpen(false);
       var offPrefs = Object.assign({}, reminderPrefs, {
         enabled: false,
         permissionGranted: getNotificationPermission() === "granted",
@@ -718,8 +736,25 @@ function HomeInfusionApp() {
       return;
     }
 
+    setReminderPanelOpen(true);
+
     if (typeof Notification === "undefined" || !Notification.requestPermission) {
+      setReminderPanelOpen(false);
       setPermissionBlockedMsg("Notifications are not supported in this browser.");
+      return;
+    }
+
+    if (getNotificationPermission() === "granted") {
+      var alreadyGrantedPrefs = Object.assign({}, reminderPrefs, {
+        enabled: true,
+        permissionGranted: true,
+      });
+      setReminderPrefs(alreadyGrantedPrefs);
+      STORE.saveReminderPrefs(alreadyGrantedPrefs);
+      setPermissionBlockedMsg("");
+      if (window.trackCompanionScreen) {
+        window.trackCompanionScreen("reminder_enabled", "additional_settings", reminderAnalyticsProps(alreadyGrantedPrefs));
+      }
       return;
     }
 
@@ -736,6 +771,7 @@ function HomeInfusionApp() {
           window.trackCompanionScreen("reminder_enabled", "additional_settings", reminderAnalyticsProps(onPrefs));
         }
       } else {
+        setReminderPanelOpen(false);
         var deniedPrefs = Object.assign({}, reminderPrefs, {
           enabled: false,
           permissionGranted: false,
@@ -2181,8 +2217,10 @@ function HomeInfusionApp() {
     var addNotifPerm = getNotificationPermission();
     var addPermDenied = addNotifPerm === "denied";
     var addRemindersOn = !!reminderPrefs.enabled && !addPermDenied;
+    var addShowReminderPanel = reminderPanelOpen && !addPermDenied;
+    var addPermissionGranted = addNotifPerm === "granted";
     var addSchedulableDoses = collectUpcomingDosesForReminders(STORE, settings);
-    var addCanSchedule = addRemindersOn && addSchedulableDoses.length > 0;
+    var addCanSchedule = addRemindersOn && addPermissionGranted && addSchedulableDoses.length > 0;
     var addBlockedText = permissionBlockedMsg || (addPermDenied ? "Notifications are blocked in your browser settings." : "");
     return (
       <HomeShell>
@@ -2289,7 +2327,7 @@ function HomeInfusionApp() {
             <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: addPermDenied ? "default" : "pointer" }}>
               <input
                 type="checkbox"
-                checked={addRemindersOn}
+                checked={addShowReminderPanel}
                 disabled={addPermDenied}
                 onChange={function (e) { handleReminderToggleChange(e.target.checked); }}
                 style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
@@ -2303,8 +2341,17 @@ function HomeInfusionApp() {
               </p>
             )}
 
-            {addRemindersOn && (
+            {addShowReminderPanel && (
               <div style={{ marginTop: 16 }}>
+                <PwaInstallSetupCard
+                  standalone={standalonePwa}
+                  installPromptReady={installPromptReady}
+                  onInstall={handlePwaInstallClick}
+                  accentColor={col}
+                />
+
+                {addPermissionGranted && (
+                  <div>
                 <div style={label}>Heads-up reminder</div>
                 <select
                   value={String(reminderPrefs.leadMinutes || 60)}
@@ -2340,14 +2387,6 @@ function HomeInfusionApp() {
                   </p>
                 </div>
 
-                <PwaInstallSetupCard
-                  standalone={standalonePwa}
-                  installPromptReady={installPromptReady}
-                  onInstall={handlePwaInstallClick}
-                  accentColor={col}
-                  cardStyle={card}
-                />
-
                 <button
                   type="button"
                   onClick={handleScheduleReminders}
@@ -2370,6 +2409,8 @@ function HomeInfusionApp() {
                 >
                   {addSchedulableDoses.length === 0 ? "No doses scheduled yet." : "Schedule reminders"}
                 </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
