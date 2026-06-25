@@ -825,9 +825,7 @@
     settings = settings || loadSettings();
     var t = settings.activeInfusionTimer;
     if (!t || !t.startedAt) return null;
-    if (t.status === "running" && t.expectedEndAt && Date.now() >= new Date(t.expectedEndAt).getTime()) {
-      t = Object.assign({}, t, { status: "complete" });
-    }
+    if (t.status === "complete" || isTimerComplete(t)) return null;
     return t;
   }
 
@@ -901,12 +899,13 @@
   function completeInfusionTimer(settings) {
     settings = settings || loadSettings();
     if (!settings.activeInfusionTimer) return null;
-    settings.activeInfusionTimer = Object.assign({}, settings.activeInfusionTimer, {
+    var completed = Object.assign({}, settings.activeInfusionTimer, {
       status: "complete",
       completedAt: new Date().toISOString(),
     });
+    settings.activeInfusionTimer = null;
     saveSettings(settings);
-    return settings.activeInfusionTimer;
+    return completed;
   }
 
   function cancelInfusionTimer(settings) {
