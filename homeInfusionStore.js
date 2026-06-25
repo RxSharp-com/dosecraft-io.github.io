@@ -5,6 +5,7 @@
   var DOSE_TIMER_KEY = "dc_home_dose_timer";
   var MODE_KEY = "dc_patient_mode";
   var MODE_SEEN_KEY = "dc_mode_choice_seen";
+  var ACTIVE_SESSION_KEY = "dc_home_active_session";
 
   var WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -1023,58 +1024,238 @@
     return formatNextDueSummary(settings, drugs || []);
   }
 
-  function buildWalkthroughSteps(dueDoses, settings, copy) {
+  function getDoseSessionKey(dose) {
+    if (!dose || !dose.medication) return "";
+    var sched = dose.scheduledFor instanceof Date
+      ? dose.scheduledFor.toISOString()
+      : (dose.scheduledFor || "");
+    return medKey(dose.medication) + "|" + sched;
+  }
+
+  function sortDueDosesByMedOrder(dueDoses) {
+    return (dueDoses || []).slice().sort(function (a, b) {
+      if (a.scheduledFor - b.scheduledFor !== 0) return a.scheduledFor - b.scheduledFor;
+      return (a.medication.sortOrder || 0) - (b.medication.sortOrder || 0);
+    });
+  }
+
+  function saveActiveSession(session) {
+    try {
+      if (!session) sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+      else sessionStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function loadActiveSession() {
+    try {
+      var raw = sessionStorage.getItem(ACTIVE_SESSION_KEY);
+      return raw ? safeParse(raw, null) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearActiveSession() {
+    return saveActiveSession(null);
+  }
+
+  function createActiveSession(dueDoses) {
+    var sorted = sortDueDosesByMedOrder(dueDoses);
+    return {
+      sessionId: uid(),
+      dueDoseKeys: sorted.map(function (d) {
+        return { medicationKey: medKey(d.medication), scheduledFor: d.scheduledFor.toISOString() };
+      }),
+      completedDoseKeys: [],
+      stepIndex: 0,
+    };
+  }
+
+  function isMedicationDoseCompleted(session, dose) {
+    if (!session) return false;
+    var key = getDoseSessionKey(dose);
+    return (session.completedDoseKeys || []).indexOf(key) >= 0;
+  }
+
+  function markMedicationDoseComplete(session, dose) {
+    if (!session) return session;
+    var key = getDoseSessionKey(dose);
+    var completed = (session.completedDoseKeys || []).slice();
+    if (completed.indexOf(key) === -1) completed.push(key);
+    return Object.assign({}, session, { completedDoseKeys: completed });
+  }
+
+  function dueDosesFromSession(session, settings) {
+    if (!session || !session.dueDoseKeys) return [];
+    return session.dueDoseKeys.map(function (entry) {
+      var med = findMedicationByKey(settings, entry.medicationKey);
+      if (!med) {
+        med = defaultMedication({
+          medicationId: entry.medicationKey,
+          displayName: entry.medicationKey,
+          sortOrder: 0,
+        });
+      }
+      return {
+        medication: med,
+        scheduledFor: new Date(entry.scheduledFor),
+      };
+    });
+  }
+
+  function shouldShowGlobalTimerBanner(viewName) {
+    return viewName !== "sash";
+  }
+
+  function buildDoseSessionSteps(dueDoses, settings, copy) {
     var ts = getActiveTreatmentSet(settings);
     var heparin = ts.lineCare && ts.lineCare.heparinOrdered;
     var steps = [];
-    var prep = (copy && copy.sessionPrepSteps) || [];
-    prep.forEach(function (s) { steps.push(Object.assign({}, s)); });
+    var doses = sortDueDosesByMedOrder(dueDoses);
+    var medCount = doses.length;
+    var sc = (copy && copy.sessionStepCopy) || {};
 
-    var meds = dueDoses.length
-      ? dueDoses.map(function (d) { return d.medication; })
-      : getTreatmentMedications(settings);
+    if (!medCount) return steps;
 
-    meds.forEach(function (med, idx) {
-      var medName = medicationLabel(med, []);
-      var between = (copy && copy.betweenMedicationFlushStep) || null;
-      if (idx > 0 && between) {
-        steps.push(Object.assign({}, between, {
-          id: "between_flush_" + idx,
-          title: between.title,
-          body: between.body,
-        }));
-      }
-      var medSteps = (copy && copy.perMedicationSteps) || (copy && copy.sashSteps) || [];
-      medSteps.forEach(function (s) {
-        if (s.conditionalHeparin) return;
-        if (s.id === "log_dose") return;
-        steps.push(Object.assign({}, s, {
-          id: s.id + "_" + medKey(med),
-          title: meds.length > 1 ? s.title + " — " + medName : s.title,
-          body: s.body,
-          medicationKey: medKey(med),
-          medicationName: medName,
-          hasTimer: s.hasTimer || false,
-        }));
-      });
-    });
-
-    var post = (copy && copy.sessionPostSteps) || [];
-    post.forEach(function (s) {
-      if (s.conditionalHeparin && !heparin) return;
-      steps.push(Object.assign({}, s));
+    steps.push({
+      id: "prep",
+      type: "prep",
+      title: "Prepare supplies",
+      body: sc.prep || "Wash your hands and gather saline syringes, alcohol prep pads, and your medication supplies as instructed by your care team.",
+      action: "continue",
+      actionLabel: "Continue",
     });
 
     steps.push({
-      id: "log_dose",
-      title: "Log dose complete",
-      body: meds.length > 1
-        ? "Mark this dose session as complete so your dashboard shows what is due next."
-        : "Mark this dose as complete so your dashboard shows the next scheduled dose.",
-      phase: "done",
+      id: "saline_pre",
+      type: "saline",
+      letter: "S",
+      title: "Saline flush",
+      body: sc.salinePre || "Flush with saline as your care team directed before starting medication. Do not force a flush — call your care team if you meet resistance.",
+      action: "continue",
+      actionLabel: "Line flushed — continue",
+    });
+
+    doses.forEach(function (dose, idx) {
+      var key = medKey(dose.medication);
+      var name = medicationLabel(dose.medication, []);
+      var sched = dose.scheduledFor.toISOString();
+
+      if (idx > 0) {
+        steps.push({
+          id: "saline_between_" + idx,
+          type: "saline",
+          letter: "S",
+          title: "Saline flush between medications",
+          body: sc.salineBetween || "Flush with saline between medications as your care team directed. Do not force a flush — call your care team if you meet resistance.",
+          action: "continue",
+          actionLabel: "Line flushed — continue",
+        });
+      }
+
+      steps.push({
+        id: "start_" + key + "_" + sched,
+        type: "start_infusion",
+        letter: "A",
+        title: medCount > 1 ? "Start " + name + " infusion" : "Start medication infusion",
+        body: (sc.startInfusion || "Connect {medication} as your care team instructed. When the medication begins flowing, start the infusion timer.").replace(/\{medication\}/g, name),
+        action: "start_timer",
+        actionLabel: "Start infusion timer",
+        medicationKey: key,
+        medicationName: name,
+        scheduledFor: sched,
+      });
+
+      steps.push({
+        id: "infusion_" + key + "_" + sched,
+        type: "infusion",
+        letter: "A",
+        title: medCount > 1 ? "Infusing " + name : "Infusion in progress",
+        body: (sc.activeTimer || "Your {medication} infusion is running. You can use the rest of the Companion while you wait. Mark complete when the infusion has finished.").replace(/\{medication\}/g, name),
+        action: "mark_med_complete",
+        actionLabel: "Mark infusion complete",
+        medicationKey: key,
+        medicationName: name,
+        scheduledFor: sched,
+        showTimerActions: true,
+      });
+    });
+
+    steps.push({
+      id: "saline_post",
+      type: "saline",
+      letter: "S",
+      title: medCount > 1 ? "Saline flush after final medication" : "Saline flush after medication",
+      body: medCount > 1
+        ? (sc.salinePostFinal || "Flush with saline after the final medication as your care team directed.")
+        : (sc.salinePostSingle || "Flush with saline after medication as your care team directed."),
+      action: "continue",
+      actionLabel: "Line flushed — continue",
+    });
+
+    if (heparin) {
+      steps.push({
+        id: "heparin",
+        type: "heparin",
+        letter: "H",
+        title: "Heparin flush (if prescribed)",
+        body: sc.heparin || "Use heparin only if your care team prescribed it. Scrub the hub, flush as directed, and clamp the line if instructed.",
+        action: "confirm",
+        actionLabel: "Heparin given or not needed — continue",
+      });
+    }
+
+    steps.push({
+      id: "session_complete",
+      type: "complete",
+      title: "Session complete",
+      body: sc.sessionComplete || "You have finished this dose session. Your dashboard will show what is due next.",
+      action: "finish_session",
+      actionLabel: "Finish session",
     });
 
     return steps;
+  }
+
+  function findResumeStepIndex(steps, session, activeTimer) {
+    if (!steps.length) return 0;
+    if (activeTimer && activeTimer.medicationId) {
+      for (var i = 0; i < steps.length; i++) {
+        if (steps[i].type === "infusion" && steps[i].medicationKey === activeTimer.medicationId) {
+          return i;
+        }
+      }
+    }
+    if (session && session.completedDoseKeys && session.completedDoseKeys.length) {
+      var lastCompleted = session.completedDoseKeys[session.completedDoseKeys.length - 1];
+      for (var j = 0; j < steps.length; j++) {
+        if (steps[j].type === "infusion") {
+          var doseKey = steps[j].medicationKey + "|" + steps[j].scheduledFor;
+          if (doseKey === lastCompleted) {
+            return Math.min(j + 1, steps.length - 1);
+          }
+        }
+      }
+    }
+    if (session && typeof session.stepIndex === "number") {
+      return Math.max(0, Math.min(session.stepIndex, steps.length - 1));
+    }
+    return 0;
+  }
+
+  function getNextMedicationDoseInSession(session, settings) {
+    var doses = dueDosesFromSession(session, settings);
+    for (var i = 0; i < doses.length; i++) {
+      if (!isMedicationDoseCompleted(session, doses[i])) return doses[i];
+    }
+    return null;
+  }
+
+  function buildWalkthroughSteps(dueDoses, settings, copy) {
+    return buildDoseSessionSteps(dueDoses, settings, copy);
   }
 
   window.DOSECRAFT_HOME_STORE = {
@@ -1121,6 +1302,19 @@
     medicationLabel: medicationLabel,
     medicationFrequencyLabel: medicationFrequencyLabel,
     buildWalkthroughSteps: buildWalkthroughSteps,
+    buildDoseSessionSteps: buildDoseSessionSteps,
+    getDoseSessionKey: getDoseSessionKey,
+    sortDueDosesByMedOrder: sortDueDosesByMedOrder,
+    saveActiveSession: saveActiveSession,
+    loadActiveSession: loadActiveSession,
+    clearActiveSession: clearActiveSession,
+    createActiveSession: createActiveSession,
+    isMedicationDoseCompleted: isMedicationDoseCompleted,
+    markMedicationDoseComplete: markMedicationDoseComplete,
+    dueDosesFromSession: dueDosesFromSession,
+    shouldShowGlobalTimerBanner: shouldShowGlobalTimerBanner,
+    findResumeStepIndex: findResumeStepIndex,
+    getNextMedicationDoseInSession: getNextMedicationDoseInSession,
     getNextScheduledDose: getNextScheduledDose,
     formatNextDose: formatNextDose,
     getNextAppointmentDate: getNextAppointmentDate,

@@ -66,7 +66,7 @@ function HomeBack(props) {
   );
 }
 
-function ActiveTimerBanner(props) {
+function CompactTimerBanner(props) {
   var timer = props.timer;
   var STORE = props.store;
   var COPY = props.copy;
@@ -77,7 +77,7 @@ function ActiveTimerBanner(props) {
   var pct = Math.round(STORE.getTimerProgress(timer) * 100);
   var medName = timer.medicationName || "Medication";
   return (
-    <div style={{ ...card, borderColor: col + "88", marginBottom: 14, position: "sticky", top: 0, zIndex: 5 }}>
+    <div style={{ ...card, borderColor: col + "88", marginBottom: 14 }}>
       <div style={{ fontSize: 13, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
         Currently infusing
       </div>
@@ -94,6 +94,44 @@ function ActiveTimerBanner(props) {
       <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "4px 0 0", textAlign: "center" }}>
         {COPY.multiMedSafetyNote}
       </p>
+    </div>
+  );
+}
+
+function SessionInfusionCard(props) {
+  var timer = props.timer;
+  var STORE = props.store;
+  var COPY = props.copy;
+  var col = props.accentColor || "#2a9d8f";
+  var medName = props.medicationName || "Medication";
+  var running = timer && !STORE.isTimerComplete(timer);
+  void props.tick;
+  var pct = running ? Math.round(STORE.getTimerProgress(timer) * 100) : 0;
+  return (
+    <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+      {running ? (
+        <div>
+          <div style={{ fontSize: 13, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
+            Currently infusing
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: col, marginBottom: 4 }}>{medName}</div>
+          <div style={{ fontSize: 16, color: "rgba(255,255,255,0.75)", marginBottom: 10 }}>{STORE.formatTimerRemaining(timer)}</div>
+          <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 8, height: 10, overflow: "hidden", marginBottom: 12 }}>
+            <div style={{ width: pct + "%", height: "100%", background: col, transition: "width 0.5s" }} />
+          </div>
+          <HomeBtn accentColor={col} label={"Play the " + medName + " game while this infusion runs"} onClick={props.onPlayGame} />
+          <HomeBtn accentColor={col} label={"Read about " + medName} onClick={props.onMedInfo} />
+          <HomeBtn accentColor={col} label="Line care steps" onClick={props.onLineCare} />
+          <HomeBtn accentColor={col} label="Care team / call instructions" onClick={props.onWarnings} />
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", margin: "8px 0 0", textAlign: "center" }}>
+            You can return to the dashboard while this infusion runs.
+          </p>
+        </div>
+      ) : (
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+          Start the timer when {medName} begins flowing.
+        </p>
+      )}
     </div>
   );
 }
@@ -173,8 +211,11 @@ function HomeInfusionApp() {
   var _sashStep = _useState(0);
   var sashStep = _sashStep[0], setSashStep = _sashStep[1];
 
-  var _checked = _useState({});
-  var checked = _checked[0], setChecked = _checked[1];
+  var _activeSession = _useState(function () { return STORE.loadActiveSession(); });
+  var activeSession = _activeSession[0], setActiveSession = _activeSession[1];
+
+  var _sessionChecklist = _useState(false);
+  var sessionChecklist = _sessionChecklist[0], setSessionChecklist = _sessionChecklist[1];
 
   var _sessionDoses = _useState([]);
   var sessionDoses = _sessionDoses[0], setSessionDoses = _sessionDoses[1];
@@ -191,6 +232,18 @@ function HomeInfusionApp() {
     }, 1000);
     return function () { clearInterval(id); };
   }, [activeTimer && activeTimer.sessionId, activeTimer && activeTimer.status]);
+
+  _useEffect(function () {
+    if (screen !== "sash") return;
+    var stored = STORE.loadActiveSession();
+    if (!stored) return;
+    setActiveSession(stored);
+    var due = STORE.dueDosesFromSession(stored, settings);
+    setSessionDoses(due);
+    var steps = STORE.buildDoseSessionSteps(due, settings, COPY);
+    var idx = STORE.findResumeStepIndex(steps, stored, STORE.getActiveInfusionTimer(settings));
+    setSashStep(idx);
+  }, [screen]);
 
   var companionOpenedRef = _useRef(false);
   var setupStartedRef = _useRef(false);
@@ -342,6 +395,27 @@ function HomeInfusionApp() {
           : undefined,
       });
     }
+  }
+
+  function persistSession(session) {
+    setActiveSession(session);
+    STORE.saveActiveSession(session);
+  }
+
+  function startDoseSession(due) {
+    var session = STORE.createActiveSession(due);
+    persistSession(session);
+    setSessionDoses(due);
+    setSessionChecklist(false);
+    var steps = STORE.buildDoseSessionSteps(due, settings, COPY);
+    var resume = STORE.findResumeStepIndex(steps, session, STORE.getActiveInfusionTimer(settings));
+    setSashStep(resume);
+    goToScreen("sash");
+  }
+
+  function renderGlobalTimerBanner() {
+    if (!STORE.shouldShowGlobalTimerBanner(screen)) return null;
+    return <CompactTimerBanner {...timerBannerProps()} />;
   }
 
   function timerBannerProps() {
@@ -538,7 +612,16 @@ function HomeInfusionApp() {
               </select>
               {freq !== "custom" && (
                 <div>
-                  <div style={label}>Dose time(s)</div>
+                  <div style={label}>
+                    {(freq === "every_8_hours" || freq === "every_12_hours" || freq === "every_24_hours")
+                      ? "First dose time"
+                      : "Dose time(s)"}
+                  </div>
+                  {(freq === "every_8_hours" || freq === "every_12_hours" || freq === "every_24_hours") && (
+                    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>
+                      {COPY.intervalScheduleHint}
+                    </p>
+                  )}
                   {timeSlots.map(function (idx) {
                     var defaults = ["08:00", "20:00", "14:00"];
                     var times = (schedule.doseTimes || ["08:00"]).slice();
@@ -771,7 +854,7 @@ function HomeInfusionApp() {
     var chooserMeds = STORE.getTreatmentMedications(settings);
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
+        {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 12 }}>Which medication would you like to play?</h1>
         {chooserMeds.map(function (med) {
@@ -810,32 +893,35 @@ function HomeInfusionApp() {
       );
     }
 
-    var dueForSession = sessionDoses.length ? sessionDoses : STORE.getDueMedicationDosesForNow(settings);
-    var steps = STORE.buildWalkthroughSteps(dueForSession, settings, COPY);
+    var dueForSession = sessionDoses.length
+      ? sessionDoses
+      : activeSession
+        ? STORE.dueDosesFromSession(activeSession, settings)
+        : STORE.getDueMedicationDosesForNow(settings);
+    var session = activeSession || STORE.createActiveSession(dueForSession);
+    var steps = STORE.buildDoseSessionSteps(dueForSession, settings, COPY);
     var step = steps[sashStep] || steps[0];
-    var progress = (sashStep + 1) / steps.length;
-    var stepTimer = step.medicationKey && activeTimer && activeTimer.medicationId === step.medicationKey
+    var progress = steps.length ? (sashStep + 1) / steps.length : 0;
+    var stepTimer = step && step.medicationKey && activeTimer && activeTimer.medicationId === step.medicationKey
       ? activeTimer
-      : (step.hasTimer ? activeTimer : null);
-    var timerPct = stepTimer ? STORE.getTimerProgress(stepTimer) : 0;
-    var timerDone = !stepTimer || STORE.isTimerComplete(stepTimer);
+      : null;
     void tick;
 
-    function toggleCheck(id) {
-      setChecked(function (c) {
-        var n = Object.assign({}, c);
-        n[id] = !n[id];
-        return n;
-      });
+    function saveStepIndex(nextIndex) {
+      var updated = Object.assign({}, session, { stepIndex: nextIndex });
+      persistSession(updated);
+      setSashStep(nextIndex);
+    }
+
+    function advanceStep() {
+      if (sashStep < steps.length - 1) saveStepIndex(sashStep + 1);
+      else setScreen("dashboard");
     }
 
     function startStepTimer() {
-      if (!step.medicationKey) return;
-      var dose = dueForSession.find(function (d) { return STORE.medKey(d.medication) === step.medicationKey; });
-      var scheduledFor = dose ? dose.scheduledFor.toISOString() : null;
-      var t = STORE.startInfusionTimerForMedication(settings, step.medicationKey, scheduledFor);
-      var next = STORE.loadSettings();
-      setSettings(next);
+      if (!step || !step.medicationKey) return;
+      var t = STORE.startInfusionTimerForMedication(settings, step.medicationKey, step.scheduledFor || null);
+      setSettings(STORE.loadSettings());
       if (window.trackCompanionScreen) {
         window.trackCompanionScreen("companion_infusion_timer_started", "sash", {
           mode: "home",
@@ -844,20 +930,155 @@ function HomeInfusionApp() {
             : undefined,
         });
       }
+      if (step.type === "start_infusion") {
+        var infusionIdx = steps.findIndex(function (s) {
+          return s.type === "infusion" && s.medicationKey === step.medicationKey && s.scheduledFor === step.scheduledFor;
+        });
+        if (infusionIdx >= 0) saveStepIndex(infusionIdx);
+      }
+    }
+
+    function markStepMedicationComplete() {
+      if (!step || !step.medicationKey) return;
+      var dose = dueForSession.find(function (d) {
+        return STORE.medKey(d.medication) === step.medicationKey
+          && d.scheduledFor.toISOString() === step.scheduledFor;
+      });
+      if (dose) {
+        session = STORE.markMedicationDoseComplete(session, dose);
+        persistSession(session);
+      }
+      STORE.completeInfusionTimer(settings);
+      setSettings(STORE.loadSettings());
+      if (window.trackCompanionScreen) {
+        window.trackCompanionScreen("companion_infusion_timer_completed", "sash", {
+          mode: "home",
+          duration_bucket: window.dosecraftCompanionDurationBucket
+            ? window.dosecraftCompanionDurationBucket(stepTimer ? stepTimer.durationMins : 30)
+            : undefined,
+        });
+      }
+      advanceStep();
+    }
+
+    function finishSession() {
+      var completed = (session.completedDoseKeys || []).map(function (key) {
+        var parts = key.split("|");
+        var medKeyPart = parts[0];
+        var sched = parts.slice(1).join("|");
+        var dose = dueForSession.find(function (d) {
+          return STORE.medKey(d.medication) === medKeyPart && d.scheduledFor.toISOString() === sched;
+        });
+        return {
+          medicationId: medKeyPart,
+          scheduledFor: sched,
+          durationMins: dose ? (dose.medication.infusionDurationMins || 30) : null,
+        };
+      });
+      if (completed.length) {
+        if (window.trackCompanionScreen) {
+          window.trackCompanionScreen("companion_dose_session_completed", "sash", { mode: "home", completed: true });
+        }
+        STORE.logDoseSessionComplete(completed, {
+          scheduledFor: dueForSession[0] ? dueForSession[0].scheduledFor.toISOString() : null,
+        });
+      }
+      STORE.cancelInfusionTimer(settings);
+      STORE.clearActiveSession();
+      setActiveSession(null);
+      setSettings(STORE.loadSettings());
+      setSashStep(0);
+      setSessionDoses([]);
+      setSessionChecklist(false);
+      setScreen("dashboard");
+    }
+
+    function handlePrimaryAction() {
+      if (!step) return;
+      if (step.action === "continue" || step.action === "confirm") {
+        advanceStep();
+        return;
+      }
+      if (step.action === "start_timer") {
+        startStepTimer();
+        return;
+      }
+      if (step.action === "mark_med_complete") {
+        markStepMedicationComplete();
+        return;
+      }
+      if (step.action === "finish_session") {
+        finishSession();
+      }
+    }
+
+    var primaryLabel = step ? step.actionLabel : "Continue";
+    var primaryDisabled = false;
+
+    if (!steps.length) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
+          <p style={{ color: "rgba(255,255,255,0.65)" }}>No medications are due for a dose session right now.</p>
+        </HomeShell>
+      );
+    }
+
+    if (sessionChecklist) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setSessionChecklist(false); }} label="Guided session" />
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 12 }}>All session steps</h1>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 16 }}>{COPY.multiMedSafetyNote}</p>
+          {steps.map(function (s, i) {
+            var done = i < sashStep;
+            if (s.type === "infusion" && s.medicationKey && s.scheduledFor) {
+              done = (session.completedDoseKeys || []).indexOf(s.medicationKey + "|" + s.scheduledFor) >= 0;
+            }
+            return (
+              <div key={s.id} style={{
+                ...card,
+                opacity: done ? 0.65 : 1,
+                borderLeft: done ? "4px solid " + col : "4px solid rgba(255,255,255,0.15)",
+              }}>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
+                  Step {i + 1}{s.letter ? " · " + s.letter : ""}{done ? " · Done" : ""}
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{s.title}</div>
+              </div>
+            );
+          })}
+        </HomeShell>
+      );
     }
 
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
-        <HomeBack onClick={function () { setScreen("dashboard"); setSashStep(0); setChecked({}); }} label="Dashboard" />
-        <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 6px" }}>Dose walkthrough</h1>
+        <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
+        <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 6px" }}>Dose session</h1>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>{COPY.sashIntro}</p>
         {dueForSession.length > 1 && (
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
-            Today&apos;s session: {STORE.formatDueMedicationList(dueForSession, ALL_DRUGS)}
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 12 }}>
+            This session: {STORE.formatDueMedicationList(dueForSession, ALL_DRUGS)}
           </p>
         )}
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 16 }}>{COPY.multiMedSafetyNote}</p>
+        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{COPY.multiMedSafetyNote}</p>
+
+        <button
+          type="button"
+          onClick={function () { setSessionChecklist(true); }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: col,
+            fontSize: 15,
+            padding: "0 0 12px",
+            cursor: "pointer",
+            textDecoration: "underline",
+          }}
+        >
+          View all steps
+        </button>
 
         <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, height: 8, marginBottom: 20, overflow: "hidden" }}>
           <div style={{ width: Math.round(progress * 100) + "%", height: "100%", background: col, transition: "width 0.3s" }} />
@@ -865,73 +1086,38 @@ function HomeInfusionApp() {
 
         <div style={{ ...card, borderColor: col + "55" }}>
           {step.letter && (
-            <div style={{ fontSize: 13, color: col, fontWeight: 700, marginBottom: 6 }}>SASH — {step.letter}</div>
+            <div style={{ fontSize: 13, color: col, fontWeight: 700, marginBottom: 6 }}>{step.letter}</div>
           )}
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 12px" }}>{step.title}</h2>
           <p style={{ margin: 0, fontSize: 17, color: "rgba(255,255,255,0.88)" }}>{step.body}</p>
 
-          {step.hasTimer && (
-            <div style={{ marginTop: 18 }}>
-              {(!stepTimer || (step.medicationKey && activeTimer && activeTimer.medicationId !== step.medicationKey)) && (
-                <HomeBtn accentColor={col} primary label="Start infusion timer" onClick={startStepTimer} />
-              )}
-              {stepTimer && (!step.medicationKey || activeTimer.medicationId === step.medicationKey) && (
-                <div>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: col, textAlign: "center", marginBottom: 8 }}>
-                    {Math.round(timerPct * 100)}%
-                  </div>
-                  <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: 8, height: 12, overflow: "hidden", marginBottom: 12 }}>
-                    <div style={{ width: Math.round(timerPct * 100) + "%", height: "100%", background: col }} />
-                  </div>
-                  <p style={{ textAlign: "center", fontSize: 15, color: "rgba(255,255,255,0.6)" }}>
-                    {timerDone ? "Timer complete — you can continue" : STORE.formatTimerRemaining(stepTimer)}
-                  </p>
-                  <p style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 8 }}>
-                    You can leave this walkthrough and use the rest of the Companion while the timer runs.
-                  </p>
-                </div>
-              )}
-            </div>
+          {step.type === "infusion" && (
+            <SessionInfusionCard
+              timer={stepTimer}
+              store={STORE}
+              copy={COPY}
+              accentColor={col}
+              medicationName={step.medicationName}
+              tick={tick}
+              onPlayGame={function () {
+                var med = STORE.findMedicationByKey(settings, step.medicationKey);
+                launchGameForMedication(med);
+              }}
+              onMedInfo={function () { openMedInfo(step.medicationKey); }}
+              onLineCare={function () { goToScreen("lineCare"); }}
+              onWarnings={function () { goToScreen("warnings"); }}
+            />
           )}
         </div>
 
-        <label style={{ display: "flex", alignItems: "flex-start", gap: 12, ...card, cursor: "pointer" }}>
-          <input type="checkbox" checked={!!checked[step.id]} onChange={function () { toggleCheck(step.id); }} style={{ width: 22, height: 22, marginTop: 2 }} />
-          <span>I completed this step (or followed my care team&apos;s version)</span>
-        </label>
-
-        <HomeBtn accentColor={col}
+        <HomeBtn
+          accentColor={col}
           primary
-          disabled={!checked[step.id]}
-          label={step.id === "log_dose" ? "Mark dose session complete & finish" : "Next step →"}
-          onClick={function () {
-            if (step.id === "log_dose") {
-              var completed = dueForSession.map(function (d) {
-                return {
-                  medicationId: STORE.medKey(d.medication),
-                  scheduledFor: d.scheduledFor.toISOString(),
-                  durationMins: d.medication.infusionDurationMins || 30,
-                };
-              });
-              if (window.trackCompanionScreen) {
-                window.trackCompanionScreen("companion_dose_session_completed", "sash", { mode: "home", completed: true });
-              }
-              STORE.logDoseSessionComplete(completed, {
-                scheduledFor: dueForSession[0] ? dueForSession[0].scheduledFor.toISOString() : null,
-              });
-              STORE.cancelInfusionTimer(settings);
-              setSettings(STORE.loadSettings());
-              setSashStep(0);
-              setChecked({});
-              setSessionDoses([]);
-              setScreen("dashboard");
-            } else if (sashStep < steps.length - 1) {
-              setSashStep(sashStep + 1);
-            } else {
-              setScreen("dashboard");
-            }
-          }}
+          disabled={primaryDisabled}
+          label={primaryLabel}
+          onClick={handlePrimaryAction}
         />
+
         <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
           Step {sashStep + 1} of {steps.length}
         </p>
@@ -944,7 +1130,7 @@ function HomeInfusionApp() {
   if (screen === "warnings") {
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
+        {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Warning signs</h1>
         <div style={card}>
@@ -980,7 +1166,7 @@ function HomeInfusionApp() {
     }
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
+        {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Line care</h1>
         <div style={card}>
@@ -1009,7 +1195,7 @@ function HomeInfusionApp() {
     var focusKey = medInfoKey || (activeTimer && activeTimer.medicationId) || (infoMeds[0] ? STORE.medKey(infoMeds[0]) : null);
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
+        {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setMedInfoKey(null); setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>About your medication(s)</h1>
         <div style={card}>
@@ -1086,7 +1272,7 @@ function HomeInfusionApp() {
     var apptTs = treatmentSet();
     return (
       <HomeShell>
-        <ActiveTimerBanner {...timerBannerProps()} />
+        {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Lab / follow-up visit</h1>
         <div style={card}>
@@ -1130,7 +1316,7 @@ function HomeInfusionApp() {
 
   return (
     <HomeShell>
-      <ActiveTimerBanner {...timerBannerProps()} />
+      {renderGlobalTimerBanner()}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
@@ -1222,16 +1408,14 @@ function HomeInfusionApp() {
       <div style={{ marginTop: 8 }}>
         <div style={label}>Quick actions</div>
         {isModule("sashGuide") && (
-          <HomeBtn accentColor={col} primary label="Start dose walkthrough" onClick={function () {
+          <HomeBtn accentColor={col} primary label="Start dose session" onClick={function () {
             var due = STORE.getDueMedicationDosesForNow(settings);
             if (!due.length) {
               var next = STORE.getNextDueMedicationDose(settings);
               due = next ? [next] : [];
             }
-            setSessionDoses(due);
-            setSashStep(0);
-            setChecked({});
-            goToScreen("sash");
+            if (!due.length) return;
+            startDoseSession(due);
           }} />
         )}
         <HomeBtn accentColor={col} label="Warning signs" onClick={function () { goToScreen("warnings"); }} />

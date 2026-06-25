@@ -15,7 +15,21 @@
       "Follow your care team's exact order and flushing instructions. If your printed instructions are different, follow those instructions. Contact your care team if your line will not flush, your pump does not seem to be working, or you are unsure what to do.",
 
     sashIntro:
-      "SASH stands for Saline, Administer medication, Saline, and Heparin (if prescribed). This walkthrough supports PICC line elastomeric pump administration. Your steps may differ — follow your care team's instructions.",
+      "This guided session walks you through your dose step by step. Follow your care team's exact instructions. If your printed instructions are different, follow those instructions.",
+
+    sessionStepCopy: {
+      prep: "Wash your hands with soap and water. Gather saline syringes, alcohol prep pads, your medication supply, and heparin only if your care team prescribed it.",
+      salinePre: "Flush with saline as your care team directed before starting medication. Do not force a flush — contact your care team if you meet resistance.",
+      salineBetween: "Flush with saline between medications as your care team directed. Do not force a flush — contact your care team if you meet resistance.",
+      startInfusion: "Connect {medication} as your care team instructed. Open the clamp when directed. Start the timer when the medication begins flowing.",
+      activeTimer: "Your {medication} infusion is running. You can leave this guide and use the rest of the Companion while you wait. Mark complete when the infusion has finished.",
+      salinePostSingle: "Flush with saline after medication as your care team directed.",
+      salinePostFinal: "Flush with saline after the final medication as your care team directed.",
+      heparin: "Use heparin only if your care team prescribed it. Scrub the hub, flush as directed, remove the syringe, and clamp the line if instructed.",
+      sessionComplete: "You have finished this dose session. Your dashboard will show what is due next.",
+    },
+
+    intervalScheduleHint: "First dose time. Your Companion will calculate the repeating interval from this time.",
 
     sessionPrepSteps: [
       {
