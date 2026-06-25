@@ -330,9 +330,18 @@
     return loadSettingsRaw();
   }
 
+  function sanitizeSettingsForStorage(settings) {
+    var safe = Object.assign({}, settings || {});
+    safe.treatmentSet = Object.assign({}, (safe && safe.treatmentSet) || {});
+    // Do not persist appointment details in cleartext localStorage.
+    safe.treatmentSet.appointment = Object.assign({}, defaultTreatmentSet().appointment);
+    return safe;
+  }
+
   function saveSettings(settings) {
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      var storable = sanitizeSettingsForStorage(settings);
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(storable));
       if (settings.doseSessionLog) {
         localStorage.setItem(DOSE_LOG_KEY, JSON.stringify(settings.doseSessionLog));
       }
