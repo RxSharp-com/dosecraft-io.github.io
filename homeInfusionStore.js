@@ -57,6 +57,14 @@
     );
   }
 
+  function getHeparinDefault() {
+    try {
+      var cfg = window.DOSECRAFT_getClinicConfig ? window.DOSECRAFT_getClinicConfig() : {};
+      if (cfg.lineCare && cfg.lineCare.heparinDefaultOn === true) return true;
+    } catch (e) {}
+    return false;
+  }
+
   function defaultTreatmentSet() {
     return {
       id: "active",
@@ -69,7 +77,7 @@
       },
       lineCare: {
         accessType: "picc",
-        heparinOrdered: false,
+        heparinOrdered: getHeparinDefault(),
       },
       appointment: {
         nextPickupDate: "",
@@ -1265,6 +1273,7 @@
     DOSE_GROUP_WINDOW_MINS: DOSE_GROUP_WINDOW_MINS,
     defaultSettings: defaultSettings,
     defaultMedication: defaultMedication,
+    getHeparinDefault: getHeparinDefault,
     defaultTreatmentSet: defaultTreatmentSet,
     loadSettings: loadSettings,
     saveSettings: saveSettings,

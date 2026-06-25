@@ -31,6 +31,31 @@
 
     intervalScheduleHint: "First dose time. Your Companion will calculate the repeating interval from this time.",
 
+    wizard: {
+      medicationTitle: "Choose your medication",
+      medicationHint: "Select the IV antibiotic or therapy your care team prescribed for home infusion.",
+      medicationOtherLabel: "Medication name",
+      scheduleTitle: "Dosing schedule",
+      scheduleIntervalHint: "Your Companion will calculate dose times from your first dose and interval.",
+      firstDoseTimeLabel: "Time of first dose",
+      customHoursLabel: "Every how many hours?",
+      customHoursError: "Please enter a number between 1 and 72.",
+      useSpecificTimes: "Use specific times instead",
+      useIntervalInstead: "Use interval instead",
+      durationTitle: "Infusion duration",
+      durationHint: "How long does each infusion usually take? Follow your care team's instructions.",
+      startDateTitle: "Treatment start date",
+      startDateLabel: "When did or will your treatment start?",
+      addAnotherTitle: "Add another medication?",
+      addAnotherHint: "Some home infusion treatments include more than one IV medication.",
+      addAnotherYes: "Yes, add another medication",
+      addAnotherNo: "No, I'm done",
+      saveTitle: "You're all set",
+      saveHint: "You can update medications and schedules anytime from Edit setup. Line care and visit reminders are in Additional settings.",
+      saveButton: "Save and continue",
+      additionalSettingsTitle: "Additional settings",
+    },
+
     sessionPrepSteps: [
       {
         id: "wash_hands",

@@ -66,7 +66,121 @@ function HomeBack(props) {
   );
 }
 
-function CompactTimerBanner(props) {
+function validateCustomIntervalHoursInput(raw) {
+  if (raw === "" || raw === null || raw === undefined) {
+    return { valid: false, showError: false, value: null };
+  }
+  var str = String(raw).trim();
+  if (!/^\d+$/.test(str)) {
+    return { valid: false, showError: true, value: null };
+  }
+  var n = parseInt(str, 10);
+  if (n < 1 || n > 72) {
+    return { valid: false, showError: true, value: null };
+  }
+  return { valid: true, showError: false, value: n };
+}
+
+function defaultWizardMedDraft() {
+  return {
+    medicationId: null,
+    medicationIsOther: false,
+    medicationOtherName: "",
+    displayName: "",
+    infusionDurationMins: null,
+    scheduleMode: "interval",
+    intervalPreset: "every_24_hours",
+    customIntervalHours: "",
+    firstDoseTime: "08:00",
+    timesFrequency: "once_daily",
+    doseTimes: ["08:00", "20:00", "14:00"],
+  };
+}
+
+function defaultWizardDraft(STORE) {
+  return {
+    version: 2,
+    treatmentSet: Object.assign(STORE.defaultTreatmentSet(), { medications: [] }),
+    doseSessionLog: [],
+    activeInfusionTimer: null,
+  };
+}
+
+function buildMedicationFromWizardDraft(medDraft, sortOrder, STORE) {
+  var med = STORE.defaultMedication({ sortOrder: sortOrder });
+  med.medicationId = medDraft.medicationId;
+  med.medicationIsOther = !!medDraft.medicationIsOther;
+  med.medicationOtherName = medDraft.medicationOtherName || "";
+  med.displayName = medDraft.displayName || "";
+  med.infusionDurationMins = medDraft.infusionDurationMins;
+
+  if (medDraft.scheduleMode === "interval") {
+    if (medDraft.intervalPreset === "custom") {
+      var validated = validateCustomIntervalHoursInput(medDraft.customIntervalHours);
+      med.schedule.frequency = "custom";
+      med.schedule.customSchedule = Object.assign({}, med.schedule.customSchedule, {
+        type: "every_x_hours",
+        intervalHours: validated.value,
+      });
+      med.schedule.doseTimes = [medDraft.firstDoseTime || "08:00"];
+    } else {
+      med.schedule.frequency = medDraft.intervalPreset;
+      med.schedule.doseTimes = [medDraft.firstDoseTime || "08:00"];
+    }
+  } else {
+    med.schedule.frequency = medDraft.timesFrequency || "once_daily";
+    if (medDraft.timesFrequency === "twice_daily") {
+      med.schedule.doseTimes = (medDraft.doseTimes || []).slice(0, 2);
+    } else if (medDraft.timesFrequency === "three_daily") {
+      med.schedule.doseTimes = (medDraft.doseTimes || []).slice(0, 3);
+    } else {
+      med.schedule.doseTimes = [(medDraft.doseTimes && medDraft.doseTimes[0]) || "08:00"];
+    }
+  }
+  return med;
+}
+
+function wizardMedStep1Valid(medDraft) {
+  if (medDraft.medicationIsOther) {
+    return (medDraft.medicationOtherName || "").trim().length > 0;
+  }
+  return medDraft.medicationId != null;
+}
+
+function wizardMedStep2Valid(medDraft) {
+  if (medDraft.scheduleMode === "interval") {
+    if (!medDraft.firstDoseTime) return false;
+    if (medDraft.intervalPreset === "custom") {
+      return validateCustomIntervalHoursInput(medDraft.customIntervalHours).valid;
+    }
+    return !!medDraft.intervalPreset;
+  }
+  var freq = medDraft.timesFrequency || "once_daily";
+  var times = medDraft.doseTimes || [];
+  if (freq === "once_daily") return !!(times[0] || "").trim();
+  if (freq === "twice_daily") return !!(times[0] || "").trim() && !!(times[1] || "").trim();
+  if (freq === "three_daily") {
+    return !!(times[0] || "").trim() && !!(times[1] || "").trim() && !!(times[2] || "").trim();
+  }
+  return false;
+}
+
+function wizardStepIndicator(wizardScreen, wizardMedIndex, twoMedPath) {
+  if (twoMedPath) {
+    if (wizardMedIndex === 0) {
+      if (wizardScreen >= 1 && wizardScreen <= 4) return "Step " + wizardScreen + " of 6";
+      if (wizardScreen === 5) return "Step 5 of 6";
+    } else {
+      if (wizardScreen === 1) return "Step 5 of 6";
+      if (wizardScreen === 2) return "Step 6 of 6";
+      if (wizardScreen === 3) return "Step 6 of 6";
+    }
+    return "";
+  }
+  if (wizardScreen >= 1 && wizardScreen <= 4) return "Step " + wizardScreen + " of 4";
+  return "";
+}
+
   var timer = props.timer;
   var STORE = props.store;
   var COPY = props.copy;
@@ -198,12 +312,30 @@ function HomeInfusionApp() {
   var _useRef = React.useRef;
 
   var _screen = _useState(function () {
-    return STORE.isSetupComplete(STORE.loadSettings()) ? "dashboard" : "setup";
+    var s = STORE.loadSettings();
+    if (STORE.isSetupComplete(s)) return "dashboard";
+    if (STORE.hasModeChoice()) return "setupWizard";
+    return "setupWizard";
   });
   var screen = _screen[0], setScreen = _screen[1];
 
   var _settings = _useState(STORE.loadSettings());
   var settings = _settings[0], setSettings = _settings[1];
+
+  var _wizardScreen = _useState(1);
+  var wizardScreen = _wizardScreen[0], setWizardScreen = _wizardScreen[1];
+
+  var _wizardMedIndex = _useState(0);
+  var wizardMedIndex = _wizardMedIndex[0], setWizardMedIndex = _wizardMedIndex[1];
+
+  var _wizardTwoMedPath = _useState(false);
+  var wizardTwoMedPath = _wizardTwoMedPath[0], setWizardTwoMedPath = _wizardTwoMedPath[1];
+
+  var _wizardDraft = _useState(function () { return defaultWizardDraft(STORE); });
+  var wizardDraft = _wizardDraft[0], setWizardDraft = _wizardDraft[1];
+
+  var _wizardMedDraft = _useState(defaultWizardMedDraft);
+  var wizardMedDraft = _wizardMedDraft[0], setWizardMedDraft = _wizardMedDraft[1];
 
   var _tick = _useState(0);
   var tick = _tick[0], setTick = _tick[1];
@@ -247,6 +379,7 @@ function HomeInfusionApp() {
 
   var companionOpenedRef = _useRef(false);
   var setupStartedRef = _useRef(false);
+  var wizardStartedRef = _useRef(false);
   var appointmentCardViewedRef = _useRef(false);
 
   _useEffect(function () {
@@ -261,6 +394,10 @@ function HomeInfusionApp() {
     if (screen === "setup" && !setupStartedRef.current) {
       setupStartedRef.current = true;
       window.trackCompanionScreen("companion_treatment_setup_started", "setup", { mode: "home" });
+    }
+    if (screen === "setupWizard" && wizardScreen === 1 && !wizardStartedRef.current) {
+      wizardStartedRef.current = true;
+      window.trackCompanionScreen("companion_setup_wizard_started", "setup_wizard", { mode: "home" });
     }
     if (screen === "sash") {
       window.trackCompanionScreen("companion_dose_walkthrough_started", "sash", { mode: "home" });
@@ -329,7 +466,29 @@ function HomeInfusionApp() {
     if (name === "appointment" && !isModule("appointmentReminders")) return;
     if (name === "medInfo" && !isModule("medicationEducation")) return;
     if (name === "lineCare" && !isModule("lineCare")) return;
+    if (name === "additionalSettings") return setScreen("additionalSettings");
     setScreen(name);
+  }
+
+  function commitWizardMedToDraft() {
+    setWizardDraft(function (d) {
+      var meds = (d.treatmentSet.medications || []).slice();
+      var built = buildMedicationFromWizardDraft(wizardMedDraft, wizardMedIndex + 1, STORE);
+      if (meds.length > wizardMedIndex) meds[wizardMedIndex] = built;
+      else meds.push(built);
+      var next = Object.assign({}, d);
+      next.treatmentSet = Object.assign({}, d.treatmentSet, { medications: meds });
+      return next;
+    });
+  }
+
+  function saveWizardDraft() {
+    persist(wizardDraft);
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("companion_setup_completed", "setup_wizard", { mode: "home", completed: true });
+      window.trackCompanionScreen("companion_treatment_setup_completed", "setup_wizard", { mode: "home", completed: true });
+    }
+    setScreen("dashboard");
   }
 
   function launchGameForMedication(med) {
@@ -473,6 +632,380 @@ function HomeInfusionApp() {
     ["every_24_hours", "Every 24 hours"],
     ["custom", "Custom schedule"],
   ];
+
+  var WIZARD_INTERVAL_OPTIONS = [
+    ["every_24_hours", "Every 24 hours"],
+    ["every_12_hours", "Every 12 hours"],
+    ["every_8_hours", "Every 8 hours"],
+    ["custom", "Custom"],
+  ];
+
+  // ── SETUP WIZARD (first-time only) ─────────────────────────────────────────
+  if (screen === "setupWizard") {
+    var wz = COPY.wizard || {};
+    var stepLabel = wizardStepIndicator(wizardScreen, wizardMedIndex, wizardTwoMedPath);
+    var customHoursCheck = validateCustomIntervalHoursInput(wizardMedDraft.customIntervalHours);
+    var showCustomHoursError = wizardMedDraft.scheduleMode === "interval"
+      && wizardMedDraft.intervalPreset === "custom"
+      && customHoursCheck.showError;
+
+    function updateWizardMedDraft(patch) {
+      setWizardMedDraft(function (m) { return Object.assign({}, m, patch); });
+    }
+
+    function wizardBack() {
+      if (wizardScreen === 1 && wizardMedIndex === 1) {
+        setWizardMedIndex(0);
+        setWizardScreen(5);
+        return;
+      }
+      if (wizardScreen > 1) setWizardScreen(wizardScreen - 1);
+    }
+
+    function wizardNextFromMed3() {
+      commitWizardMedToDraft();
+      if (wizardMedIndex === 1) {
+        setWizardScreen(6);
+        return;
+      }
+      setWizardScreen(4);
+    }
+
+    function wizardNext() {
+      if (wizardScreen === 1 && wizardMedStep1Valid(wizardMedDraft)) setWizardScreen(2);
+      else if (wizardScreen === 2 && wizardMedStep2Valid(wizardMedDraft)) setWizardScreen(3);
+      else if (wizardScreen === 3 && wizardMedDraft.infusionDurationMins != null) wizardNextFromMed3();
+      else if (wizardScreen === 4 && wizardDraft.treatmentSet.course.startDate) setWizardScreen(5);
+    }
+
+    var inputStyle = { width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 10 };
+    var linkStyle = {
+      background: "transparent",
+      border: "none",
+      color: col,
+      fontSize: 15,
+      padding: "4px 0 12px",
+      cursor: "pointer",
+      textDecoration: "underline",
+      textAlign: "left",
+    };
+
+    if (wizardScreen === 6) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setWizardScreen(5); }} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.saveTitle || "You're all set"}</h1>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>
+            {wz.saveHint || "You can update your treatment anytime from Edit setup."}
+          </p>
+          <HomeBtn accentColor={col} primary label={wz.saveButton || "Save and continue"} onClick={saveWizardDraft} />
+        </HomeShell>
+      );
+    }
+
+    if (wizardScreen === 5) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setWizardScreen(4); }} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.addAnotherTitle || "Add another medication?"}</h1>
+          {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>
+            {wz.addAnotherHint || "Some home infusion treatments include more than one IV medication."}
+          </p>
+          <HomeBtn
+            accentColor={col}
+            primary
+            label={wz.addAnotherYes || "Yes, add another medication"}
+            onClick={function () {
+              setWizardTwoMedPath(true);
+              setWizardMedIndex(1);
+              setWizardMedDraft(defaultWizardMedDraft());
+              setWizardScreen(1);
+            }}
+          />
+          <HomeBtn
+            accentColor={col}
+            label={wz.addAnotherNo || "No, I'm done"}
+            onClick={function () { setWizardScreen(6); }}
+          />
+        </HomeShell>
+      );
+    }
+
+    if (wizardScreen === 4) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setWizardScreen(3); }} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.startDateTitle || "Treatment start date"}</h1>
+          {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+          <div style={card}>
+            <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>
+              {wz.startDateLabel || "When did or will your treatment start?"}
+            </label>
+            <input
+              type="date"
+              value={wizardDraft.treatmentSet.course.startDate || ""}
+              onChange={function (e) {
+                var val = e.target.value;
+                setWizardDraft(function (d) {
+                  var next = Object.assign({}, d);
+                  next.treatmentSet = Object.assign({}, d.treatmentSet);
+                  next.treatmentSet.course = Object.assign({}, d.treatmentSet.course, { startDate: val });
+                  return next;
+                });
+              }}
+              style={inputStyle}
+            />
+          </div>
+          <HomeBtn
+            accentColor={col}
+            primary
+            label="Next"
+            disabled={!wizardDraft.treatmentSet.course.startDate}
+            onClick={wizardNext}
+          />
+        </HomeShell>
+      );
+    }
+
+    if (wizardScreen === 3) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={wizardBack} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.durationTitle || "Infusion duration"}</h1>
+          {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+            {wz.durationHint || "How long does each infusion usually take?"}
+          </p>
+          <div style={card}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {COPY.infusionDurationPresets.map(function (p) {
+                var on = wizardMedDraft.infusionDurationMins === p.mins;
+                return (
+                  <button
+                    key={p.mins}
+                    type="button"
+                    onClick={function () { updateWizardMedDraft({ infusionDurationMins: p.mins }); }}
+                    style={{
+                      flex: "1 1 40%",
+                      padding: 12,
+                      borderRadius: 8,
+                      border: on ? "2px solid " + col : "1px solid rgba(255,255,255,0.2)",
+                      background: on ? col + "33" : "transparent",
+                      color: "#fff",
+                      fontSize: 15,
+                      cursor: "pointer",
+                      minHeight: 52,
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <HomeBtn
+            accentColor={col}
+            primary
+            label="Next"
+            disabled={wizardMedDraft.infusionDurationMins == null}
+            onClick={wizardNext}
+          />
+        </HomeShell>
+      );
+    }
+
+    if (wizardScreen === 2) {
+      var timesSlots = wizardMedDraft.timesFrequency === "twice_daily"
+        ? [0, 1]
+        : wizardMedDraft.timesFrequency === "three_daily"
+          ? [0, 1, 2]
+          : [0];
+      return (
+        <HomeShell>
+          <HomeBack onClick={wizardBack} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.scheduleTitle || "Dosing schedule"}</h1>
+          {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+
+          {wizardMedDraft.scheduleMode === "interval" && (
+            <div style={card}>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>Dose interval</label>
+              <select
+                value={wizardMedDraft.intervalPreset}
+                onChange={function (e) { updateWizardMedDraft({ intervalPreset: e.target.value }); }}
+                style={inputStyle}
+              >
+                {WIZARD_INTERVAL_OPTIONS.map(function (pair) {
+                  return <option key={pair[0]} value={pair[0]}>{pair[1]}</option>;
+                })}
+              </select>
+
+              {wizardMedDraft.intervalPreset === "custom" && (
+                <div>
+                  <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>
+                    {wz.customHoursLabel || "Every how many hours?"}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={72}
+                    inputMode="numeric"
+                    value={wizardMedDraft.customIntervalHours}
+                    onChange={function (e) {
+                      updateWizardMedDraft({ customIntervalHours: e.target.value });
+                    }}
+                    style={Object.assign({}, inputStyle, showCustomHoursError ? { border: "2px solid #e76f51" } : {})}
+                  />
+                  {showCustomHoursError && (
+                    <p style={{ fontSize: 14, color: "#e76f51", margin: "0 0 10px" }}>
+                      {wz.customHoursError || "Please enter a number between 1 and 72."}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <label style={{ display: "block", marginBottom: 8, fontSize: 16, marginTop: 8 }}>
+                {wz.firstDoseTimeLabel || "Time of first dose"}
+              </label>
+              <input
+                type="time"
+                value={wizardMedDraft.firstDoseTime || "08:00"}
+                onChange={function (e) { updateWizardMedDraft({ firstDoseTime: e.target.value }); }}
+                style={inputStyle}
+              />
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 12 }}>
+                {wz.scheduleIntervalHint || COPY.intervalScheduleHint}
+              </p>
+              <button type="button" style={linkStyle} onClick={function () { updateWizardMedDraft({ scheduleMode: "times" }); }}>
+                {wz.useSpecificTimes || "Use specific times instead"}
+              </button>
+            </div>
+          )}
+
+          {wizardMedDraft.scheduleMode === "times" && (
+            <div style={card}>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>How many times per day?</label>
+              <select
+                value={wizardMedDraft.timesFrequency}
+                onChange={function (e) { updateWizardMedDraft({ timesFrequency: e.target.value }); }}
+                style={inputStyle}
+              >
+                <option value="once_daily">Once daily</option>
+                <option value="twice_daily">Twice daily</option>
+                <option value="three_daily">Three times daily</option>
+              </select>
+              {timesSlots.map(function (idx) {
+                var defaults = ["08:00", "20:00", "14:00"];
+                var times = wizardMedDraft.doseTimes.slice();
+                while (times.length <= idx) times.push(defaults[idx] || "08:00");
+                return (
+                  <div key={idx}>
+                    <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>Dose time {idx + 1}</label>
+                    <input
+                      type="time"
+                      value={times[idx] || "08:00"}
+                      onChange={function (e) {
+                        var t = wizardMedDraft.doseTimes.slice();
+                        t[idx] = e.target.value;
+                        updateWizardMedDraft({ doseTimes: t });
+                      }}
+                      style={inputStyle}
+                    />
+                  </div>
+                );
+              })}
+              <button type="button" style={linkStyle} onClick={function () { updateWizardMedDraft({ scheduleMode: "interval" }); }}>
+                {wz.useIntervalInstead || "Use interval instead"}
+              </button>
+            </div>
+          )}
+
+          <HomeBtn
+            accentColor={col}
+            primary
+            label="Next"
+            disabled={!wizardMedStep2Valid(wizardMedDraft)}
+            onClick={wizardNext}
+          />
+        </HomeShell>
+      );
+    }
+
+    // wizardScreen === 1 — medication
+    var medSelectValue = wizardMedDraft.medicationIsOther
+      ? "other"
+      : wizardMedDraft.medicationId != null
+        ? String(wizardMedDraft.medicationId)
+        : "";
+    return (
+      <HomeShell>
+        {wizardMedIndex === 1 && <HomeBack onClick={wizardBack} label="Back" />}
+        <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.medicationTitle || "Choose your medication"}</h1>
+        {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+        <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+          {wz.medicationHint || "Select your home infusion medication."}
+        </p>
+        <div style={card}>
+          <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>Medication</label>
+          <select
+            value={medSelectValue}
+            onChange={function (e) {
+              var v = e.target.value;
+              if (v === "other") {
+                updateWizardMedDraft({
+                  medicationId: null,
+                  medicationIsOther: true,
+                  displayName: "",
+                });
+              } else if (v === "") {
+                updateWizardMedDraft({
+                  medicationId: null,
+                  medicationIsOther: false,
+                  medicationOtherName: "",
+                  displayName: "",
+                });
+              } else {
+                var drug = HOME_DRUGS.find(function (d) { return String(d.id) === v; });
+                updateWizardMedDraft({
+                  medicationId: parseInt(v, 10),
+                  medicationIsOther: false,
+                  medicationOtherName: "",
+                  displayName: drug ? drug.name : "",
+                });
+              }
+            }}
+            style={inputStyle}
+          >
+            <option value="">Select medication</option>
+            {HOME_DRUGS.map(function (d) {
+              return <option key={d.id} value={d.id}>{d.name} ({d.generic})</option>;
+            })}
+            <option value="other">Other / not listed</option>
+          </select>
+          {wizardMedDraft.medicationIsOther && (
+            <div>
+              <label style={{ display: "block", marginBottom: 8, fontSize: 16 }}>
+                {wz.medicationOtherLabel || "Medication name"}
+              </label>
+              <input
+                type="text"
+                value={wizardMedDraft.medicationOtherName || ""}
+                onChange={function (e) { updateWizardMedDraft({ medicationOtherName: e.target.value }); }}
+                style={inputStyle}
+              />
+            </div>
+          )}
+        </div>
+        <HomeBtn
+          accentColor={col}
+          primary
+          label="Next"
+          disabled={!wizardMedStep1Valid(wizardMedDraft)}
+          onClick={wizardNext}
+        />
+      </HomeShell>
+    );
+  }
 
   // ── SETUP ──────────────────────────────────────────────────────────────────
   if (screen === "setup") {
@@ -796,63 +1329,6 @@ function HomeInfusionApp() {
               if (v) t.course.endDate = "";
             });
           }} style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }} />
-        </div>
-
-        <div style={card}>
-          <div style={label}>Line type</div>
-          {[["picc", "PICC"], ["midline", "Midline"], ["port", "Port"], ["other", "Other"]].map(function (pair) {
-            return (
-              <label key={pair[0]} style={{ display: "block", marginBottom: 8 }}>
-                <input type="radio" checked={(ts.lineCare.accessType || "picc") === pair[0]} onChange={function () {
-                  updateTreatmentSet(function (t) { t.lineCare.accessType = pair[0]; });
-                }} style={{ marginRight: 10 }} />
-                {pair[1]}
-              </label>
-            );
-          })}
-        </div>
-
-        <div style={card}>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-            <input type="checkbox" checked={!!ts.lineCare.heparinOrdered} onChange={function (e) {
-              updateTreatmentSet(function (t) { t.lineCare.heparinOrdered = e.target.checked; });
-            }} style={{ marginTop: 4 }} />
-            <span>Use heparin flush (only if your care team prescribed it)</span>
-          </label>
-        </div>
-
-        {isModule("appointmentReminders") && (
-          <div style={card}>
-            <div style={label}>Next lab / follow-up visit</div>
-            <input type="date" value={ts.appointment.nextPickupDate || ""}
-              onChange={function (e) { updateTreatmentSet(function (t) { t.appointment.nextPickupDate = e.target.value; }); }}
-              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 12 }} />
-            <div style={label}>Then repeat</div>
-            <select value={ts.appointment.frequency || "weekly"} onChange={function (e) {
-              updateTreatmentSet(function (t) { t.appointment.frequency = e.target.value; });
-            }} style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }}>
-              <option value="weekly">Weekly</option>
-              <option value="twice_weekly">Twice weekly</option>
-              <option value="three_weekly">Three times weekly</option>
-              <option value="custom">Custom interval (days)</option>
-            </select>
-            {ts.appointment.frequency === "custom" && (
-              <input type="number" min={1} placeholder="Days between visits" value={ts.appointment.customIntervalDays || 7}
-                onChange={function (e) {
-                  updateTreatmentSet(function (t) { t.appointment.customIntervalDays = parseInt(e.target.value, 10) || 7; });
-                }}
-                style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 10 }} />
-            )}
-          </div>
-        )}
-
-        <div style={card}>
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-            <input type="checkbox" checked={!!ts.remindersEnabled} onChange={function (e) {
-              updateTreatmentSet(function (t) { t.remindersEnabled = e.target.checked; });
-            }} style={{ marginTop: 4 }} />
-            <span>Enable dose reminders (browser notifications — coming soon)</span>
-          </label>
         </div>
 
         <HomeBtn accentColor={col} primary label="Save treatment setup" onClick={saveSetup} />
@@ -1317,6 +1793,131 @@ function HomeInfusionApp() {
     );
   }
 
+  // ── ADDITIONAL SETTINGS ────────────────────────────────────────────────────
+  if (screen === "additionalSettings") {
+    var addTs = treatmentSet();
+    return (
+      <HomeShell>
+        {renderGlobalTimerBanner()}
+        <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>
+          {(COPY.wizard && COPY.wizard.additionalSettingsTitle) || "Additional settings"}
+        </h1>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+          Line care, visit reminders, and notifications shared across your treatment.
+        </p>
+
+        <div style={card}>
+          <div style={label}>Line type</div>
+          {[["picc", "PICC"], ["midline", "Midline"], ["port", "Port"], ["other", "Other"]].map(function (pair) {
+            return (
+              <label key={pair[0]} style={{ display: "block", marginBottom: 8 }}>
+                <input
+                  type="radio"
+                  checked={(addTs.lineCare.accessType || "picc") === pair[0]}
+                  onChange={function () {
+                    var next = Object.assign({}, settings);
+                    next.treatmentSet = Object.assign({}, treatmentSet());
+                    next.treatmentSet.lineCare = Object.assign({}, next.treatmentSet.lineCare, { accessType: pair[0] });
+                    persist(next);
+                  }}
+                  style={{ marginRight: 10 }}
+                />
+                {pair[1]}
+              </label>
+            );
+          })}
+        </div>
+
+        <div style={card}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={!!addTs.lineCare.heparinOrdered}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.lineCare = Object.assign({}, next.treatmentSet.lineCare, { heparinOrdered: e.target.checked });
+                persist(next);
+              }}
+              style={{ marginTop: 4 }}
+            />
+            <span>Use heparin flush (only if your care team prescribed it)</span>
+          </label>
+        </div>
+
+        {isModule("appointmentReminders") && (
+          <div style={card}>
+            <div style={label}>Next lab / follow-up visit</div>
+            <input
+              type="date"
+              value={addTs.appointment.nextPickupDate || ""}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { nextPickupDate: e.target.value });
+                persist(next);
+              }}
+              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 12 }}
+            />
+            <div style={label}>Then repeat</div>
+            <select
+              value={addTs.appointment.frequency || "weekly"}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { frequency: e.target.value });
+                persist(next);
+              }}
+              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }}
+            >
+              <option value="weekly">Weekly</option>
+              <option value="twice_weekly">Twice weekly</option>
+              <option value="three_weekly">Three times weekly</option>
+              <option value="custom">Custom interval (days)</option>
+            </select>
+            {addTs.appointment.frequency === "custom" && (
+              <input
+                type="number"
+                min={1}
+                placeholder="Days between visits"
+                value={addTs.appointment.customIntervalDays || 7}
+                onChange={function (e) {
+                  var next = Object.assign({}, settings);
+                  next.treatmentSet = Object.assign({}, treatmentSet());
+                  next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, {
+                    customIntervalDays: parseInt(e.target.value, 10) || 7,
+                  });
+                  persist(next);
+                }}
+                style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 10 }}
+              />
+            )}
+          </div>
+        )}
+
+        <div style={card}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <input
+              type="checkbox"
+              checked={!!addTs.remindersEnabled}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.remindersEnabled = e.target.checked;
+                persist(next);
+              }}
+              style={{ marginTop: 4 }}
+            />
+            <span>Enable dose reminders (browser notifications — coming soon)</span>
+          </label>
+        </div>
+
+        <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />
+      </HomeShell>
+    );
+  }
+
   // ── DASHBOARD ──────────────────────────────────────────────────────────────
   var dayInfo = STORE.getTreatmentDayInfo(settings);
   var apptDate = isModule("appointmentReminders") ? STORE.getNextAppointmentDate(settings) : "";
@@ -1342,7 +1943,7 @@ function HomeInfusionApp() {
       {!STORE.isSetupComplete(settings) && (
         <div style={{ ...card, borderColor: "#f4a26188" }}>
           <p style={{ margin: 0 }}>Complete treatment setup to see your schedule and next dose.</p>
-          <HomeBtn accentColor={col} primary label="Set up treatment" onClick={function () { setScreen("setup"); }} />
+          <HomeBtn accentColor={col} primary label="Set up treatment" onClick={function () { setScreen("setupWizard"); }} />
         </div>
       )}
 
@@ -1436,6 +2037,7 @@ function HomeInfusionApp() {
         {isModule("lineCare") && (
           <HomeBtn accentColor={col} label="Line care" onClick={function () { goToScreen("lineCare"); }} />
         )}
+        <HomeBtn accentColor={col} label="Additional settings" onClick={function () { goToScreen("additionalSettings"); }} />
         {isModule("infusionArcade") && (
           <HomeBtn
             accentColor={col}

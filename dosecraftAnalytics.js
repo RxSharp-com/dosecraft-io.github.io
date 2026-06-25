@@ -9,6 +9,7 @@
 
   var COMPANION_EVENT_ALLOWLIST = {
     companion_opened: true,
+    companion_setup_wizard_started: true,
     companion_setup_started: true,
     companion_setup_completed: true,
     companion_treatment_setup_started: true,

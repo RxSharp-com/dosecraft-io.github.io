@@ -58,12 +58,17 @@
       companionRemoteAnalytics: false,
       anonymizeIp: true,
     },
+
+    lineCare: {
+      heparinDefaultOn: false,
+    },
   };
 
   var EMERGENCY_FALLBACK =
     "For severe or life-threatening symptoms, call 911 or your local emergency number.";
 
   // Clinic-specific overrides — edit this object for each licensed deployment.
+  // Example: window.DOSECRAFT_CLINIC_CONFIG = { lineCare: { heparinDefaultOn: true } };
   window.DOSECRAFT_CLINIC_CONFIG = window.DOSECRAFT_CLINIC_CONFIG || {};
 
   function isPlainObject(val) {
@@ -101,6 +106,7 @@
     merged.branding = deepMerge(DEFAULT_CLINIC_CONFIG.branding, merged.branding || {});
     merged.disclaimers = deepMerge(DEFAULT_CLINIC_CONFIG.disclaimers, merged.disclaimers || {});
     merged.analytics = deepMerge(DEFAULT_CLINIC_CONFIG.analytics, merged.analytics || {});
+    merged.lineCare = deepMerge(DEFAULT_CLINIC_CONFIG.lineCare, merged.lineCare || {});
     if (!Array.isArray(merged.enabledMedications)) merged.enabledMedications = [];
     return merged;
   }
