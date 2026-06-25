@@ -83,6 +83,9 @@
     afterHoursInstructions:
       "For urgent concerns after hours, call (281)318-5241. For severe symptoms such as trouble breathing, chest pain, or swelling of the face or throat, call 911.",
     showClinicContact: true,
+    enabledModules: {
+      doseReminders: true,
+    },
     lineCare: {
       heparinDefaultOn: true,
     },
