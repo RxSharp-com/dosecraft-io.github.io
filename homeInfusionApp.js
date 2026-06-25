@@ -317,14 +317,6 @@ function isStandalonePwa() {
   return false;
 }
 
-function isIosDevice() {
-  try {
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent || "");
-  } catch (e) {
-    return false;
-  }
-}
-
 function getNotificationPermission() {
   try {
     if (typeof Notification === "undefined") return "unsupported";
