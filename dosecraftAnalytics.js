@@ -29,6 +29,8 @@
     privacy_notice_viewed: true,
     clear_saved_data_clicked: true,
     arcade_opened_from_companion: true,
+    reminder_enabled: true,
+    reminder_scheduled: true,
   };
 
   var COMPANION_PROPERTY_ALLOWLIST = {
@@ -39,6 +41,8 @@
     device_type: true,
     app_version: true,
     clinic_config_id: true,
+    lead_minutes_bucket: true,
+    at_time_enabled: true,
   };
 
   // Blocked property keys (Companion and guard-rail for accidental Arcade leakage).
