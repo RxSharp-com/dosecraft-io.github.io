@@ -6,6 +6,81 @@
   var MODE_KEY = "dc_patient_mode";
   var MODE_SEEN_KEY = "dc_mode_choice_seen";
   var ACTIVE_SESSION_KEY = "dc_home_active_session";
+  var STORAGE_CRYPTO_KEY_ID = "dc_home_storage_kid";
+
+  function bytesToBase64(bytes) {
+    var bin = "";
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  function base64ToBytes(b64) {
+    var bin = atob(b64);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function getOrCreateStorageSecret() {
+    var existing = localStorage.getItem(STORAGE_CRYPTO_KEY_ID);
+    if (existing) return existing;
+    var rnd = new Uint8Array(32);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(rnd);
+    } else {
+      for (var i = 0; i < rnd.length; i++) rnd[i] = Math.floor(Math.random() * 256);
+    }
+    var created = bytesToBase64(rnd);
+    localStorage.setItem(STORAGE_CRYPTO_KEY_ID, created);
+    return created;
+  }
+
+  function xorMask(text, secretB64) {
+    var data = new TextEncoder().encode(text);
+    var key = base64ToBytes(secretB64);
+    var out = new Uint8Array(data.length);
+    for (var i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length];
+    return bytesToBase64(out);
+  }
+
+  function xorUnmask(maskedB64, secretB64) {
+    var data = base64ToBytes(maskedB64);
+    var key = base64ToBytes(secretB64);
+    var out = new Uint8Array(data.length);
+    for (var i = 0; i < data.length; i++) out[i] = data[i] ^ key[i % key.length];
+    return new TextDecoder().decode(out);
+  }
+
+  function encryptForStorage(plainText) {
+    try {
+      var secret = getOrCreateStorageSecret();
+      return "enc:v1:" + xorMask(plainText, secret);
+    } catch (e) {
+      return plainText;
+    }
+  }
+
+  function decryptFromStorage(storedText) {
+    if (!storedText) return storedText;
+    if (storedText.indexOf("enc:v1:") !== 0) return storedText;
+    try {
+      var secret = getOrCreateStorageSecret();
+      return xorUnmask(storedText.slice(7), secret);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setEncryptedJsonItem(key, value) {
+    localStorage.setItem(key, encryptForStorage(JSON.stringify(value)));
+  }
+
+  function getDecryptedItem(key) {
+    var raw = localStorage.getItem(key);
+    if (!raw) return raw;
+    var dec = decryptFromStorage(raw);
+    return dec == null ? raw : dec;
+  }
 
   var WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -281,14 +356,14 @@
 
   function loadSettingsRaw() {
     try {
-      var raw = localStorage.getItem(SETTINGS_KEY);
+      var raw = getDecryptedItem(SETTINGS_KEY);
       if (!raw) return defaultSettings();
       var parsed = safeParse(raw, {});
       var migrated = migrateLegacyFlatSettings(parsed);
       if (migrated) {
-        var logRaw = localStorage.getItem(DOSE_LOG_KEY);
+        var logRaw = getDecryptedItem(DOSE_LOG_KEY);
         if (logRaw) migrated.doseSessionLog = migrateLegacyDoseLog(safeParse(logRaw, []));
-        var timerRaw = localStorage.getItem(DOSE_TIMER_KEY);
+        var timerRaw = getDecryptedItem(DOSE_TIMER_KEY);
         if (timerRaw) {
           var legacyTimer = safeParse(timerRaw, null);
           migrated.activeInfusionTimer = migrateLegacyTimer(legacyTimer, migrated);
@@ -309,12 +384,12 @@
       });
 
       if (!s.doseSessionLog || !s.doseSessionLog.length) {
-        var existingLog = localStorage.getItem(DOSE_LOG_KEY);
+        var existingLog = getDecryptedItem(DOSE_LOG_KEY);
         if (existingLog) s.doseSessionLog = migrateLegacyDoseLog(safeParse(existingLog, []));
       }
 
       if (!s.activeInfusionTimer) {
-        var existingTimer = localStorage.getItem(DOSE_TIMER_KEY);
+        var existingTimer = getDecryptedItem(DOSE_TIMER_KEY);
         if (existingTimer) {
           s.activeInfusionTimer = migrateLegacyTimer(safeParse(existingTimer, null), s);
         }
@@ -341,9 +416,9 @@
   function saveSettings(settings) {
     try {
       var storable = sanitizeSettingsForStorage(settings);
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(storable));
+      setEncryptedJsonItem(SETTINGS_KEY, storable);
       if (settings.doseSessionLog) {
-        localStorage.setItem(DOSE_LOG_KEY, JSON.stringify(settings.doseSessionLog));
+        setEncryptedJsonItem(DOSE_LOG_KEY, settings.doseSessionLog);
       }
       if (settings.activeInfusionTimer) {
         localStorage.setItem(
