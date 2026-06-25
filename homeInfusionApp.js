@@ -403,6 +403,17 @@ function HomeInfusionApp() {
   }
 
   function startDoseSession(due) {
+    var existing = STORE.loadActiveSession();
+    if (existing && existing.dueDoseKeys && existing.dueDoseKeys.length === due.length) {
+      persistSession(existing);
+      setSessionDoses(due);
+      setSessionChecklist(false);
+      var steps = STORE.buildDoseSessionSteps(due, settings, COPY);
+      var resume = STORE.findResumeStepIndex(steps, existing, STORE.getActiveInfusionTimer(settings));
+      setSashStep(resume);
+      goToScreen("sash");
+      return;
+    }
     var session = STORE.createActiveSession(due);
     persistSession(session);
     setSessionDoses(due);
