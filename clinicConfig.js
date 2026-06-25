@@ -16,6 +16,7 @@
     primaryPhoneNumber: "",
     appointmentPhoneNumber: "",
     pharmacyPhoneNumber: "",
+    faxNumber: "",
     afterHoursInstructions: "",
     appointmentInstructions:
       "Call your clinic if you need to reschedule or have questions about appointments.",
@@ -68,8 +69,23 @@
     "For severe or life-threatening symptoms, call 911 or your local emergency number.";
 
   // Clinic-specific overrides — edit this object for each licensed deployment.
-  // Example: window.DOSECRAFT_CLINIC_CONFIG = { lineCare: { heparinDefaultOn: true } };
-  window.DOSECRAFT_CLINIC_CONFIG = window.DOSECRAFT_CLINIC_CONFIG || {};
+  // Demo: Infectious Disease Specialists of Northwest Arkansas
+  window.DOSECRAFT_CLINIC_CONFIG = {
+    clinicId: "ids-nwa",
+    clinicName: "Infectious Disease Specialists of Northwest Arkansas",
+    clinicDisplayName: "Infectious Disease Specialists of Northwest Arkansas",
+    primaryPhoneNumber: "(479) 444-6691",
+    appointmentPhoneNumber: "(479) 444-6691",
+    pharmacyPhoneNumber: "(479) 444-6691",
+    // TODO: Verify fax number before patient-facing production use.
+    faxNumber: "(479) 444-0117",
+    afterHoursInstructions:
+      "For urgent concerns after hours, call (281)318-5241. For severe symptoms such as trouble breathing, chest pain, or swelling of the face or throat, call 911.",
+    showClinicContact: true,
+    lineCare: {
+      heparinDefaultOn: true,
+    },
+  };
 
   function isPlainObject(val) {
     return val !== null && typeof val === "object" && !Array.isArray(val);
