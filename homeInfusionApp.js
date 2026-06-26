@@ -2583,19 +2583,18 @@ function HomeInfusionApp() {
 var LANDING_SCREEN_STYLES = [
   ":root {",
   "  --dc-deep-night: #070A12;",
-  "  --dc-warm-ink: #140F08;",
-  "  --dc-glow-brown: #2A1A05;",
+  "  --dc-warm-ink: #120D08;",
+  "  --dc-glow-warm: #1E140A;",
   "  --dc-amber: #F4B942;",
   "  --dc-soft-gold: #FFD66B;",
   "  --dc-teal: #56D6C9;",
-  "  --dc-cyan: #8DEFE6;",
   "  --dc-text-primary: #FFF7DF;",
   "  --dc-text-secondary: #D8CDAF;",
   "  --dc-text-muted: #9E9277;",
-  "  --dc-surface: rgba(255, 247, 223, 0.07);",
-  "  --dc-surface-strong: rgba(255, 247, 223, 0.11);",
-  "  --dc-border-soft: rgba(255, 214, 107, 0.24);",
-  "  --dc-border-active: rgba(255, 214, 107, 0.55);",
+  "  --dc-surface: rgba(255, 247, 223, 0.06);",
+  "  --dc-surface-strong: rgba(255, 247, 223, 0.10);",
+  "  --dc-border-soft: rgba(255, 214, 107, 0.22);",
+  "  --dc-border-active: rgba(255, 214, 107, 0.48);",
   "}",
   ".dc-landing {",
   "  min-height: 100vh;",
@@ -2606,9 +2605,8 @@ var LANDING_SCREEN_STYLES = [
   "  justify-content: center;",
   "  padding: max(20px, env(safe-area-inset-top)) 20px max(16px, env(safe-area-inset-bottom));",
   "  background:",
-  "    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(244, 185, 66, 0.14) 0%, transparent 58%),",
-  "    radial-gradient(ellipse 70% 40% at 85% 100%, rgba(86, 214, 201, 0.06) 0%, transparent 50%),",
-  "    linear-gradient(168deg, var(--dc-deep-night) 0%, var(--dc-warm-ink) 42%, var(--dc-glow-brown) 100%);",
+  "    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(244, 185, 66, 0.08) 0%, transparent 55%),",
+  "    linear-gradient(175deg, var(--dc-deep-night) 0%, var(--dc-warm-ink) 55%, var(--dc-glow-warm) 100%);",
   "  color: var(--dc-text-primary);",
   "  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;",
   "  -webkit-font-smoothing: antialiased;",
@@ -2622,56 +2620,6 @@ var LANDING_SCREEN_STYLES = [
   "}",
   ".dc-landing__brand {",
   "  text-align: center;",
-  "  position: relative;",
-  "}",
-  ".dc-landing__motif {",
-  "  position: relative;",
-  "  width: 44px;",
-  "  height: 56px;",
-  "  margin: 0 auto 14px;",
-  "}",
-  ".dc-landing__motif::before {",
-  "  content: '';",
-  "  position: absolute;",
-  "  left: 50%;",
-  "  top: 4px;",
-  "  width: 22px;",
-  "  height: 28px;",
-  "  transform: translateX(-50%);",
-  "  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;",
-  "  background: linear-gradient(180deg, var(--dc-cyan) 0%, var(--dc-teal) 100%);",
-  "  box-shadow: 0 0 18px rgba(86, 214, 201, 0.35);",
-  "  opacity: 0.85;",
-  "}",
-  ".dc-landing__motif::after {",
-  "  content: '';",
-  "  position: absolute;",
-  "  left: 50%;",
-  "  top: 32px;",
-  "  width: 2px;",
-  "  height: 18px;",
-  "  transform: translateX(-50%);",
-  "  background: linear-gradient(180deg, var(--dc-teal) 0%, transparent 100%);",
-  "  border-radius: 2px;",
-  "  opacity: 0.5;",
-  "}",
-  ".dc-landing__pulse {",
-  "  position: absolute;",
-  "  left: 50%;",
-  "  top: 14px;",
-  "  width: 36px;",
-  "  height: 36px;",
-  "  transform: translate(-50%, -50%);",
-  "  border-radius: 50%;",
-  "  border: 1px solid rgba(86, 214, 201, 0.2);",
-  "  animation: dc-landing-pulse 4s ease-in-out infinite;",
-  "}",
-  "@keyframes dc-landing-pulse {",
-  "  0%, 100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.35; }",
-  "  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.65; }",
-  "}",
-  "@media (prefers-reduced-motion: reduce) {",
-  "  .dc-landing__pulse { animation: none; opacity: 0.4; }",
   "}",
   ".dc-landing__title {",
   "  font-size: clamp(2rem, 7vw, 2.35rem);",
@@ -2703,12 +2651,13 @@ var LANDING_SCREEN_STYLES = [
   "  display: block;",
   "  width: 100%;",
   "  text-align: left;",
-  "  padding: 18px 18px 16px;",
+  "  padding: 20px 18px 18px;",
   "  border-radius: 16px;",
   "  border: 1px solid var(--dc-border-soft);",
   "  background: var(--dc-surface);",
-  "  backdrop-filter: blur(8px);",
-  "  -webkit-backdrop-filter: blur(8px);",
+  "  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 247, 223, 0.04);",
+  "  backdrop-filter: blur(10px);",
+  "  -webkit-backdrop-filter: blur(10px);",
   "  cursor: pointer;",
   "  touch-action: manipulation;",
   "  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;",
@@ -2717,7 +2666,8 @@ var LANDING_SCREEN_STYLES = [
   "}",
   ".dc-landing__card:hover {",
   "  background: var(--dc-surface-strong);",
-  "  border-color: rgba(255, 214, 107, 0.38);",
+  "  border-color: rgba(255, 214, 107, 0.32);",
+  "  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 247, 223, 0.06);",
   "}",
   ".dc-landing__card:focus {",
   "  outline: none;",
@@ -2726,7 +2676,7 @@ var LANDING_SCREEN_STYLES = [
   "  outline: 2px solid var(--dc-border-active);",
   "  outline-offset: 3px;",
   "  border-color: var(--dc-border-active);",
-  "  box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.12);",
+  "  box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.10);",
   "}",
   ".dc-landing__card-title {",
   "  font-size: clamp(1.125rem, 4.2vw, 1.25rem);",
@@ -2738,29 +2688,24 @@ var LANDING_SCREEN_STYLES = [
   ".dc-landing__card-text {",
   "  font-size: clamp(0.9375rem, 3.5vw, 1rem);",
   "  line-height: 1.5;",
-  "  margin: 0 0 14px;",
+  "  margin: 0 0 16px;",
   "  color: var(--dc-text-secondary);",
   "}",
   ".dc-landing__card-action {",
-  "  display: inline-flex;",
+  "  display: flex;",
   "  align-items: center;",
   "  justify-content: center;",
-  "  min-height: 44px;",
-  "  padding: 10px 18px;",
+  "  width: 100%;",
+  "  min-height: 46px;",
+  "  padding: 11px 18px;",
   "  border-radius: 10px;",
+  "  border: none;",
+  "  background: linear-gradient(135deg, var(--dc-amber) 0%, var(--dc-soft-gold) 100%);",
+  "  color: #1A1208;",
   "  font-size: clamp(0.9375rem, 3.5vw, 1rem);",
   "  font-weight: 700;",
   "  letter-spacing: 0.01em;",
   "  pointer-events: none;",
-  "}",
-  ".dc-landing__card--clinic .dc-landing__card-action {",
-  "  background: linear-gradient(135deg, var(--dc-amber) 0%, var(--dc-soft-gold) 100%);",
-  "  color: var(--dc-deep-night);",
-  "}",
-  ".dc-landing__card--home .dc-landing__card-action {",
-  "  background: rgba(86, 214, 201, 0.14);",
-  "  border: 1px solid rgba(86, 214, 201, 0.35);",
-  "  color: var(--dc-cyan);",
   "}",
   ".dc-landing__support {",
   "  text-align: center;",
@@ -2814,9 +2759,6 @@ function HomeModeSelector(props) {
       <div className="dc-landing">
         <div className="dc-landing__inner">
           <header className="dc-landing__brand">
-            <div className="dc-landing__motif" aria-hidden="true">
-              <span className="dc-landing__pulse" />
-            </div>
             <h1 className="dc-landing__title">Dosecraft</h1>
             <p className="dc-landing__subtitle">Interactive support for infusion therapy</p>
             <p className="dc-landing__tagline">Understand your therapy. One dose at a time.</p>
@@ -2826,7 +2768,7 @@ function HomeModeSelector(props) {
             {hasClinic && (
               <button
                 type="button"
-                className="dc-landing__card dc-landing__card--clinic"
+                className="dc-landing__card"
                 onClick={function () { choose("clinic"); }}
               >
                 <h2 className="dc-landing__card-title">Clinic Mode</h2>
@@ -2839,7 +2781,7 @@ function HomeModeSelector(props) {
             {hasHome && (
               <button
                 type="button"
-                className="dc-landing__card dc-landing__card--home"
+                className="dc-landing__card"
                 onClick={function () { choose("home"); }}
               >
                 <h2 className="dc-landing__card-title">Home Infusion Companion</h2>
@@ -2856,7 +2798,7 @@ function HomeModeSelector(props) {
 
           <footer className="dc-landing__support">
             <p className="dc-landing__reassurance">
-              Whether you are at the infusion clinic or managing doses at home, Dosecraft helps you follow along with your treatment in a calm, supportive way.
+              Designed to support patient understanding during infusion and home therapy.
             </p>
             <p className="dc-landing__disclaimer">
               Dosecraft is an educational companion and does not replace instructions from your care team.
