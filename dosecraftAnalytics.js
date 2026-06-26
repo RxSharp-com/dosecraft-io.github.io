@@ -29,6 +29,10 @@
     privacy_notice_viewed: true,
     clear_saved_data_clicked: true,
     arcade_opened_from_companion: true,
+    app_experience_switched: true,
+    app_preferences_reset: true,
+    companion_setup_reset: true,
+    local_device_data_cleared: true,
     reminder_enabled: true,
     reminder_scheduled: true,
   };

@@ -593,7 +593,6 @@ function HomeInfusionApp() {
   var _screen = _useState(function () {
     var s = STORE.loadSettings();
     if (STORE.isSetupComplete(s)) return "dashboard";
-    if (STORE.hasModeChoice()) return "setupWizard";
     return "setupWizard";
   });
   var screen = _screen[0], setScreen = _screen[1];
@@ -648,6 +647,9 @@ function HomeInfusionApp() {
 
   var _installDismissed = _useState(function () { return STORE.isInstallPromptDismissed(); });
   var installDismissed = _installDismissed[0], setInstallDismissed = _installDismissed[1];
+
+  var _settingsConfirm = _useState(null);
+  var settingsConfirm = _settingsConfirm[0], setSettingsConfirm = _settingsConfirm[1];
 
   var installPromptEventRef = _useRef(null);
   var standalonePwa = isStandalonePwa();
@@ -950,7 +952,34 @@ function HomeInfusionApp() {
 
   function goClinicMode() {
     if (!isModule("clinicInfusion")) return;
-    window.location.href = "game.html?return=home";
+    STORE.setLastUsedExperience("clinic");
+    window.location.href = "game.html";
+  }
+
+  function switchExperience() {
+    STORE.openExperiencePicker();
+  }
+
+  function executeResetCompanionSetup() {
+    STORE.resetCompanionSetup();
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("companion_setup_reset", "settings", { mode: "home" });
+    }
+    var fresh = STORE.loadSettings();
+    setSettings(fresh);
+    setWizardDraft(defaultWizardDraft(STORE));
+    setWizardMedDraft(defaultWizardMedDraft());
+    setActiveSession(null);
+    setSettingsConfirm(null);
+    setScreen("setupWizard");
+  }
+
+  function executeClearAllData() {
+    STORE.clearAllDosecraftData();
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("local_device_data_cleared", "settings", { mode: "home" });
+    }
+    window.location.href = "index.html";
   }
 
   function openMedInfo(key) {
@@ -2211,6 +2240,52 @@ function HomeInfusionApp() {
     );
   }
 
+  // ── APP SETTINGS (experience + data controls) ─────────────────────────────
+  if (screen === "appSettings") {
+    var confirmCopy = settingsConfirm === "companion"
+      ? "This will clear your saved Companion treatment setup on this device. It will not contact your clinic or change your treatment."
+      : settingsConfirm === "all"
+        ? "This clears Dosecraft data saved on this device. It will not contact your clinic or change your treatment."
+        : "";
+    return (
+      <HomeShell>
+        {renderGlobalTimerBanner()}
+        <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>Settings</h1>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={label}>Experience</div>
+          <HomeBtn accentColor={col} label="Switch experience" onClick={switchExperience} />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={label}>Companion</div>
+          <HomeBtn accentColor={col} label="Reset Companion setup" onClick={function () { setSettingsConfirm("companion"); }} />
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={label}>Device data</div>
+          <HomeBtn accentColor={col} label="Clear Dosecraft data from this device" onClick={function () { setSettingsConfirm("all"); }} />
+        </div>
+
+        {settingsConfirm && (
+          <div style={Object.assign({}, card, { border: "1px solid rgba(255,180,80,0.35)" })}>
+            <p style={{ fontSize: 16, lineHeight: 1.55, margin: "0 0 16px", color: "rgba(255,255,255,0.85)" }}>
+              {confirmCopy}
+            </p>
+            <HomeBtn
+              accentColor={col}
+              primary
+              label={settingsConfirm === "companion" ? "Reset Companion setup" : "Clear data"}
+              onClick={settingsConfirm === "companion" ? executeResetCompanionSetup : executeClearAllData}
+            />
+            <HomeBtn accentColor={col} label="Cancel" onClick={function () { setSettingsConfirm(null); }} />
+          </div>
+        )}
+      </HomeShell>
+    );
+  }
+
   // ── ADDITIONAL SETTINGS ────────────────────────────────────────────────────
   if (screen === "additionalSettings") {
     var addTs = treatmentSet();
@@ -2541,6 +2616,7 @@ function HomeInfusionApp() {
           <HomeBtn accentColor={col} label="Line care" onClick={function () { goToScreen("lineCare"); }} />
         )}
         <HomeBtn accentColor={col} label="Additional settings" onClick={function () { goToScreen("additionalSettings"); }} />
+        <HomeBtn accentColor={col} label="Settings" onClick={function () { goToScreen("appSettings"); }} />
         {isModule("infusionArcade") && (
           <HomeBtn
             accentColor={col}
@@ -2562,8 +2638,8 @@ function HomeInfusionApp() {
             onDismiss={dismissDashboardInstallPrompt}
           />
         )}
-        {isModule("clinicInfusion") && (
-          <HomeBtn accentColor={col} label="Switch to clinic infusion mode" onClick={goClinicMode} />
+        {isModule("clinicInfusion") && isModule("homeInfusion") && (
+          <HomeBtn accentColor={col} label="Switch experience" onClick={switchExperience} />
         )}
         {cfg.branding.showPoweredByDosecraft !== false && (
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "8px 0 0" }}>
@@ -2745,13 +2821,66 @@ function HomeModeSelector(props) {
   var isModule = window.DOSECRAFT_isModuleEnabled;
   var hasHome = isModule("homeInfusion");
   var hasClinic = isModule("clinicInfusion");
+  var switchOnly = props.switchOnly || STORE.isExperiencePickerRequested();
   function choose(mode) {
-    STORE.setPatientMode(mode);
+    STORE.setLastUsedExperience(mode);
+    if (window.trackCompanionScreen) {
+      window.trackCompanionScreen("app_experience_switched", switchOnly ? "switch" : "picker", {
+        mode: mode === "home" ? "home" : "clinic",
+      });
+    }
     if (mode === "home") {
       window.location.href = "index.html";
     } else {
       window.location.href = "game.html";
     }
+  }
+  if (switchOnly) {
+    var switchPage = {
+      minHeight: "100dvh",
+      background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
+      color: "#f5f8fc",
+      fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px 20px",
+    };
+    return (
+      <div style={switchPage}>
+        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+          <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 10, lineHeight: 1.2 }}>
+            What would you like to use today?
+          </h1>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.6)", marginBottom: 24, lineHeight: 1.5 }}>
+            You can switch anytime.
+          </p>
+          {hasHome && (
+            <button onClick={function () { choose("home"); }} style={{
+              display: "block", width: "100%", minHeight: 52, marginBottom: 12, padding: "14px 20px",
+              borderRadius: 12, border: "none", background: "#F4B942", color: "#1A1208",
+              fontSize: 17, fontWeight: 700, cursor: "pointer", touchAction: "manipulation",
+            }}>
+              Home Infusion Companion
+            </button>
+          )}
+          {hasClinic && (
+            <button onClick={function () { choose("clinic"); }} style={{
+              display: "block", width: "100%", minHeight: 52, padding: "14px 20px",
+              borderRadius: 12, border: "none", background: "#F4B942", color: "#1A1208",
+              fontSize: 17, fontWeight: 700, cursor: "pointer", touchAction: "manipulation",
+            }}>
+              Infusion Arcade
+            </button>
+          )}
+          {!hasHome && !hasClinic && (
+            <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>
+              No infusion modes are enabled for this clinic configuration.
+            </p>
+          )}
+        </div>
+      </div>
+    );
   }
   return (
     <React.Fragment>

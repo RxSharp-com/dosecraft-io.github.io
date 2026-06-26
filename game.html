@@ -337,9 +337,22 @@
     function GameEntry() {
       const STORE = window.DOSECRAFT_HOME_STORE;
       const isModule = window.DOSECRAFT_isModuleEnabled;
+      const drugName = getDrugNameFromURL();
+      const returnHome = getReturnHome();
 
-      if (!STORE.hasModeChoice()) {
-        return <HomeModeSelector />;
+      if (STORE.isExperiencePickerRequested()) {
+        return <HomeModeSelector switchOnly />;
+      }
+
+      if (!drugName && !returnHome) {
+        const dest = STORE.getLaunchDestination();
+        if (dest === "picker") {
+          return <HomeModeSelector />;
+        }
+        if (dest === "home" && isModule("homeInfusion")) {
+          window.location.replace("index.html");
+          return null;
+        }
       }
 
       if (!isModule("clinicInfusion") && isModule("homeInfusion")) {
@@ -347,8 +360,7 @@
         return null;
       }
 
-      const drugName = getDrugNameFromURL();
-      return <InfusionArcade initialDrug={drugName} returnHome={getReturnHome()} />;
+      return <InfusionArcade initialDrug={drugName} returnHome={returnHome} />;
     }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
