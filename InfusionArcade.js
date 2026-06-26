@@ -2535,6 +2535,11 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
           <BigBtn label="About Dosecraft" onClick={() => { setShowNav(false); setShowAboutPanel(true); }} />
           <BigBtn label="Share feedback" onClick={() => { closeOverlays(); handleFeedback(); }} kind="ghost" />
           <ShareBtn label="Share Dosecraft" />
+          {typeof window.DOSECRAFT_isModuleEnabled === "function"
+            && window.DOSECRAFT_isModuleEnabled("homeInfusion")
+            && window.DOSECRAFT_isModuleEnabled("clinicInfusion") && (
+            <BigBtn label="Switch experience" onClick={() => { closeOverlays(); switchExperience(); }} kind="ghost" />
+          )}
           {canReturnToHomeCompanion() && (
             <BigBtn label="Back to home companion" onClick={() => { closeOverlays(); goHomeCompanion(); }} />
           )}
@@ -2635,7 +2640,18 @@ function InfusionArcade({ initialDrug, returnHome = false }) {
     }
     if (returnHome) return true;
     var store = window.DOSECRAFT_HOME_STORE;
-    return store && typeof store.getPatientMode === "function" && store.getPatientMode() === "home";
+    if (!store) return false;
+    if (typeof store.hasCompletedCompanionSetup === "function" && store.hasCompletedCompanionSetup()) return true;
+    if (typeof store.getLastUsedExperience === "function" && store.getLastUsedExperience() === "home") return true;
+    return false;
+  }
+
+  function switchExperience() {
+    if (window.DOSECRAFT_HOME_STORE && window.DOSECRAFT_HOME_STORE.openExperiencePicker) {
+      window.DOSECRAFT_HOME_STORE.openExperiencePicker();
+    } else {
+      window.location.href = "index.html?experience=picker";
+    }
   }
 
   function goHomeCompanion() {

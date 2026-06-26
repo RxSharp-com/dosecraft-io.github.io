@@ -56,8 +56,17 @@
           return null;
         }
       }
-      var hasChoice = STORE.hasModeChoice();
-      if (!hasChoice) return <HomeModeSelector />;
+      if (STORE.isExperiencePickerRequested()) {
+        return <HomeModeSelector switchOnly />;
+      }
+      var dest = STORE.getLaunchDestination();
+      if (dest === "picker") {
+        return <HomeModeSelector />;
+      }
+      if (dest === "clinic" && isModule("clinicInfusion")) {
+        window.location.replace("game.html");
+        return null;
+      }
       return <HomeInfusionApp />;
     }
 

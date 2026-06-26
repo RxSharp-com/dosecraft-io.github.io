@@ -1076,7 +1076,6 @@
   function setPatientMode(mode) {
     try {
       localStorage.setItem(MODE_KEY, mode);
-      localStorage.setItem(MODE_SEEN_KEY, "true");
       return true;
     } catch (e) {
       return false;
@@ -1084,11 +1083,95 @@
   }
 
   function hasModeChoice() {
+    return !!getLastUsedExperience();
+  }
+
+  function hasActiveInfusionTimer(settings) {
+    return !!getActiveInfusionTimer(settings || loadSettings());
+  }
+
+  function hasCompletedCompanionSetup(settings) {
+    return isSetupComplete(settings || loadSettings());
+  }
+
+  function getLastUsedExperience() {
+    var mode = getPatientMode();
+    if (mode === "home" || mode === "clinic") return mode;
+    return null;
+  }
+
+  function setLastUsedExperience(experience) {
+    if (experience !== "home" && experience !== "clinic") return false;
+    return setPatientMode(experience);
+  }
+
+  function resetExperiencePreference() {
     try {
-      return localStorage.getItem(MODE_SEEN_KEY) === "true";
+      localStorage.removeItem(MODE_KEY);
+      localStorage.removeItem(MODE_SEEN_KEY);
+      return true;
     } catch (e) {
       return false;
     }
+  }
+
+  function getLaunchDestination() {
+    var settings = loadSettings();
+    if (hasActiveInfusionTimer(settings)) return "home";
+    if (hasCompletedCompanionSetup(settings)) return "home";
+    var last = getLastUsedExperience();
+    if (last) return last;
+    return "picker";
+  }
+
+  function shouldShowExperiencePicker() {
+    return getLaunchDestination() === "picker";
+  }
+
+  function isExperiencePickerRequested() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      return params.get("experience") === "picker";
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resetCompanionSetup() {
+    try {
+      localStorage.removeItem(SETTINGS_KEY);
+      localStorage.removeItem(DOSE_LOG_KEY);
+      localStorage.removeItem(DOSE_TIMER_KEY);
+      sessionStorage.removeItem(ACTIVE_SESSION_KEY);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function clearAllDosecraftData() {
+    try {
+      var keys = [];
+      var i;
+      for (i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (!key) continue;
+        if (key.indexOf("dc_") === 0 || key.indexOf("dosecraft") === 0) {
+          keys.push(key);
+        }
+      }
+      keys.forEach(function (k) {
+        localStorage.removeItem(k);
+      });
+      sessionStorage.clear();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function openExperiencePicker() {
+    window.location.href = "index.html?experience=picker";
   }
 
   function medicationFrequencyLabel(med) {
@@ -1481,6 +1564,17 @@
     getPatientMode: getPatientMode,
     setPatientMode: setPatientMode,
     hasModeChoice: hasModeChoice,
+    hasActiveInfusionTimer: hasActiveInfusionTimer,
+    hasCompletedCompanionSetup: hasCompletedCompanionSetup,
+    getLastUsedExperience: getLastUsedExperience,
+    setLastUsedExperience: setLastUsedExperience,
+    resetExperiencePreference: resetExperiencePreference,
+    getLaunchDestination: getLaunchDestination,
+    shouldShowExperiencePicker: shouldShowExperiencePicker,
+    isExperiencePickerRequested: isExperiencePickerRequested,
+    resetCompanionSetup: resetCompanionSetup,
+    clearAllDosecraftData: clearAllDosecraftData,
+    openExperiencePicker: openExperiencePicker,
     frequencyLabel: frequencyLabel,
     formatDateISO: formatDateISO,
     formatTimeShort: formatTimeShort,
