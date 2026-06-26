@@ -2580,20 +2580,226 @@ function HomeInfusionApp() {
   );
 }
 
+var LANDING_SCREEN_STYLES = [
+  ":root {",
+  "  --dc-deep-night: #070A12;",
+  "  --dc-warm-ink: #140F08;",
+  "  --dc-glow-brown: #2A1A05;",
+  "  --dc-amber: #F4B942;",
+  "  --dc-soft-gold: #FFD66B;",
+  "  --dc-teal: #56D6C9;",
+  "  --dc-cyan: #8DEFE6;",
+  "  --dc-text-primary: #FFF7DF;",
+  "  --dc-text-secondary: #D8CDAF;",
+  "  --dc-text-muted: #9E9277;",
+  "  --dc-surface: rgba(255, 247, 223, 0.07);",
+  "  --dc-surface-strong: rgba(255, 247, 223, 0.11);",
+  "  --dc-border-soft: rgba(255, 214, 107, 0.24);",
+  "  --dc-border-active: rgba(255, 214, 107, 0.55);",
+  "}",
+  ".dc-landing {",
+  "  min-height: 100vh;",
+  "  min-height: 100dvh;",
+  "  display: flex;",
+  "  flex-direction: column;",
+  "  align-items: center;",
+  "  justify-content: center;",
+  "  padding: max(20px, env(safe-area-inset-top)) 20px max(16px, env(safe-area-inset-bottom));",
+  "  background:",
+  "    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(244, 185, 66, 0.14) 0%, transparent 58%),",
+  "    radial-gradient(ellipse 70% 40% at 85% 100%, rgba(86, 214, 201, 0.06) 0%, transparent 50%),",
+  "    linear-gradient(168deg, var(--dc-deep-night) 0%, var(--dc-warm-ink) 42%, var(--dc-glow-brown) 100%);",
+  "  color: var(--dc-text-primary);",
+  "  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;",
+  "  -webkit-font-smoothing: antialiased;",
+  "}",
+  ".dc-landing__inner {",
+  "  width: 100%;",
+  "  max-width: 420px;",
+  "  display: flex;",
+  "  flex-direction: column;",
+  "  gap: 22px;",
+  "}",
+  ".dc-landing__brand {",
+  "  text-align: center;",
+  "  position: relative;",
+  "}",
+  ".dc-landing__motif {",
+  "  position: relative;",
+  "  width: 44px;",
+  "  height: 56px;",
+  "  margin: 0 auto 14px;",
+  "}",
+  ".dc-landing__motif::before {",
+  "  content: '';",
+  "  position: absolute;",
+  "  left: 50%;",
+  "  top: 4px;",
+  "  width: 22px;",
+  "  height: 28px;",
+  "  transform: translateX(-50%);",
+  "  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;",
+  "  background: linear-gradient(180deg, var(--dc-cyan) 0%, var(--dc-teal) 100%);",
+  "  box-shadow: 0 0 18px rgba(86, 214, 201, 0.35);",
+  "  opacity: 0.85;",
+  "}",
+  ".dc-landing__motif::after {",
+  "  content: '';",
+  "  position: absolute;",
+  "  left: 50%;",
+  "  top: 32px;",
+  "  width: 2px;",
+  "  height: 18px;",
+  "  transform: translateX(-50%);",
+  "  background: linear-gradient(180deg, var(--dc-teal) 0%, transparent 100%);",
+  "  border-radius: 2px;",
+  "  opacity: 0.5;",
+  "}",
+  ".dc-landing__pulse {",
+  "  position: absolute;",
+  "  left: 50%;",
+  "  top: 14px;",
+  "  width: 36px;",
+  "  height: 36px;",
+  "  transform: translate(-50%, -50%);",
+  "  border-radius: 50%;",
+  "  border: 1px solid rgba(86, 214, 201, 0.2);",
+  "  animation: dc-landing-pulse 4s ease-in-out infinite;",
+  "}",
+  "@keyframes dc-landing-pulse {",
+  "  0%, 100% { transform: translate(-50%, -50%) scale(0.85); opacity: 0.35; }",
+  "  50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.65; }",
+  "}",
+  "@media (prefers-reduced-motion: reduce) {",
+  "  .dc-landing__pulse { animation: none; opacity: 0.4; }",
+  "}",
+  ".dc-landing__title {",
+  "  font-size: clamp(2rem, 7vw, 2.35rem);",
+  "  font-weight: 800;",
+  "  letter-spacing: 0.02em;",
+  "  line-height: 1.1;",
+  "  margin: 0 0 8px;",
+  "  color: var(--dc-text-primary);",
+  "}",
+  ".dc-landing__subtitle {",
+  "  font-size: clamp(1rem, 3.8vw, 1.125rem);",
+  "  font-weight: 500;",
+  "  line-height: 1.45;",
+  "  margin: 0 0 6px;",
+  "  color: var(--dc-text-secondary);",
+  "}",
+  ".dc-landing__tagline {",
+  "  font-size: clamp(0.875rem, 3.2vw, 0.9375rem);",
+  "  line-height: 1.45;",
+  "  margin: 0;",
+  "  color: var(--dc-text-muted);",
+  "}",
+  ".dc-landing__modes {",
+  "  display: flex;",
+  "  flex-direction: column;",
+  "  gap: 14px;",
+  "}",
+  ".dc-landing__card {",
+  "  display: block;",
+  "  width: 100%;",
+  "  text-align: left;",
+  "  padding: 18px 18px 16px;",
+  "  border-radius: 16px;",
+  "  border: 1px solid var(--dc-border-soft);",
+  "  background: var(--dc-surface);",
+  "  backdrop-filter: blur(8px);",
+  "  -webkit-backdrop-filter: blur(8px);",
+  "  cursor: pointer;",
+  "  touch-action: manipulation;",
+  "  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;",
+  "  font-family: inherit;",
+  "  color: inherit;",
+  "}",
+  ".dc-landing__card:hover {",
+  "  background: var(--dc-surface-strong);",
+  "  border-color: rgba(255, 214, 107, 0.38);",
+  "}",
+  ".dc-landing__card:focus {",
+  "  outline: none;",
+  "}",
+  ".dc-landing__card:focus-visible {",
+  "  outline: 2px solid var(--dc-border-active);",
+  "  outline-offset: 3px;",
+  "  border-color: var(--dc-border-active);",
+  "  box-shadow: 0 0 0 4px rgba(244, 185, 66, 0.12);",
+  "}",
+  ".dc-landing__card-title {",
+  "  font-size: clamp(1.125rem, 4.2vw, 1.25rem);",
+  "  font-weight: 700;",
+  "  line-height: 1.3;",
+  "  margin: 0 0 6px;",
+  "  color: var(--dc-text-primary);",
+  "}",
+  ".dc-landing__card-text {",
+  "  font-size: clamp(0.9375rem, 3.5vw, 1rem);",
+  "  line-height: 1.5;",
+  "  margin: 0 0 14px;",
+  "  color: var(--dc-text-secondary);",
+  "}",
+  ".dc-landing__card-action {",
+  "  display: inline-flex;",
+  "  align-items: center;",
+  "  justify-content: center;",
+  "  min-height: 44px;",
+  "  padding: 10px 18px;",
+  "  border-radius: 10px;",
+  "  font-size: clamp(0.9375rem, 3.5vw, 1rem);",
+  "  font-weight: 700;",
+  "  letter-spacing: 0.01em;",
+  "  pointer-events: none;",
+  "}",
+  ".dc-landing__card--clinic .dc-landing__card-action {",
+  "  background: linear-gradient(135deg, var(--dc-amber) 0%, var(--dc-soft-gold) 100%);",
+  "  color: var(--dc-deep-night);",
+  "}",
+  ".dc-landing__card--home .dc-landing__card-action {",
+  "  background: rgba(86, 214, 201, 0.14);",
+  "  border: 1px solid rgba(86, 214, 201, 0.35);",
+  "  color: var(--dc-cyan);",
+  "}",
+  ".dc-landing__support {",
+  "  text-align: center;",
+  "}",
+  ".dc-landing__reassurance {",
+  "  font-size: clamp(0.875rem, 3.2vw, 0.9375rem);",
+  "  line-height: 1.55;",
+  "  margin: 0 0 10px;",
+  "  color: var(--dc-text-secondary);",
+  "}",
+  ".dc-landing__disclaimer {",
+  "  font-size: clamp(0.8125rem, 3vw, 0.875rem);",
+  "  line-height: 1.5;",
+  "  margin: 0 0 14px;",
+  "  color: var(--dc-text-muted);",
+  "}",
+  ".dc-landing__footer-brand {",
+  "  font-size: 0.6875rem;",
+  "  font-weight: 600;",
+  "  letter-spacing: 0.22em;",
+  "  text-transform: uppercase;",
+  "  margin: 0;",
+  "  color: var(--dc-text-muted);",
+  "  opacity: 0.75;",
+  "}",
+  ".dc-landing__empty {",
+  "  text-align: center;",
+  "  font-size: 0.9375rem;",
+  "  line-height: 1.5;",
+  "  color: var(--dc-text-muted);",
+  "  margin: 0;",
+  "}",
+].join("\n");
+
 function HomeModeSelector(props) {
   var STORE = window.DOSECRAFT_HOME_STORE;
   var isModule = window.DOSECRAFT_isModuleEnabled;
-  var cfg = window.DOSECRAFT_getClinicConfig();
-  var page = {
-    minHeight: "100vh",
-    background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
-    color: "#f5f8fc",
-    fontFamily: "'Segoe UI', system-ui, sans-serif",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  };
+  var hasHome = isModule("homeInfusion");
+  var hasClinic = isModule("clinicInfusion");
   function choose(mode) {
     STORE.setPatientMode(mode);
     if (mode === "home") {
@@ -2603,37 +2809,62 @@ function HomeModeSelector(props) {
     }
   }
   return (
-    <div style={page}>
-      <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 13, letterSpacing: 3, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>DOSECRAFT</div>
-        <h1 style={{ fontSize: 30, fontWeight: 800, marginBottom: 12 }}>How will you use Dosecraft?</h1>
-        <p style={{ fontSize: 17, color: "rgba(255,255,255,0.6)", marginBottom: 28, lineHeight: 1.6 }}>
-          You can change this later. {cfg.disclaimers.general}
-        </p>
-        {isModule("homeInfusion") && (
-        <button onClick={function () { choose("home"); }} style={{
-          display: "block", width: "100%", minHeight: 56, marginBottom: 14, padding: 16,
-          borderRadius: 14, border: "none", background: "#2a9d8f", color: "#041018",
-          fontSize: 18, fontWeight: 700, cursor: "pointer",
-        }}>
-          Home infusion companion
-          <div style={{ fontSize: 14, fontWeight: 400, marginTop: 4, opacity: 0.85 }}>Antibiotic doses at home · SASH · dose tracking</div>
-        </button>
-        )}
-        {isModule("clinicInfusion") && (
-        <button onClick={function () { choose("clinic"); }} style={{
-          display: "block", width: "100%", minHeight: 56, padding: 16,
-          borderRadius: 14, border: "2px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.06)", color: "#f5f8fc",
-          fontSize: 18, fontWeight: 700, cursor: "pointer",
-        }}>
-          Clinic infusion mode
-          <div style={{ fontSize: 14, fontWeight: 400, marginTop: 4, opacity: 0.75 }}>IVIG / in-clinic timer · optional games</div>
-        </button>
-        )}
-        {!isModule("homeInfusion") && !isModule("clinicInfusion") && (
-          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>No infusion modes are enabled for this clinic configuration.</p>
-        )}
+    <React.Fragment>
+      <style dangerouslySetInnerHTML={{ __html: LANDING_SCREEN_STYLES }} />
+      <div className="dc-landing">
+        <div className="dc-landing__inner">
+          <header className="dc-landing__brand">
+            <div className="dc-landing__motif" aria-hidden="true">
+              <span className="dc-landing__pulse" />
+            </div>
+            <h1 className="dc-landing__title">Dosecraft</h1>
+            <p className="dc-landing__subtitle">Interactive support for infusion therapy</p>
+            <p className="dc-landing__tagline">Understand your therapy. One dose at a time.</p>
+          </header>
+
+          <div className="dc-landing__modes">
+            {hasClinic && (
+              <button
+                type="button"
+                className="dc-landing__card dc-landing__card--clinic"
+                onClick={function () { choose("clinic"); }}
+              >
+                <h2 className="dc-landing__card-title">Clinic Mode</h2>
+                <p className="dc-landing__card-text">
+                  Play a short interactive experience that shows what your infusion medication is doing.
+                </p>
+                <span className="dc-landing__card-action">Start Clinic Mode</span>
+              </button>
+            )}
+            {hasHome && (
+              <button
+                type="button"
+                className="dc-landing__card dc-landing__card--home"
+                onClick={function () { choose("home"); }}
+              >
+                <h2 className="dc-landing__card-title">Home Infusion Companion</h2>
+                <p className="dc-landing__card-text">
+                  Follow step-by-step dose support, reminders, and home infusion guidance.
+                </p>
+                <span className="dc-landing__card-action">Start Home Companion</span>
+              </button>
+            )}
+            {!hasHome && !hasClinic && (
+              <p className="dc-landing__empty">No infusion modes are enabled for this clinic configuration.</p>
+            )}
+          </div>
+
+          <footer className="dc-landing__support">
+            <p className="dc-landing__reassurance">
+              Whether you are at the infusion clinic or managing doses at home, Dosecraft helps you follow along with your treatment in a calm, supportive way.
+            </p>
+            <p className="dc-landing__disclaimer">
+              Dosecraft is an educational companion and does not replace instructions from your care team.
+            </p>
+            <p className="dc-landing__footer-brand">SHARPRX INTERACTIVE</p>
+          </footer>
+        </div>
       </div>
-    </div>
+    </React.Fragment>
   );
 }
