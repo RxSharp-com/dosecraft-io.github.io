@@ -313,5 +313,24 @@
       { label: "5 hours", mins: 300 },
       { label: "24 hours", mins: 1440 },
     ],
+
+    calendarReminders: {
+      cardTitle: "Reminders",
+      doseButton: "Add dose reminders to calendar",
+      weeklyRowLabel: "Weekly labs / line care visit",
+      weeklyButton: "Add weekly visit to calendar",
+      frequencyNotSupported: "Calendar export is currently available for weekly visit schedules.",
+      missingVisitDate: "Add your next visit date in Additional Settings to enable calendar export.",
+      missingVisitTime: "Add your visit time in Additional Settings to enable calendar export.",
+      setupIncomplete: "Complete treatment setup to enable dose calendar export.",
+      visitTimeLabel: "Visit time",
+      privacyCopy:
+        "Calendar reminders are created on your device. Dosecraft does not send your schedule anywhere. Calendar apps may store reminders according to their own settings.",
+      privacyCopyTimes:
+        "Reminder times are included in calendar events so your calendar can show when they're scheduled. This information is stored by your calendar app, not by Dosecraft.",
+      scheduleChangeNote:
+        "If you change your dose schedule, delete your old calendar reminders and re-export.",
+      downloadConfirmation: "File downloaded. Open it to add reminders to your calendar.",
+    },
   };
 })();
