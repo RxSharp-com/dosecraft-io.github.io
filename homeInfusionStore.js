@@ -166,6 +166,7 @@
       },
       appointment: {
         nextPickupDate: "",
+        nextVisitTime: "",
         frequency: "weekly",
         customIntervalDays: 7,
       },

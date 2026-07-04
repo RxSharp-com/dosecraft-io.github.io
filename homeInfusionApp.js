@@ -470,6 +470,12 @@ function reminderAnalyticsProps(prefs) {
   };
 }
 
+function trackCalendarReminderEvent(eventName) {
+  if (window.trackDosecraftEvent) {
+    window.trackDosecraftEvent(eventName, {}, { domain: "companion" });
+  }
+}
+
 function PwaInstallSetupCard(props) {
   var col = props.accentColor || "#2a9d8f";
   if (props.standalone) return null;
@@ -651,6 +657,9 @@ function HomeInfusionApp() {
   var _settingsConfirm = _useState(null);
   var settingsConfirm = _settingsConfirm[0], setSettingsConfirm = _settingsConfirm[1];
 
+  var _icsExportMsg = _useState("");
+  var icsExportMsg = _icsExportMsg[0], setIcsExportMsg = _icsExportMsg[1];
+
   var installPromptEventRef = _useRef(null);
   var standalonePwa = isStandalonePwa();
 
@@ -797,10 +806,51 @@ function HomeInfusionApp() {
     }
   }
 
+  function handleDoseCalendarExport() {
+    var ICS = window.DOSECRAFT_ICS;
+    var calCopy = COPY.calendarReminders || {};
+    if (!ICS) return;
+    var icsString = ICS.buildDoseReminderICS(settings);
+    if (!icsString) return;
+    ICS.shareOrDownloadICS(icsString, "dosecraft-dose-reminders.ics").then(function (result) {
+      if (result && result.method === "download") {
+        setIcsExportMsg(calCopy.downloadConfirmation || "File downloaded. Open it to add reminders to your calendar.");
+      } else {
+        setIcsExportMsg("");
+      }
+    });
+    trackCalendarReminderEvent("dose_calendar_export_clicked");
+  }
+
+  function handleWeeklyVisitCalendarExport() {
+    var ICS = window.DOSECRAFT_ICS;
+    var calCopy = COPY.calendarReminders || {};
+    if (!ICS) return;
+    var icsString = ICS.buildWeeklyVisitICS(settings);
+    if (!icsString) return;
+    ICS.shareOrDownloadICS(icsString, "dosecraft-weekly-visit.ics").then(function (result) {
+      if (result && result.method === "download") {
+        setIcsExportMsg(calCopy.downloadConfirmation || "File downloaded. Open it to add reminders to your calendar.");
+      } else {
+        setIcsExportMsg("");
+      }
+    });
+    trackCalendarReminderEvent("weekly_visit_calendar_export_clicked");
+  }
+
   var companionOpenedRef = _useRef(false);
   var setupStartedRef = _useRef(false);
   var wizardStartedRef = _useRef(false);
   var appointmentCardViewedRef = _useRef(false);
+  var reminderSectionViewedRef = _useRef(false);
+
+  _useEffect(function () {
+    if (screen !== "additionalSettings") return;
+    if (!isModule("doseReminders")) return;
+    if (!window.trackDosecraftEvent || reminderSectionViewedRef.current) return;
+    reminderSectionViewedRef.current = true;
+    trackCalendarReminderEvent("reminder_section_viewed");
+  }, [screen]);
 
   _useEffect(function () {
     if (!window.trackCompanionScreen || companionOpenedRef.current) return;
@@ -2297,6 +2347,18 @@ function HomeInfusionApp() {
     var addSchedulableDoses = collectUpcomingDosesForReminders(STORE, settings);
     var addCanSchedule = addRemindersOn && addPermissionGranted && addSchedulableDoses.length > 0;
     var addBlockedText = permissionBlockedMsg || (addPermDenied ? "Notifications are blocked in your browser settings." : "");
+    var calCopy = COPY.calendarReminders || {};
+    var doseSetupComplete = STORE.isSetupComplete(settings);
+    var weeklyFrequency = (addTs.appointment && addTs.appointment.frequency) === "weekly";
+    var hasVisitDate = !!(addTs.appointment && addTs.appointment.nextPickupDate);
+    var hasVisitTime = !!(addTs.appointment && addTs.appointment.nextVisitTime);
+    var canExportWeekly = weeklyFrequency && hasVisitDate && hasVisitTime;
+    var weeklyDisabledReason = "";
+    if (weeklyFrequency && !hasVisitDate) {
+      weeklyDisabledReason = calCopy.missingVisitDate || "Add your next visit date in Additional Settings to enable calendar export.";
+    } else if (weeklyFrequency && !hasVisitTime) {
+      weeklyDisabledReason = calCopy.missingVisitTime || "Add your visit time in Additional Settings to enable calendar export.";
+    }
     return (
       <HomeShell>
         {renderGlobalTimerBanner()}
@@ -2394,6 +2456,21 @@ function HomeInfusionApp() {
                 style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 10 }}
               />
             )}
+            <div style={label}>{(COPY.calendarReminders && COPY.calendarReminders.visitTimeLabel) || "Visit time"}</div>
+            <input
+              type="time"
+              value={addTs.appointment.nextVisitTime || ""}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { nextVisitTime: e.target.value });
+                persist(next);
+              }}
+              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 4 }}
+            />
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+              {calCopy.visitDateTimeSessionHint}
+            </p>
           </div>
         )}
 
@@ -2489,6 +2566,103 @@ function HomeInfusionApp() {
               </div>
             )}
           </div>
+        )}
+
+        {isModule("doseReminders") && (
+        <div style={card}>
+          <div style={{ ...label, marginBottom: 12 }}>{calCopy.cardTitle || "Reminders"}</div>
+
+          <div style={{ marginBottom: 20 }}>
+            <button
+              type="button"
+              onClick={handleDoseCalendarExport}
+              disabled={!doseSetupComplete}
+              style={{
+                display: "block",
+                width: "100%",
+                minHeight: 52,
+                padding: "14px 20px",
+                borderRadius: 12,
+                border: "none",
+                background: doseSetupComplete ? col : "rgba(255,255,255,0.08)",
+                color: doseSetupComplete ? "#041018" : "rgba(255,255,255,0.45)",
+                fontSize: 17,
+                fontWeight: 700,
+                cursor: doseSetupComplete ? "pointer" : "default",
+                touchAction: "manipulation",
+              }}
+            >
+              {calCopy.doseButton || "Add dose reminders to calendar"}
+            </button>
+            {!doseSetupComplete && (
+              <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
+                {calCopy.setupIncomplete || "Complete treatment setup to enable dose calendar export."}
+              </p>
+            )}
+            <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              {calCopy.privacyCopy}
+            </p>
+            <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              {calCopy.privacyCopyTimes}
+            </p>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            {weeklyFrequency ? (
+              <div>
+                <p style={{ margin: "0 0 10px", fontSize: 16, color: "rgba(255,255,255,0.85)" }}>
+                  {calCopy.weeklyRowLabel || "Weekly labs / line care visit"}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleWeeklyVisitCalendarExport}
+                  disabled={!canExportWeekly}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    minHeight: 52,
+                    padding: "14px 20px",
+                    borderRadius: 12,
+                    border: "none",
+                    background: canExportWeekly ? col : "rgba(255,255,255,0.08)",
+                    color: canExportWeekly ? "#041018" : "rgba(255,255,255,0.45)",
+                    fontSize: 17,
+                    fontWeight: 700,
+                    cursor: canExportWeekly ? "pointer" : "default",
+                    touchAction: "manipulation",
+                  }}
+                >
+                  {calCopy.weeklyButton || "Add weekly visit to calendar"}
+                </button>
+                {weeklyDisabledReason && (
+                  <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
+                    {weeklyDisabledReason}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                {calCopy.frequencyNotSupported || "Calendar export is currently available for weekly visit schedules."}
+              </p>
+            )}
+            <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              {calCopy.privacyCopy}
+            </p>
+            <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+              {calCopy.privacyCopyTimes}
+            </p>
+          </div>
+
+          <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+            {calCopy.scheduleChangeNote}
+          </p>
+
+          {icsExportMsg && (
+            <p style={{ margin: "12px 0 0", fontSize: 15, color: col, lineHeight: 1.5 }} role="status">
+              {icsExportMsg}
+            </p>
+          )}
+        </div>
         )}
 
         <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />

@@ -35,6 +35,9 @@
     local_device_data_cleared: true,
     reminder_enabled: true,
     reminder_scheduled: true,
+    reminder_section_viewed: true,
+    dose_calendar_export_clicked: true,
+    weekly_visit_calendar_export_clicked: true,
   };
 
   var COMPANION_PROPERTY_ALLOWLIST = {
