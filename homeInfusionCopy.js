@@ -324,6 +324,8 @@
       missingVisitTime: "Add your visit time in Additional Settings to enable calendar export.",
       setupIncomplete: "Complete treatment setup to enable dose calendar export.",
       visitTimeLabel: "Visit time",
+      visitDateTimeSessionHint:
+        "Visit date and time are used for calendar export during this session. If you reload the app, re-enter them here before exporting again.",
       privacyCopy:
         "Calendar reminders are created on your device. Dosecraft does not send your schedule anywhere. Calendar apps may store reminders according to their own settings.",
       privacyCopyTimes:

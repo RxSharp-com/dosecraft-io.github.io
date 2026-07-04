@@ -470,6 +470,12 @@ function reminderAnalyticsProps(prefs) {
   };
 }
 
+function trackCalendarReminderEvent(eventName) {
+  if (window.trackDosecraftEvent) {
+    window.trackDosecraftEvent(eventName, {}, { domain: "companion" });
+  }
+}
+
 function PwaInstallSetupCard(props) {
   var col = props.accentColor || "#2a9d8f";
   if (props.standalone) return null;
@@ -813,9 +819,7 @@ function HomeInfusionApp() {
         setIcsExportMsg("");
       }
     });
-    if (window.trackCompanionScreen) {
-      window.trackCompanionScreen("dose_calendar_export_clicked", "additional_settings", { mode: "home" });
-    }
+    trackCalendarReminderEvent("dose_calendar_export_clicked");
   }
 
   function handleWeeklyVisitCalendarExport() {
@@ -831,9 +835,7 @@ function HomeInfusionApp() {
         setIcsExportMsg("");
       }
     });
-    if (window.trackCompanionScreen) {
-      window.trackCompanionScreen("weekly_visit_calendar_export_clicked", "additional_settings", { mode: "home" });
-    }
+    trackCalendarReminderEvent("weekly_visit_calendar_export_clicked");
   }
 
   var companionOpenedRef = _useRef(false);
@@ -844,9 +846,10 @@ function HomeInfusionApp() {
 
   _useEffect(function () {
     if (screen !== "additionalSettings") return;
-    if (!window.trackCompanionScreen || reminderSectionViewedRef.current) return;
+    if (!isModule("doseReminders")) return;
+    if (!window.trackDosecraftEvent || reminderSectionViewedRef.current) return;
     reminderSectionViewedRef.current = true;
-    window.trackCompanionScreen("reminder_section_viewed", "additional_settings", { mode: "home" });
+    trackCalendarReminderEvent("reminder_section_viewed");
   }, [screen]);
 
   _useEffect(function () {
@@ -2465,6 +2468,9 @@ function HomeInfusionApp() {
               }}
               style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 4 }}
             />
+            <p style={{ margin: "8px 0 0", fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+              {calCopy.visitDateTimeSessionHint}
+            </p>
           </div>
         )}
 
@@ -2562,6 +2568,7 @@ function HomeInfusionApp() {
           </div>
         )}
 
+        {isModule("doseReminders") && (
         <div style={card}>
           <div style={{ ...label, marginBottom: 12 }}>{calCopy.cardTitle || "Reminders"}</div>
 
@@ -2656,6 +2663,7 @@ function HomeInfusionApp() {
             </p>
           )}
         </div>
+        )}
 
         <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />
       </HomeShell>
