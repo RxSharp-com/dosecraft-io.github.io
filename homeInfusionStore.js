@@ -873,6 +873,26 @@
     return { calendarDay: calendarDay, totalDays: totalDays, dosesCompleted: dosesCompleted };
   }
 
+  function getResolvedTreatmentEndDate(settings) {
+    var ts = getActiveTreatmentSet(settings);
+    if (!ts || !ts.course) return null;
+    var course = ts.course;
+    if (course.endDate) {
+      var fromEnd = new Date(course.endDate + "T12:00:00");
+      if (!isNaN(fromEnd.getTime())) return fromEnd;
+    }
+    var startDate = course.startDate;
+    var totalPlannedDays = course.totalPlannedDays;
+    if (startDate && totalPlannedDays) {
+      var days = parseInt(totalPlannedDays, 10);
+      if (!isNaN(days) && days > 0) {
+        var start = startOfDay(new Date(startDate + "T12:00:00"));
+        return addDays(start, days - 1);
+      }
+    }
+    return null;
+  }
+
   function getNextAppointmentDate(settings) {
     var appt = getActiveTreatmentSet(settings).appointment || {};
     return appt.nextPickupDate || "";
@@ -1551,6 +1571,7 @@
     getNextScheduledDose: getNextScheduledDose,
     formatNextDose: formatNextDose,
     getNextAppointmentDate: getNextAppointmentDate,
+    getResolvedTreatmentEndDate: getResolvedTreatmentEndDate,
     advanceAppointmentDate: advanceAppointmentDate,
     getMedicationDisplay: getMedicationDisplay,
     getMedicationDrug: getMedicationDrug,

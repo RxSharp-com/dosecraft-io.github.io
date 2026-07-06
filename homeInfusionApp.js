@@ -168,17 +168,130 @@ function wizardMedStep2Valid(medDraft) {
 function wizardStepIndicator(wizardScreen, wizardMedIndex, twoMedPath) {
   if (twoMedPath) {
     if (wizardMedIndex === 0) {
-      if (wizardScreen >= 1 && wizardScreen <= 4) return "Step " + wizardScreen + " of 6";
-      if (wizardScreen === 5) return "Step 5 of 6";
+      if (wizardScreen >= 1 && wizardScreen <= 6) return "Step " + wizardScreen + " of 7";
     } else {
-      if (wizardScreen === 1) return "Step 5 of 6";
-      if (wizardScreen === 2) return "Step 6 of 6";
-      if (wizardScreen === 3) return "Step 6 of 6";
+      if (wizardScreen === 1) return "Step 6 of 7";
+      if (wizardScreen === 2) return "Step 7 of 7";
+      if (wizardScreen === 3) return "Step 7 of 7";
     }
     return "";
   }
-  if (wizardScreen >= 1 && wizardScreen <= 4) return "Step " + wizardScreen + " of 4";
+  if (wizardScreen >= 1 && wizardScreen <= 7) return "Step " + wizardScreen + " of 7";
   return "";
+}
+
+function wizardDurationStepValid(mode, course, lengthValue) {
+  if (mode === "end_date") return !!(course && course.endDate);
+  if (mode === "length") {
+    var n = parseInt(lengthValue, 10);
+    return !isNaN(n) && n > 0;
+  }
+  return true;
+}
+
+function HomeGridBtn(props) {
+  var accent = props.accentColor || "#2a9d8f";
+  var primary = props.primary;
+  var style = {
+    display: "block",
+    width: "100%",
+    minHeight: 52,
+    padding: "14px 16px",
+    borderRadius: 12,
+    border: primary ? "none" : "2px solid rgba(255,255,255,0.2)",
+    background: primary ? accent : "rgba(255,255,255,0.08)",
+    color: primary ? "#041018" : "#f5f8fc",
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: props.disabled ? "default" : "pointer",
+    opacity: props.disabled ? 0.5 : 1,
+    touchAction: "manipulation",
+    textAlign: "center",
+    textDecoration: "none",
+    boxSizing: "border-box",
+  };
+  if (props.href) {
+    return (
+      <a href={props.href} className={props.className} style={style} onClick={props.onClick}>
+        {props.label}
+      </a>
+    );
+  }
+  return (
+    <button type="button" className={props.className} onClick={props.onClick} disabled={props.disabled} style={style}>
+      {props.label}
+    </button>
+  );
+}
+
+function HomeQuickActionGrid(props) {
+  return (
+    <div>
+      <style>{".dc-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}@media (max-width:360px){.dc-quick-grid{grid-template-columns:1fr}}"}</style>
+      <div className="dc-quick-grid">{props.children}</div>
+    </div>
+  );
+}
+
+function DashboardGearMenu(props) {
+  var col = props.accentColor || "#2a9d8f";
+  var gearCopy = props.copy || {};
+  var confirmCopy = props.settingsConfirm === "companion"
+    ? (gearCopy.confirmResetCompanion || "This will clear your saved Companion treatment setup on this device.")
+    : props.settingsConfirm === "all"
+      ? (gearCopy.confirmClearData || "This clears Dosecraft data saved on this device.")
+      : "";
+  if (!props.open) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.45)",
+      }}
+      onClick={props.onClose}
+      role="presentation"
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 56,
+          right: 16,
+          width: "min(320px, calc(100vw - 32px))",
+          background: "#0d1f2d",
+          border: "1px solid rgba(255,255,255,0.15)",
+          borderRadius: 14,
+          padding: "12px 8px",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
+        }}
+        onClick={function (e) { e.stopPropagation(); }}
+        role="menu"
+      >
+        <HomeBtn accentColor={col} label={gearCopy.editSetup || "Edit setup"} onClick={props.onEditSetup} />
+        {props.showSwitchExperience && (
+          <HomeBtn accentColor={col} label={gearCopy.switchExperience || "Switch experience"} onClick={props.onSwitchExperience} />
+        )}
+        <HomeBtn accentColor={col} label={gearCopy.resetCompanion || "Reset Companion setup"} onClick={function () { props.onRequestConfirm("companion"); }} />
+        <HomeBtn accentColor={col} label={gearCopy.clearData || "Clear Dosecraft data"} onClick={function () { props.onRequestConfirm("all"); }} />
+        {props.showAddToHomeScreen && (
+          <HomeBtn accentColor={col} label={gearCopy.addToHomeScreen || "Add to Home Screen"} onClick={props.onAddToHomeScreen} />
+        )}
+        {props.settingsConfirm && (
+          <div style={{ margin: "8px 4px 4px", padding: "12px 10px", borderRadius: 10, border: "1px solid rgba(255,180,80,0.35)", background: "rgba(255,255,255,0.04)" }}>
+            <p style={{ margin: "0 0 12px", fontSize: 15, lineHeight: 1.5, color: "rgba(255,255,255,0.85)" }}>{confirmCopy}</p>
+            <HomeBtn
+              accentColor={col}
+              primary
+              label={props.settingsConfirm === "companion" ? (gearCopy.resetCompanion || "Reset Companion setup") : (gearCopy.clearData || "Clear data")}
+              onClick={props.onConfirmAction}
+            />
+            <HomeBtn accentColor={col} label={gearCopy.cancel || "Cancel"} onClick={props.onCancelConfirm} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function CompactTimerBanner(props) {
@@ -660,7 +773,23 @@ function HomeInfusionApp() {
   var _icsExportMsg = _useState("");
   var icsExportMsg = _icsExportMsg[0], setIcsExportMsg = _icsExportMsg[1];
 
+  var _gearMenuOpen = _useState(false);
+  var gearMenuOpen = _gearMenuOpen[0], setGearMenuOpen = _gearMenuOpen[1];
+
+  var _callCareGuidanceOpen = _useState(false);
+  var callCareGuidanceOpen = _callCareGuidanceOpen[0], setCallCareGuidanceOpen = _callCareGuidanceOpen[1];
+
+  var _wizardDurationMode = _useState("unsure");
+  var wizardDurationMode = _wizardDurationMode[0], setWizardDurationMode = _wizardDurationMode[1];
+
+  var _wizardLengthValue = _useState("");
+  var wizardLengthValue = _wizardLengthValue[0], setWizardLengthValue = _wizardLengthValue[1];
+
+  var _wizardLengthUnit = _useState("days");
+  var wizardLengthUnit = _wizardLengthUnit[0], setWizardLengthUnit = _wizardLengthUnit[1];
+
   var installPromptEventRef = _useRef(null);
+  var gearMenuButtonRef = _useRef(null);
   var standalonePwa = isStandalonePwa();
 
   var activeTimer = STORE.getActiveInfusionTimer(settings);
@@ -700,6 +829,17 @@ function HomeInfusionApp() {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     };
   }, []);
+
+  _useEffect(function () {
+    if (!gearMenuOpen) return;
+    function onKeyDown(e) {
+      if (e.key === "Escape") setGearMenuOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return function () {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [gearMenuOpen]);
 
   _useEffect(function () {
     if (getNotificationPermission() === "denied") {
@@ -810,8 +950,15 @@ function HomeInfusionApp() {
     var ICS = window.DOSECRAFT_ICS;
     var calCopy = COPY.calendarReminders || {};
     if (!ICS) return;
+    if (!STORE.getResolvedTreatmentEndDate(settings)) {
+      setIcsExportMsg(calCopy.missingEndDate || "Add your planned end date before exporting dose reminders.");
+      return;
+    }
     var icsString = ICS.buildDoseReminderICS(settings);
-    if (!icsString) return;
+    if (!icsString) {
+      setIcsExportMsg(calCopy.missingEndDate || "Add your planned end date before exporting dose reminders.");
+      return;
+    }
     ICS.shareOrDownloadICS(icsString, "dosecraft-dose-reminders.ics").then(function (result) {
       if (result && result.method === "download") {
         setIcsExportMsg(calCopy.downloadConfirmation || "File downloaded. Open it to add reminders to your calendar.");
@@ -826,8 +973,15 @@ function HomeInfusionApp() {
     var ICS = window.DOSECRAFT_ICS;
     var calCopy = COPY.calendarReminders || {};
     if (!ICS) return;
+    if (!STORE.getResolvedTreatmentEndDate(settings)) {
+      setIcsExportMsg(calCopy.missingEndDateWeekly || "Add your planned end date before exporting weekly visit reminders.");
+      return;
+    }
     var icsString = ICS.buildWeeklyVisitICS(settings);
-    if (!icsString) return;
+    if (!icsString) {
+      setIcsExportMsg(calCopy.missingEndDateWeekly || "Add your planned end date before exporting weekly visit reminders.");
+      return;
+    }
     ICS.shareOrDownloadICS(icsString, "dosecraft-weekly-visit.ics").then(function (result) {
       if (result && result.method === "download") {
         setIcsExportMsg(calCopy.downloadConfirmation || "File downloaded. Open it to add reminders to your calendar.");
@@ -845,7 +999,7 @@ function HomeInfusionApp() {
   var reminderSectionViewedRef = _useRef(false);
 
   _useEffect(function () {
-    if (screen !== "additionalSettings") return;
+    if (screen !== "reminders") return;
     if (!isModule("doseReminders")) return;
     if (!window.trackDosecraftEvent || reminderSectionViewedRef.current) return;
     reminderSectionViewedRef.current = true;
@@ -937,6 +1091,7 @@ function HomeInfusionApp() {
     if (name === "medInfo" && !isModule("medicationEducation")) return;
     if (name === "lineCare" && !isModule("lineCare")) return;
     if (name === "additionalSettings") return setScreen("additionalSettings");
+    if (name === "reminders") return setScreen("reminders");
     setScreen(name);
   }
 
@@ -1153,7 +1308,7 @@ function HomeInfusionApp() {
     function wizardBack() {
       if (wizardScreen === 1 && wizardMedIndex === 1) {
         setWizardMedIndex(0);
-        setWizardScreen(5);
+        setWizardScreen(6);
         return;
       }
       if (wizardScreen > 1) setWizardScreen(wizardScreen - 1);
@@ -1162,7 +1317,7 @@ function HomeInfusionApp() {
     function wizardNextFromMed3() {
       commitWizardMedToDraft();
       if (wizardMedIndex === 1) {
-        setWizardScreen(6);
+        setWizardScreen(7);
         return;
       }
       setWizardScreen(4);
@@ -1173,7 +1328,37 @@ function HomeInfusionApp() {
       else if (wizardScreen === 2 && wizardMedStep2Valid(wizardMedDraft)) setWizardScreen(3);
       else if (wizardScreen === 3 && wizardMedDraft.infusionDurationMins != null) wizardNextFromMed3();
       else if (wizardScreen === 4 && wizardDraft.treatmentSet.course.startDate) setWizardScreen(5);
+      else if (wizardScreen === 5 && wizardDurationStepValid(wizardDurationMode, wizardDraft.treatmentSet.course, wizardLengthValue)) setWizardScreen(6);
     }
+
+    function applyWizardDurationToDraft() {
+      setWizardDraft(function (d) {
+        var next = Object.assign({}, d);
+        next.treatmentSet = Object.assign({}, d.treatmentSet);
+        var course = Object.assign({}, d.treatmentSet.course);
+        if (wizardDurationMode === "end_date") {
+          course.totalPlannedDays = null;
+        } else if (wizardDurationMode === "length") {
+          var n = parseInt(wizardLengthValue, 10);
+          var days = wizardLengthUnit === "weeks" ? n * 7 : n;
+          course.totalPlannedDays = days;
+          course.endDate = "";
+        } else {
+          course.endDate = "";
+          course.totalPlannedDays = null;
+        }
+        next.treatmentSet.course = course;
+        return next;
+      });
+    }
+
+    function wizardDurationContinue() {
+      applyWizardDurationToDraft();
+      setWizardScreen(6);
+    }
+
+    var durationValid = wizardDurationStepValid(wizardDurationMode, wizardDraft.treatmentSet.course, wizardLengthValue);
+    var showDurationLengthError = wizardDurationMode === "length" && wizardLengthValue !== "" && !durationValid;
 
     var inputStyle = { width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 10 };
     var linkStyle = {
@@ -1187,10 +1372,10 @@ function HomeInfusionApp() {
       textAlign: "left",
     };
 
-    if (wizardScreen === 6) {
+    if (wizardScreen === 7) {
       return (
         <HomeShell>
-          <HomeBack onClick={function () { setWizardScreen(5); }} label="Back" />
+          <HomeBack onClick={function () { setWizardScreen(6); }} label="Back" />
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.saveTitle || "You're all set"}</h1>
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>
             {wz.saveHint || "You can update your treatment anytime from Edit setup."}
@@ -1200,10 +1385,10 @@ function HomeInfusionApp() {
       );
     }
 
-    if (wizardScreen === 5) {
+    if (wizardScreen === 6) {
       return (
         <HomeShell>
-          <HomeBack onClick={function () { setWizardScreen(4); }} label="Back" />
+          <HomeBack onClick={function () { setWizardScreen(5); }} label="Back" />
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.addAnotherTitle || "Add another medication?"}</h1>
           {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
           <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>
@@ -1223,7 +1408,105 @@ function HomeInfusionApp() {
           <HomeBtn
             accentColor={col}
             label={wz.addAnotherNo || "No, I'm done"}
-            onClick={function () { setWizardScreen(6); }}
+            onClick={function () { setWizardScreen(7); }}
+          />
+        </HomeShell>
+      );
+    }
+
+    if (wizardScreen === 5) {
+      return (
+        <HomeShell>
+          <HomeBack onClick={function () { setWizardScreen(4); }} label="Back" />
+          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "0 0 8px" }}>{wz.treatmentDurationTitle || "Treatment duration"}</h1>
+          {stepLabel && <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", marginBottom: 12 }}>{stepLabel}</p>}
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+            {wz.treatmentDurationHint || "This helps your Companion show progress and export calendar reminders."}
+          </p>
+          <div style={card}>
+            <label style={{ display: "block", marginBottom: 10 }}>
+              <input
+                type="radio"
+                name="wizardDurationMode"
+                checked={wizardDurationMode === "end_date"}
+                onChange={function () { setWizardDurationMode("end_date"); }}
+                style={{ marginRight: 10 }}
+              />
+              {wz.durationModeEndDate || "I know my end date"}
+            </label>
+            {wizardDurationMode === "end_date" && (
+              <input
+                type="date"
+                value={wizardDraft.treatmentSet.course.endDate || ""}
+                onChange={function (e) {
+                  var val = e.target.value;
+                  setWizardDraft(function (d) {
+                    var next = Object.assign({}, d);
+                    next.treatmentSet = Object.assign({}, d.treatmentSet);
+                    next.treatmentSet.course = Object.assign({}, d.treatmentSet.course, { endDate: val, totalPlannedDays: null });
+                    return next;
+                  });
+                }}
+                style={inputStyle}
+              />
+            )}
+            <label style={{ display: "block", marginBottom: 10, marginTop: 8 }}>
+              <input
+                type="radio"
+                name="wizardDurationMode"
+                checked={wizardDurationMode === "length"}
+                onChange={function () { setWizardDurationMode("length"); }}
+                style={{ marginRight: 10 }}
+              />
+              {wz.durationModeLength || "I know the length of therapy"}
+            </label>
+            {wizardDurationMode === "length" && (
+              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 14"
+                  value={wizardLengthValue}
+                  onChange={function (e) { setWizardLengthValue(e.target.value); }}
+                  style={{ flex: 1, padding: 12, fontSize: 17, borderRadius: 8 }}
+                />
+                <select
+                  value={wizardLengthUnit}
+                  onChange={function (e) { setWizardLengthUnit(e.target.value); }}
+                  style={{ padding: 12, fontSize: 17, borderRadius: 8 }}
+                >
+                  <option value="days">{wz.durationLengthDays || "Days"}</option>
+                  <option value="weeks">{wz.durationLengthWeeks || "Weeks"}</option>
+                </select>
+              </div>
+            )}
+            {showDurationLengthError && (
+              <p style={{ margin: "0 0 10px", fontSize: 14, color: "#f4a261" }} role="alert">
+                {wz.durationLengthError || "Enter a number greater than zero."}
+              </p>
+            )}
+            <label style={{ display: "block", marginBottom: 10, marginTop: 8 }}>
+              <input
+                type="radio"
+                name="wizardDurationMode"
+                checked={wizardDurationMode === "unsure"}
+                onChange={function () { setWizardDurationMode("unsure"); }}
+                style={{ marginRight: 10 }}
+              />
+              {wz.durationModeUnsure || "I'm not sure yet"}
+            </label>
+            {wizardDurationMode === "unsure" && (
+              <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                {wz.durationUnsureHint || "You can still use Dosecraft. Calendar dose reminders need an end date before export."}
+              </p>
+            )}
+          </div>
+          <HomeBtn
+            accentColor={col}
+            primary
+            label="Next"
+            disabled={!durationValid}
+            onClick={wizardDurationContinue}
           />
         </HomeShell>
       );
@@ -2161,6 +2444,7 @@ function HomeInfusionApp() {
           </ul>
         </div>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>{cfg.disclaimers.lineCare || COPY.careTeamNote}</p>
+        <HomeBtn accentColor={col} label={(COPY.wizard && COPY.wizard.additionalSettingsTitle) || "Treatment settings"} onClick={function () { goToScreen("additionalSettings"); }} />
       </HomeShell>
     );
   }
@@ -2254,11 +2538,12 @@ function HomeInfusionApp() {
       );
     }
     var apptTs = treatmentSet();
+    var apptCalCopy = COPY.calendarReminders || {};
     return (
       <HomeShell>
         {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} />
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Lab / follow-up visit</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Weekly labs / line care visit</h1>
         <div style={card}>
           <div style={label}>Next visit date</div>
           <input type="date" value={apptTs.appointment.nextPickupDate || ""}
@@ -2277,12 +2562,44 @@ function HomeInfusionApp() {
               next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { frequency: e.target.value });
               persist(next);
             }}
-            style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }}>
+            style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 14 }}>
             <option value="weekly">Weekly</option>
             <option value="twice_weekly">Twice weekly</option>
             <option value="three_weekly">Three times weekly</option>
             <option value="custom">Custom (days)</option>
           </select>
+          {apptTs.appointment.frequency === "custom" && (
+            <input
+              type="number"
+              min={1}
+              placeholder="Days between visits"
+              value={apptTs.appointment.customIntervalDays || 7}
+              onChange={function (e) {
+                var next = Object.assign({}, settings);
+                next.treatmentSet = Object.assign({}, treatmentSet());
+                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, {
+                  customIntervalDays: parseInt(e.target.value, 10) || 7,
+                });
+                persist(next);
+              }}
+              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 14 }}
+            />
+          )}
+          <div style={label}>{apptCalCopy.visitTimeLabel || "Visit time"}</div>
+          <input
+            type="time"
+            value={apptTs.appointment.nextVisitTime || ""}
+            onChange={function (e) {
+              var next = Object.assign({}, settings);
+              next.treatmentSet = Object.assign({}, treatmentSet());
+              next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { nextVisitTime: e.target.value });
+              persist(next);
+            }}
+            style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }}
+          />
+          <p style={{ margin: "8px 0 0", fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
+            {apptCalCopy.visitDateTimeSessionHint}
+          </p>
         </div>
         <CareTeamContact variant="compact" accentColor={col} />
         <HomeBtn accentColor={col} primary label="Save" onClick={function () { setScreen("dashboard"); }} />
@@ -2290,84 +2607,18 @@ function HomeInfusionApp() {
     );
   }
 
-  // ── APP SETTINGS (experience + data controls) ─────────────────────────────
-  if (screen === "appSettings") {
-    var confirmCopy = settingsConfirm === "companion"
-      ? "This will clear your saved Companion treatment setup on this device. It will not contact your clinic or change your treatment."
-      : settingsConfirm === "all"
-        ? "This clears Dosecraft data saved on this device. It will not contact your clinic or change your treatment."
-        : "";
-    return (
-      <HomeShell>
-        {renderGlobalTimerBanner()}
-        <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>Settings</h1>
-
-        <div style={{ marginBottom: 20 }}>
-          <div style={label}>Experience</div>
-          <HomeBtn accentColor={col} label="Switch experience" onClick={switchExperience} />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <div style={label}>Companion</div>
-          <HomeBtn accentColor={col} label="Reset Companion setup" onClick={function () { setSettingsConfirm("companion"); }} />
-        </div>
-
-        <div style={{ marginBottom: 20 }}>
-          <div style={label}>Device data</div>
-          <HomeBtn accentColor={col} label="Clear Dosecraft data from this device" onClick={function () { setSettingsConfirm("all"); }} />
-        </div>
-
-        {settingsConfirm && (
-          <div style={Object.assign({}, card, { border: "1px solid rgba(255,180,80,0.35)" })}>
-            <p style={{ fontSize: 16, lineHeight: 1.55, margin: "0 0 16px", color: "rgba(255,255,255,0.85)" }}>
-              {confirmCopy}
-            </p>
-            <HomeBtn
-              accentColor={col}
-              primary
-              label={settingsConfirm === "companion" ? "Reset Companion setup" : "Clear data"}
-              onClick={settingsConfirm === "companion" ? executeResetCompanionSetup : executeClearAllData}
-            />
-            <HomeBtn accentColor={col} label="Cancel" onClick={function () { setSettingsConfirm(null); }} />
-          </div>
-        )}
-      </HomeShell>
-    );
-  }
-
-  // ── ADDITIONAL SETTINGS ────────────────────────────────────────────────────
+  // ── TREATMENT SETTINGS (line care) ─────────────────────────────────────────
   if (screen === "additionalSettings") {
     var addTs = treatmentSet();
-    var addNotifPerm = getNotificationPermission();
-    var addPermDenied = addNotifPerm === "denied";
-    var addRemindersOn = !!reminderPrefs.enabled && !addPermDenied;
-    var addShowReminderPanel = reminderPanelOpen && !addPermDenied;
-    var addPermissionGranted = addNotifPerm === "granted";
-    var addSchedulableDoses = collectUpcomingDosesForReminders(STORE, settings);
-    var addCanSchedule = addRemindersOn && addPermissionGranted && addSchedulableDoses.length > 0;
-    var addBlockedText = permissionBlockedMsg || (addPermDenied ? "Notifications are blocked in your browser settings." : "");
-    var calCopy = COPY.calendarReminders || {};
-    var doseSetupComplete = STORE.isSetupComplete(settings);
-    var weeklyFrequency = (addTs.appointment && addTs.appointment.frequency) === "weekly";
-    var hasVisitDate = !!(addTs.appointment && addTs.appointment.nextPickupDate);
-    var hasVisitTime = !!(addTs.appointment && addTs.appointment.nextVisitTime);
-    var canExportWeekly = weeklyFrequency && hasVisitDate && hasVisitTime;
-    var weeklyDisabledReason = "";
-    if (weeklyFrequency && !hasVisitDate) {
-      weeklyDisabledReason = calCopy.missingVisitDate || "Add your next visit date in Additional Settings to enable calendar export.";
-    } else if (weeklyFrequency && !hasVisitTime) {
-      weeklyDisabledReason = calCopy.missingVisitTime || "Add your visit time in Additional Settings to enable calendar export.";
-    }
     return (
       <HomeShell>
         {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>
-          {(COPY.wizard && COPY.wizard.additionalSettingsTitle) || "Additional settings"}
+          {(COPY.wizard && COPY.wizard.additionalSettingsTitle) || "Treatment settings"}
         </h1>
         <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
-          Line care, visit reminders, and notifications shared across your treatment.
+          Line type and flush preferences shared across your treatment.
         </p>
 
         <div style={card}>
@@ -2409,91 +2660,88 @@ function HomeInfusionApp() {
           </label>
         </div>
 
-        {isModule("appointmentReminders") && (
+        <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />
+      </HomeShell>
+    );
+  }
+
+  // ── REMINDERS ──────────────────────────────────────────────────────────────
+  if (screen === "reminders") {
+    var remTs = treatmentSet();
+    var remCopy = COPY.remindersScreen || {};
+    var remNotifPerm = getNotificationPermission();
+    var remPermDenied = remNotifPerm === "denied";
+    var remShowReminderPanel = reminderPanelOpen && !remPermDenied;
+    var remPermissionGranted = remNotifPerm === "granted";
+    var remSchedulableDoses = collectUpcomingDosesForReminders(STORE, settings);
+    var remCanSchedule = remShowReminderPanel && remPermissionGranted && remSchedulableDoses.length > 0;
+    var remBlockedText = permissionBlockedMsg || (remPermDenied ? "Notifications are blocked in your browser settings." : "");
+    var remCalCopy = COPY.calendarReminders || {};
+    var remDoseSetupComplete = STORE.isSetupComplete(settings);
+    var remHasResolvedEndDate = !!STORE.getResolvedTreatmentEndDate(settings);
+    var remCanExportDose = remDoseSetupComplete && remHasResolvedEndDate;
+    var remWeeklyFrequency = (remTs.appointment && remTs.appointment.frequency) === "weekly";
+    var remHasVisitDate = !!(remTs.appointment && remTs.appointment.nextPickupDate);
+    var remHasVisitTime = !!(remTs.appointment && remTs.appointment.nextVisitTime);
+    var remCanExportWeekly = remWeeklyFrequency && remHasVisitDate && remHasVisitTime && remHasResolvedEndDate;
+    var remWeeklyDisabledReason = "";
+    if (!remHasResolvedEndDate) {
+      remWeeklyDisabledReason = remCalCopy.missingEndDateWeekly || "Add your planned end date before exporting weekly visit reminders.";
+    } else if (remWeeklyFrequency && !remHasVisitDate) {
+      remWeeklyDisabledReason = remCalCopy.missingVisitDate;
+    } else if (remWeeklyFrequency && !remHasVisitTime) {
+      remWeeklyDisabledReason = remCalCopy.missingVisitTime;
+    }
+    var remApptDate = isModule("appointmentReminders") ? STORE.getNextAppointmentDate(settings) : "";
+    var remApptDisplay = remApptDate
+      ? new Date(remApptDate + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
+      : "";
+
+    return (
+      <HomeShell>
+        {renderGlobalTimerBanner()}
+        <HomeBack onClick={function () { setScreen("dashboard"); }} label="Dashboard" />
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 8 }}>{remCopy.title || "Reminders"}</h1>
+        <p style={{ fontSize: 15, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+          {remCopy.intro || "Dose reminders, calendar export, and visit summary."}
+        </p>
+
+        {isModule("appointmentReminders") && remApptDate && (
           <div style={card}>
-            <div style={label}>Next lab / follow-up visit</div>
-            <input
-              type="date"
-              value={addTs.appointment.nextPickupDate || ""}
-              onChange={function (e) {
-                var next = Object.assign({}, settings);
-                next.treatmentSet = Object.assign({}, treatmentSet());
-                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { nextPickupDate: e.target.value });
-                persist(next);
-              }}
-              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 12 }}
-            />
-            <div style={label}>Then repeat</div>
-            <select
-              value={addTs.appointment.frequency || "weekly"}
-              onChange={function (e) {
-                var next = Object.assign({}, settings);
-                next.treatmentSet = Object.assign({}, treatmentSet());
-                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { frequency: e.target.value });
-                persist(next);
-              }}
-              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8 }}
-            >
-              <option value="weekly">Weekly</option>
-              <option value="twice_weekly">Twice weekly</option>
-              <option value="three_weekly">Three times weekly</option>
-              <option value="custom">Custom interval (days)</option>
-            </select>
-            {addTs.appointment.frequency === "custom" && (
-              <input
-                type="number"
-                min={1}
-                placeholder="Days between visits"
-                value={addTs.appointment.customIntervalDays || 7}
-                onChange={function (e) {
-                  var next = Object.assign({}, settings);
-                  next.treatmentSet = Object.assign({}, treatmentSet());
-                  next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, {
-                    customIntervalDays: parseInt(e.target.value, 10) || 7,
-                  });
-                  persist(next);
-                }}
-                style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 10 }}
-              />
-            )}
-            <div style={label}>{(COPY.calendarReminders && COPY.calendarReminders.visitTimeLabel) || "Visit time"}</div>
-            <input
-              type="time"
-              value={addTs.appointment.nextVisitTime || ""}
-              onChange={function (e) {
-                var next = Object.assign({}, settings);
-                next.treatmentSet = Object.assign({}, treatmentSet());
-                next.treatmentSet.appointment = Object.assign({}, next.treatmentSet.appointment, { nextVisitTime: e.target.value });
-                persist(next);
-              }}
-              style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginTop: 4 }}
-            />
-            <p style={{ margin: "8px 0 0", fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.45 }}>
-              {calCopy.visitDateTimeSessionHint}
+            <p style={{ margin: 0, fontSize: 16, color: "rgba(255,255,255,0.85)" }}>
+              {remCopy.nextVisitPrefix || "Next visit:"}{" "}
+              <strong>{remApptDisplay}</strong>{" "}
+              <button
+                type="button"
+                onClick={function () { goToScreen("appointment"); }}
+                style={{ background: "transparent", border: "none", color: col, fontSize: 16, fontWeight: 700, cursor: "pointer", textDecoration: "underline", padding: 0 }}
+              >
+                {remCopy.editVisitLink || "Edit visit"}
+              </button>
             </p>
           </div>
         )}
 
         {isModule("doseReminders") && STORE.isSetupComplete(settings) && (
           <div style={card}>
-            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: addPermDenied ? "default" : "pointer" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: remPermDenied ? "default" : "pointer" }}>
               <input
                 type="checkbox"
-                checked={addShowReminderPanel}
-                disabled={addPermDenied}
+                checked={remShowReminderPanel}
+                disabled={remPermDenied}
                 onChange={function (e) { handleReminderToggleChange(e.target.checked); }}
                 style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
               />
               <span>Dose reminders</span>
             </label>
 
-            {addBlockedText && (
+            {remBlockedText && (
               <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }} role="alert">
-                {addBlockedText}
+                {remBlockedText}
               </p>
             )}
 
-            {addShowReminderPanel && (
+            {remShowReminderPanel && (
               <div style={{ marginTop: 16 }}>
                 <PwaInstallSetupCard
                   standalone={standalonePwa}
@@ -2502,65 +2750,65 @@ function HomeInfusionApp() {
                   accentColor={col}
                 />
 
-                {addPermissionGranted && (
+                {remPermissionGranted && (
                   <div>
-                <div style={label}>Heads-up reminder</div>
-                <select
-                  value={String(reminderPrefs.leadMinutes || 60)}
-                  onChange={function (e) {
-                    var next = Object.assign({}, reminderPrefs, { leadMinutes: parseInt(e.target.value, 10) });
-                    setReminderPrefs(next);
-                    STORE.saveReminderPrefs(next);
-                  }}
-                  style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 14 }}
-                >
-                  {REMINDER_LEAD_OPTIONS.map(function (pair) {
-                    return <option key={pair[0]} value={String(pair[0])}>{pair[1]}</option>;
-                  })}
-                </select>
+                    <div style={label}>Heads-up reminder</div>
+                    <select
+                      value={String(reminderPrefs.leadMinutes || 60)}
+                      onChange={function (e) {
+                        var next = Object.assign({}, reminderPrefs, { leadMinutes: parseInt(e.target.value, 10) });
+                        setReminderPrefs(next);
+                        STORE.saveReminderPrefs(next);
+                      }}
+                      style={{ width: "100%", padding: 12, fontSize: 17, borderRadius: 8, marginBottom: 14 }}
+                    >
+                      {REMINDER_LEAD_OPTIONS.map(function (pair) {
+                        return <option key={pair[0]} value={String(pair[0])}>{pair[1]}</option>;
+                      })}
+                    </select>
 
-                <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14 }}>
-                  <input
-                    type="checkbox"
-                    checked={reminderPrefs.atTimeEnabled !== false}
-                    onChange={function (e) {
-                      var next = Object.assign({}, reminderPrefs, { atTimeEnabled: e.target.checked });
-                      setReminderPrefs(next);
-                      STORE.saveReminderPrefs(next);
-                    }}
-                    style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
-                  />
-                  <span>Reminder at dose time</span>
-                </label>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginBottom: 14 }}>
+                      <input
+                        type="checkbox"
+                        checked={reminderPrefs.atTimeEnabled !== false}
+                        onChange={function (e) {
+                          var next = Object.assign({}, reminderPrefs, { atTimeEnabled: e.target.checked });
+                          setReminderPrefs(next);
+                          STORE.saveReminderPrefs(next);
+                        }}
+                        style={{ marginTop: 4, minWidth: 20, minHeight: 20 }}
+                      />
+                      <span>Reminder at dose time</span>
+                    </label>
 
-                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
-                  <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-                    Reminders work best when Dosecraft is installed on your home screen and your device allows background activity. If you change your dose schedule, turn reminders off and back on to update them.
-                  </p>
-                </div>
+                    <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+                      <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                        Reminders work best when Dosecraft is installed on your home screen and your device allows background activity. If you change your dose schedule, turn reminders off and back on to update them.
+                      </p>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={handleScheduleReminders}
-                  disabled={!addCanSchedule}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    minHeight: 52,
-                    padding: "14px 20px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: addCanSchedule ? col : "rgba(255,255,255,0.08)",
-                    color: addCanSchedule ? "#041018" : "rgba(255,255,255,0.45)",
-                    fontSize: 17,
-                    fontWeight: 700,
-                    cursor: addCanSchedule ? "pointer" : "default",
-                    opacity: addCanSchedule ? 1 : 0.6,
-                    touchAction: "manipulation",
-                  }}
-                >
-                  {addSchedulableDoses.length === 0 ? "No doses scheduled yet." : "Schedule reminders"}
-                </button>
+                    <button
+                      type="button"
+                      onClick={handleScheduleReminders}
+                      disabled={!remCanSchedule}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        minHeight: 52,
+                        padding: "14px 20px",
+                        borderRadius: 12,
+                        border: "none",
+                        background: remCanSchedule ? col : "rgba(255,255,255,0.08)",
+                        color: remCanSchedule ? "#041018" : "rgba(255,255,255,0.45)",
+                        fontSize: 17,
+                        fontWeight: 700,
+                        cursor: remCanSchedule ? "pointer" : "default",
+                        opacity: remCanSchedule ? 1 : 0.6,
+                        touchAction: "manipulation",
+                      }}
+                    >
+                      {remSchedulableDoses.length === 0 ? "No doses scheduled yet." : "Schedule reminders"}
+                    </button>
                   </div>
                 )}
               </div>
@@ -2569,100 +2817,124 @@ function HomeInfusionApp() {
         )}
 
         {isModule("doseReminders") && (
-        <div style={card}>
-          <div style={{ ...label, marginBottom: 12 }}>{calCopy.cardTitle || "Reminders"}</div>
+          <div style={card}>
+            <div style={{ ...label, marginBottom: 12 }}>{remCalCopy.cardTitle || "Reminders"}</div>
 
-          <div style={{ marginBottom: 20 }}>
-            <button
-              type="button"
-              onClick={handleDoseCalendarExport}
-              disabled={!doseSetupComplete}
-              style={{
-                display: "block",
-                width: "100%",
-                minHeight: 52,
-                padding: "14px 20px",
-                borderRadius: 12,
-                border: "none",
-                background: doseSetupComplete ? col : "rgba(255,255,255,0.08)",
-                color: doseSetupComplete ? "#041018" : "rgba(255,255,255,0.45)",
-                fontSize: 17,
-                fontWeight: 700,
-                cursor: doseSetupComplete ? "pointer" : "default",
-                touchAction: "manipulation",
-              }}
-            >
-              {calCopy.doseButton || "Add dose reminders to calendar"}
-            </button>
-            {!doseSetupComplete && (
-              <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
-                {calCopy.setupIncomplete || "Complete treatment setup to enable dose calendar export."}
-              </p>
-            )}
-            <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-              {calCopy.privacyCopy}
-            </p>
-            <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-              {calCopy.privacyCopyTimes}
-            </p>
-          </div>
-
-          <div style={{ marginBottom: 12 }}>
-            {weeklyFrequency ? (
-              <div>
-                <p style={{ margin: "0 0 10px", fontSize: 16, color: "rgba(255,255,255,0.85)" }}>
-                  {calCopy.weeklyRowLabel || "Weekly labs / line care visit"}
+            <div style={{ marginBottom: 20 }}>
+              <button
+                type="button"
+                onClick={handleDoseCalendarExport}
+                disabled={!remCanExportDose}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  minHeight: 52,
+                  padding: "14px 20px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: remCanExportDose ? col : "rgba(255,255,255,0.08)",
+                  color: remCanExportDose ? "#041018" : "rgba(255,255,255,0.45)",
+                  fontSize: 17,
+                  fontWeight: 700,
+                  cursor: remCanExportDose ? "pointer" : "default",
+                  touchAction: "manipulation",
+                }}
+              >
+                {remCalCopy.doseButton || "Add dose reminders to calendar"}
+              </button>
+              {!remDoseSetupComplete && (
+                <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
+                  {remCalCopy.setupIncomplete || "Complete treatment setup to enable dose calendar export."}
                 </p>
-                <button
-                  type="button"
-                  onClick={handleWeeklyVisitCalendarExport}
-                  disabled={!canExportWeekly}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    minHeight: 52,
-                    padding: "14px 20px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: canExportWeekly ? col : "rgba(255,255,255,0.08)",
-                    color: canExportWeekly ? "#041018" : "rgba(255,255,255,0.45)",
-                    fontSize: 17,
-                    fontWeight: 700,
-                    cursor: canExportWeekly ? "pointer" : "default",
-                    touchAction: "manipulation",
-                  }}
-                >
-                  {calCopy.weeklyButton || "Add weekly visit to calendar"}
-                </button>
-                {weeklyDisabledReason && (
-                  <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
-                    {weeklyDisabledReason}
+              )}
+              {remDoseSetupComplete && !remHasResolvedEndDate && (
+                <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
+                  {remCalCopy.missingEndDate || "Add your planned end date before exporting dose reminders."}{" "}
+                  <button
+                    type="button"
+                    onClick={function () { setScreen("setup"); }}
+                    style={{ background: "transparent", border: "none", color: col, fontSize: 15, fontWeight: 700, cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                  >
+                    {remCalCopy.missingEndDateLink || "Edit setup"}
+                  </button>
+                </p>
+              )}
+              <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopy}
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopyTimes}
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              {remWeeklyFrequency ? (
+                <div>
+                  <p style={{ margin: "0 0 10px", fontSize: 16, color: "rgba(255,255,255,0.85)" }}>
+                    {remCalCopy.weeklyRowLabel || "Weekly labs / line care visit"}
                   </p>
-                )}
-              </div>
-            ) : (
-              <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                {calCopy.frequencyNotSupported || "Calendar export is currently available for weekly visit schedules."}
+                  <button
+                    type="button"
+                    onClick={handleWeeklyVisitCalendarExport}
+                    disabled={!remCanExportWeekly}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      minHeight: 52,
+                      padding: "14px 20px",
+                      borderRadius: 12,
+                      border: "none",
+                      background: remCanExportWeekly ? col : "rgba(255,255,255,0.08)",
+                      color: remCanExportWeekly ? "#041018" : "rgba(255,255,255,0.45)",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      cursor: remCanExportWeekly ? "pointer" : "default",
+                      touchAction: "manipulation",
+                    }}
+                  >
+                    {remCalCopy.weeklyButton || "Add weekly visit to calendar"}
+                  </button>
+                  {remWeeklyDisabledReason && (
+                    <p style={{ margin: "10px 0 0", fontSize: 15, color: "rgba(255,255,255,0.75)" }}>
+                      {remWeeklyDisabledReason}
+                      {!remHasResolvedEndDate && (
+                        <span>
+                          {" "}
+                          <button
+                            type="button"
+                            onClick={function () { setScreen("setup"); }}
+                            style={{ background: "transparent", border: "none", color: col, fontSize: 15, fontWeight: 700, cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                          >
+                            {remCalCopy.missingEndDateLink || "Edit setup"}
+                          </button>
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                  {remCalCopy.frequencyNotSupported || "Calendar export is currently available for weekly visit schedules."}
+                </p>
+              )}
+              <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopy}
+              </p>
+              <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopyTimes}
+              </p>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
+              {remCalCopy.scheduleChangeNote}
+            </p>
+
+            {icsExportMsg && (
+              <p style={{ margin: "12px 0 0", fontSize: 15, color: col, lineHeight: 1.5 }} role="status">
+                {icsExportMsg}
               </p>
             )}
-            <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-              {calCopy.privacyCopy}
-            </p>
-            <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-              {calCopy.privacyCopyTimes}
-            </p>
           </div>
-
-          <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>
-            {calCopy.scheduleChangeNote}
-          </p>
-
-          {icsExportMsg && (
-            <p style={{ margin: "12px 0 0", fontSize: 15, color: col, lineHeight: 1.5 }} role="status">
-              {icsExportMsg}
-            </p>
-          )}
-        </div>
         )}
 
         <HomeBtn accentColor={col} primary label="Done" onClick={function () { setScreen("dashboard"); }} />
@@ -2677,18 +2949,69 @@ function HomeInfusionApp() {
   var dueNow = STORE.getDueMedicationDosesForNow(settings);
   var nextSummary = STORE.formatNextDueSummary(settings, ALL_DRUGS);
   var todaySummary = STORE.formatTodayDosesSummary(settings, ALL_DRUGS);
+  var dashCopy = COPY.dashboard || {};
+  var gearCopy = COPY.gearMenu || {};
+  var primaryClinicPhone = window.DOSECRAFT_getPrimaryClinicPhone ? window.DOSECRAFT_getPrimaryClinicPhone(cfg) : "";
+  var clinicPhoneHref = window.DOSECRAFT_clinicPhoneHref ? window.DOSECRAFT_clinicPhoneHref(primaryClinicPhone) : "";
+  var playGameDynamicLabel = activeTimer && !STORE.isTimerComplete(activeTimer)
+    ? "Play the " + (activeTimer.medicationName || "medication") + " game while this infusion runs"
+    : null;
+  var playGameGridLabel = STORE.hasMultipleTreatmentMedications(settings)
+    ? (dashCopy.playMedicationGame || "Play a medication game")
+    : (dashCopy.playGame || "Play game");
 
   return (
     <HomeShell>
       {renderGlobalTimerBanner()}
+
+      <DashboardGearMenu
+        open={gearMenuOpen}
+        onClose={function () { setGearMenuOpen(false); setSettingsConfirm(null); }}
+        accentColor={col}
+        copy={gearCopy}
+        settingsConfirm={settingsConfirm}
+        showSwitchExperience={isModule("clinicInfusion") && isModule("homeInfusion")}
+        showAddToHomeScreen={!standalonePwa && installPromptReady}
+        onEditSetup={function () { setGearMenuOpen(false); setScreen("setup"); }}
+        onSwitchExperience={function () { setGearMenuOpen(false); switchExperience(); }}
+        onRequestConfirm={function (kind) { setSettingsConfirm(kind); }}
+        onConfirmAction={function () {
+          if (settingsConfirm === "companion") executeResetCompanionSetup();
+          else executeClearAllData();
+          setGearMenuOpen(false);
+        }}
+        onCancelConfirm={function () { setSettingsConfirm(null); }}
+        onAddToHomeScreen={function () { handlePwaInstallClick(); setGearMenuOpen(false); }}
+      />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
         <div>
           <div style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>Dosecraft</div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: "4px 0 0" }}>{cfg.clinicDisplayName || "Home infusion"}</h1>
         </div>
-        <button onClick={function () { setScreen("setup"); }} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", color: "#fff", padding: "8px 14px", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>
-          Edit setup
+        <button
+          ref={gearMenuButtonRef}
+          type="button"
+          aria-label={gearCopy.ariaLabel || "Settings menu"}
+          aria-expanded={gearMenuOpen}
+          aria-haspopup="menu"
+          onClick={function () { setGearMenuOpen(function (open) { return !open; }); setSettingsConfirm(null); }}
+          style={{
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.15)",
+            color: "#fff",
+            width: 48,
+            height: 48,
+            minWidth: 48,
+            minHeight: 48,
+            borderRadius: 10,
+            fontSize: 22,
+            cursor: "pointer",
+            touchAction: "manipulation",
+            lineHeight: 1,
+          }}
+        >
+          ⚙
         </button>
       </div>
 
@@ -2748,12 +3071,17 @@ function HomeInfusionApp() {
 
       {isModule("appointmentReminders") && apptDate && (
         <div style={card}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <div style={label}>Next lab / visit</div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{new Date(apptDate + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</div>
+              <div style={label}>{dashCopy.nextWeeklyVisit || "Next weekly visit"}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+                {new Date(apptDate + "T12:00:00").toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+              </div>
+              <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.45 }}>
+                {dashCopy.visitHelperText || "Your weekly visit may include labs, dressing change, and line check, depending on your care plan."}
+              </p>
             </div>
-            <button onClick={function () { goToScreen("appointment"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 14 }}>
+            <button onClick={function () { goToScreen("appointment"); }} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "8px 12px", borderRadius: 8, cursor: "pointer", fontSize: 14, flexShrink: 0, marginLeft: 10 }}>
               Edit
             </button>
           </div>
@@ -2761,44 +3089,64 @@ function HomeInfusionApp() {
       )}
       {isModule("appointmentReminders") && !apptDate && STORE.isSetupComplete(settings) && (
         <div style={card}>
-          <div style={label}>Next lab / visit</div>
-          <p style={{ margin: "0 0 10px", fontSize: 15, color: "rgba(255,255,255,0.55)" }}>No visit scheduled yet.</p>
-          <HomeBtn accentColor={col} label="Add visit date" onClick={function () { goToScreen("appointment"); }} />
+          <div style={label}>{dashCopy.nextWeeklyVisit || "Next weekly visit"}</div>
+          <p style={{ margin: "0 0 10px", fontSize: 15, color: "rgba(255,255,255,0.55)" }}>
+            {dashCopy.noVisitScheduled || "No visit scheduled yet."}
+          </p>
+          <HomeBtn accentColor={col} label={dashCopy.addVisitDate || "Add visit date"} onClick={function () { goToScreen("appointment"); }} />
         </div>
       )}
 
-      <CareTeamContact variant="full" accentColor={col} />
-
       <div style={{ marginTop: 8 }}>
-        <div style={label}>Quick actions</div>
         {isModule("sashGuide") && (
-          <HomeBtn accentColor={col} primary label="Start dose session" onClick={function () {
+          <HomeBtn accentColor={col} primary label={dashCopy.startDoseSession || "Start dose session"} onClick={function () {
             var due = STORE.getDueMedicationDosesForNow(settings);
             if (!due.length) {
-              var next = STORE.getNextDueMedicationDose(settings);
-              due = next ? [next] : [];
+              var nextDue = STORE.getNextDueMedicationDose(settings);
+              due = nextDue ? [nextDue] : [];
             }
             if (!due.length) return;
             startDoseSession(due);
           }} />
         )}
-        <HomeBtn accentColor={col} label="Warning signs" onClick={function () { goToScreen("warnings"); }} />
-        {isModule("medicationEducation") && (
-          <HomeBtn accentColor={col} label="Medication info" onClick={function () { setMedInfoKey(null); goToScreen("medInfo"); }} />
+
+        <div style={label}>{dashCopy.quickActions || "Quick actions"}</div>
+
+        {playGameDynamicLabel && isModule("infusionArcade") && (
+          <HomeBtn accentColor={col} label={playGameDynamicLabel} onClick={goPlayGame} />
         )}
-        {isModule("lineCare") && (
-          <HomeBtn accentColor={col} label="Line care" onClick={function () { goToScreen("lineCare"); }} />
-        )}
-        <HomeBtn accentColor={col} label="Additional settings" onClick={function () { goToScreen("additionalSettings"); }} />
-        <HomeBtn accentColor={col} label="Settings" onClick={function () { goToScreen("appSettings"); }} />
-        {isModule("infusionArcade") && (
-          <HomeBtn
-            accentColor={col}
-            label={activeTimer && !STORE.isTimerComplete(activeTimer)
-              ? "Play the " + (activeTimer.medicationName || "medication") + " game while this infusion runs"
-              : STORE.hasMultipleTreatmentMedications(settings) ? "Play a medication game" : "Play game"}
-            onClick={goPlayGame}
-          />
+
+        <HomeQuickActionGrid>
+          <HomeGridBtn accentColor={col} className="dc-quick-btn" label={dashCopy.warningSigns || "Warning signs"} onClick={function () { goToScreen("warnings"); }} />
+          {isModule("medicationEducation") && (
+            <HomeGridBtn accentColor={col} className="dc-quick-btn" label={dashCopy.medicationInfo || "Medication info"} onClick={function () { setMedInfoKey(null); goToScreen("medInfo"); }} />
+          )}
+          {isModule("lineCare") && (
+            <HomeGridBtn accentColor={col} className="dc-quick-btn" label={dashCopy.lineCare || "Line care"} onClick={function () { goToScreen("lineCare"); }} />
+          )}
+          <HomeGridBtn accentColor={col} className="dc-quick-btn" label={dashCopy.reminders || "Reminders"} onClick={function () { goToScreen("reminders"); }} />
+          {clinicPhoneHref ? (
+            <HomeGridBtn accentColor={col} className="dc-quick-btn" label={dashCopy.callCareTeam || "Call care team"} href={clinicPhoneHref} />
+          ) : (
+            <HomeGridBtn
+              accentColor={col}
+              className="dc-quick-btn"
+              label={dashCopy.callCareTeam || "Call care team"}
+              onClick={function () { setCallCareGuidanceOpen(true); }}
+            />
+          )}
+          {isModule("infusionArcade") && !playGameDynamicLabel && (
+            <HomeGridBtn accentColor={col} className="dc-quick-btn" label={playGameGridLabel} onClick={goPlayGame} />
+          )}
+        </HomeQuickActionGrid>
+
+        {callCareGuidanceOpen && (
+          <div style={{ ...card, borderColor: col + "44", marginBottom: 10 }}>
+            <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>
+              {dashCopy.callCareTeamFallback || "Call your care team using the phone number they provided."}
+            </p>
+            <HomeBtn accentColor={col} label="Close" onClick={function () { setCallCareGuidanceOpen(false); }} />
+          </div>
         )}
       </div>
 
@@ -2811,9 +3159,6 @@ function HomeInfusionApp() {
             onInstall={handlePwaInstallClick}
             onDismiss={dismissDashboardInstallPrompt}
           />
-        )}
-        {isModule("clinicInfusion") && isModule("homeInfusion") && (
-          <HomeBtn accentColor={col} label="Switch experience" onClick={switchExperience} />
         )}
         {cfg.branding.showPoweredByDosecraft !== false && (
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", textAlign: "center", margin: "8px 0 0" }}>

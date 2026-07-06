@@ -2,7 +2,6 @@
 // Generates ICS strings on device only — no backend, no persistence.
 
 (function () {
-  var DOSE_COUNT_CAP = 180;
   var DOSE_ALARM_MINUTES = 15;
   var VISIT_ALARM_MINUTES = 60;
 
@@ -41,6 +40,15 @@
       pad2(date.getHours()) +
       pad2(date.getMinutes()) +
       pad2(date.getSeconds())
+    );
+  }
+
+  function formatIcsUntil(date) {
+    return (
+      date.getUTCFullYear() +
+      pad2(date.getUTCMonth() + 1) +
+      pad2(date.getUTCDate()) +
+      "T235959Z"
     );
   }
 
@@ -178,19 +186,19 @@
   }
 
   function doseRecurrenceCount(settings) {
+    var STORE = window.DOSECRAFT_HOME_STORE;
+    if (!STORE || !STORE.getResolvedTreatmentEndDate) return 0;
+    var resolvedEnd = STORE.getResolvedTreatmentEndDate(settings);
+    if (!resolvedEnd) return 0;
     var course = settings && settings.treatmentSet && settings.treatmentSet.course;
     var startDate = course && course.startDate;
-    var endDate = course && course.endDate;
-    if (startDate && endDate) {
-      var start = new Date(startDate + "T00:00:00");
-      var end = new Date(endDate + "T00:00:00");
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
-        var days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
-        if (days > 0 && days < DOSE_COUNT_CAP) return days;
-        if (days >= DOSE_COUNT_CAP) return DOSE_COUNT_CAP;
-      }
-    }
-    return DOSE_COUNT_CAP;
+    if (!startDate) return 0;
+    var start = new Date(startDate + "T00:00:00");
+    var end = new Date(resolvedEnd.getTime());
+    end.setHours(0, 0, 0, 0);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return 0;
+    var days = Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+    return days > 0 ? days : 0;
   }
 
   function makeUid(prefix, parts) {
@@ -221,8 +229,10 @@
     var times = collectUniqueDoseTimesOfDay(settings);
     if (!times.length) return "";
 
-    var startDate = getDoseSeriesStartDate(settings);
     var count = doseRecurrenceCount(settings);
+    if (!count) return "";
+
+    var startDate = getDoseSeriesStartDate(settings);
     var nowStamp = formatIcsUtcStamp(new Date());
     var events = [];
 
@@ -261,6 +271,7 @@
   }
 
   function buildWeeklyVisitICS(settings) {
+    var STORE = window.DOSECRAFT_HOME_STORE;
     var appt = settings && settings.treatmentSet && settings.treatmentSet.appointment;
     if (!appt || appt.frequency !== "weekly") return "";
     if (!appt.nextPickupDate) return "";
@@ -269,12 +280,17 @@
     var timeParts = parseTimeParts(timeStr);
     if (!timeParts) return "";
 
+    if (!STORE || !STORE.getResolvedTreatmentEndDate) return "";
+    var resolvedEnd = STORE.getResolvedTreatmentEndDate(settings);
+    if (!resolvedEnd) return "";
+
     var dt = new Date(appt.nextPickupDate + "T00:00:00");
     if (isNaN(dt.getTime())) return "";
     dt.setHours(timeParts.hours, timeParts.minutes, 0, 0);
 
     var nowStamp = formatIcsUtcStamp(new Date());
     var uid = makeUid("dosecraft-visit", [appt.nextPickupDate.replace(/-/g, ""), timeStr.replace(":", "")]);
+    var untilStamp = formatIcsUntil(resolvedEnd);
 
     return [
       "BEGIN:VCALENDAR",
@@ -286,7 +302,7 @@
       "UID:" + uid,
       "DTSTAMP:" + nowStamp,
       "DTSTART:" + formatIcsLocalDateTime(dt),
-      "RRULE:FREQ=WEEKLY",
+      "RRULE:FREQ=WEEKLY;UNTIL=" + untilStamp,
       "SUMMARY:Clinic visit",
       "DESCRIPTION:" + escapeIcsText("Follow your care team's appointment instructions."),
       buildVisitValarm(VISIT_ALARM_MINUTES),
