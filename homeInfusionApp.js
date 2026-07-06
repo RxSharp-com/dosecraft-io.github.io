@@ -189,6 +189,25 @@ function wizardDurationStepValid(mode, course, lengthValue) {
   return true;
 }
 
+function wizardDurationFromCourse(course) {
+  course = course || {};
+  if (course.endDate) {
+    return { mode: "end_date", lengthValue: "", lengthUnit: "days" };
+  }
+  if (course.totalPlannedDays) {
+    var days = parseInt(course.totalPlannedDays, 10);
+    if (!isNaN(days) && days > 0) {
+      if (days % 7 === 0 && days >= 7) {
+        return { mode: "length", lengthValue: String(days / 7), lengthUnit: "weeks" };
+      }
+      return { mode: "length", lengthValue: String(days), lengthUnit: "days" };
+    }
+  }
+  return { mode: "unsure", lengthValue: "", lengthUnit: "days" };
+}
+
+var DASHBOARD_GEAR_PANEL_ID = "dashboard-gear-panel";
+
 function HomeGridBtn(props) {
   var accent = props.accentColor || "#2a9d8f";
   var primary = props.primary;
@@ -266,7 +285,7 @@ function DashboardGearMenu(props) {
           boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
         }}
         onClick={function (e) { e.stopPropagation(); }}
-        role="menu"
+        id={props.panelId || DASHBOARD_GEAR_PANEL_ID}
       >
         <HomeBtn accentColor={col} label={gearCopy.editSetup || "Edit setup"} onClick={props.onEditSetup} />
         {props.showSwitchExperience && (
@@ -790,6 +809,7 @@ function HomeInfusionApp() {
 
   var installPromptEventRef = _useRef(null);
   var gearMenuButtonRef = _useRef(null);
+  var wizardDurationSyncedRef = _useRef(false);
   var standalonePwa = isStandalonePwa();
 
   var activeTimer = STORE.getActiveInfusionTimer(settings);
@@ -817,6 +837,24 @@ function HomeInfusionApp() {
   _useEffect(function () {
     resumePendingReminders(STORE);
   }, []);
+
+  _useEffect(function () {
+    if (screen !== "setupWizard") {
+      wizardDurationSyncedRef.current = false;
+      return;
+    }
+    if (wizardScreen !== 5) {
+      wizardDurationSyncedRef.current = false;
+      return;
+    }
+    if (wizardDurationSyncedRef.current) return;
+    wizardDurationSyncedRef.current = true;
+    var course = wizardDraft.treatmentSet && wizardDraft.treatmentSet.course;
+    var derived = wizardDurationFromCourse(course);
+    setWizardDurationMode(derived.mode);
+    setWizardLengthValue(derived.lengthValue);
+    setWizardLengthUnit(derived.lengthUnit);
+  }, [screen, wizardScreen, wizardDraft]);
 
   _useEffect(function () {
     function onBeforeInstallPrompt(e) {
@@ -904,7 +942,7 @@ function HomeInfusionApp() {
       STORE.saveReminderPrefs(alreadyGrantedPrefs);
       setPermissionBlockedMsg("");
       if (window.trackCompanionScreen) {
-        window.trackCompanionScreen("reminder_enabled", "additional_settings", reminderAnalyticsProps(alreadyGrantedPrefs));
+        window.trackCompanionScreen("reminder_enabled", "reminders", reminderAnalyticsProps(alreadyGrantedPrefs));
       }
       return;
     }
@@ -919,7 +957,7 @@ function HomeInfusionApp() {
         STORE.saveReminderPrefs(onPrefs);
         setPermissionBlockedMsg("");
         if (window.trackCompanionScreen) {
-          window.trackCompanionScreen("reminder_enabled", "additional_settings", reminderAnalyticsProps(onPrefs));
+          window.trackCompanionScreen("reminder_enabled", "reminders", reminderAnalyticsProps(onPrefs));
         }
       } else {
         setReminderPanelOpen(false);
@@ -942,7 +980,7 @@ function HomeInfusionApp() {
     scheduleDoseReminders(STORE, settings, prefs);
     setReminderPrefs(prefs);
     if (window.trackCompanionScreen) {
-      window.trackCompanionScreen("reminder_scheduled", "additional_settings", reminderAnalyticsProps(prefs));
+      window.trackCompanionScreen("reminder_scheduled", "reminders", reminderAnalyticsProps(prefs));
     }
   }
 
@@ -1328,7 +1366,6 @@ function HomeInfusionApp() {
       else if (wizardScreen === 2 && wizardMedStep2Valid(wizardMedDraft)) setWizardScreen(3);
       else if (wizardScreen === 3 && wizardMedDraft.infusionDurationMins != null) wizardNextFromMed3();
       else if (wizardScreen === 4 && wizardDraft.treatmentSet.course.startDate) setWizardScreen(5);
-      else if (wizardScreen === 5 && wizardDurationStepValid(wizardDurationMode, wizardDraft.treatmentSet.course, wizardLengthValue)) setWizardScreen(6);
     }
 
     function applyWizardDurationToDraft() {
@@ -2966,6 +3003,7 @@ function HomeInfusionApp() {
 
       <DashboardGearMenu
         open={gearMenuOpen}
+        panelId={DASHBOARD_GEAR_PANEL_ID}
         onClose={function () { setGearMenuOpen(false); setSettingsConfirm(null); }}
         accentColor={col}
         copy={gearCopy}
@@ -2994,7 +3032,8 @@ function HomeInfusionApp() {
           type="button"
           aria-label={gearCopy.ariaLabel || "Settings menu"}
           aria-expanded={gearMenuOpen}
-          aria-haspopup="menu"
+          aria-haspopup="true"
+          aria-controls={DASHBOARD_GEAR_PANEL_ID}
           onClick={function () { setGearMenuOpen(function (open) { return !open; }); setSettingsConfirm(null); }}
           style={{
             background: "rgba(255,255,255,0.08)",
