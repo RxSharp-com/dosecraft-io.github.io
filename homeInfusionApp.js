@@ -2857,6 +2857,15 @@ function HomeInfusionApp() {
           <div style={card}>
             <div style={{ ...label, marginBottom: 12 }}>{remCalCopy.cardTitle || "Reminders"}</div>
 
+            <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <p style={{ margin: "0 0 8px", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopy}
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+                {remCalCopy.privacyCopyTimes}
+              </p>
+            </div>
+
             <div style={{ marginBottom: 20 }}>
               <button
                 type="button"
@@ -2896,12 +2905,6 @@ function HomeInfusionApp() {
                   </button>
                 </p>
               )}
-              <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-                {remCalCopy.privacyCopy}
-              </p>
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-                {remCalCopy.privacyCopyTimes}
-              </p>
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -2954,12 +2957,6 @@ function HomeInfusionApp() {
                   {remCalCopy.frequencyNotSupported || "Calendar export is currently available for weekly visit schedules."}
                 </p>
               )}
-              <p style={{ margin: "10px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-                {remCalCopy.privacyCopy}
-              </p>
-              <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-                {remCalCopy.privacyCopyTimes}
-              </p>
             </div>
 
             <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>

@@ -373,14 +373,14 @@
       setupIncomplete: "Complete treatment setup to enable dose calendar export.",
       missingEndDate: "Add your planned end date before exporting dose reminders.",
       missingEndDateLink: "Edit setup",
-      missingEndDateWeekly: "Add your planned end date before exporting weekly visit reminders.",
+      missingEndDateWeekly: "Add your planned treatment end date before exporting recurring reminders.",
       visitTimeLabel: "Visit time",
       visitDateTimeSessionHint:
-        "Visit date and time are used for calendar export during this session. If you reload the app, re-enter them on the visit screen before exporting again.",
+        "Your visit date and time are used when exporting weekly visit reminders to your calendar.",
       privacyCopy:
         "Calendar reminders are created on your device. Dosecraft does not send your schedule anywhere. Calendar apps may store reminders according to their own settings.",
       privacyCopyTimes:
-        "Reminder times are included in calendar events so your calendar can show when they're scheduled. This information is stored by your calendar app, not by Dosecraft.",
+        "Reminder times are included so your calendar knows when to alert you.",
       scheduleChangeNote:
         "If you change your dose schedule, delete your old calendar reminders and re-export.",
       downloadConfirmation: "File downloaded. Open it to add reminders to your calendar.",

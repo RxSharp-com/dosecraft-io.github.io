@@ -412,8 +412,8 @@
   function sanitizeSettingsForStorage(settings) {
     var safe = Object.assign({}, settings || {});
     safe.treatmentSet = Object.assign({}, (safe && safe.treatmentSet) || {});
-    // Do not persist appointment details in cleartext localStorage.
-    safe.treatmentSet.appointment = Object.assign({}, defaultTreatmentSet().appointment);
+    var appt = (safe.treatmentSet && safe.treatmentSet.appointment) || {};
+    safe.treatmentSet.appointment = Object.assign({}, defaultTreatmentSet().appointment, appt);
     return safe;
   }
 
