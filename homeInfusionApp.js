@@ -390,8 +390,71 @@ function MedicationEducationPanel(props) {
   var col = props.accentColor;
   var card = props.cardStyle;
   var label = props.labelStyle;
-  var ed = drug ? getEd(drug) : getEd(null);
   var title = props.store.medicationLabel(med, props.allDrugs);
+  var clinical = drug && window.DOSECRAFT_getCompanionClinicalView
+    ? window.DOSECRAFT_getCompanionClinicalView(drug)
+    : null;
+
+  function renderBulletList(items) {
+    if (!items || !items.length) return null;
+    return (
+      <ul style={{ margin: 0, paddingLeft: 20 }}>
+        {items.map(function (x, i) {
+          return <li key={i} style={{ marginBottom: 6 }}>{x}</li>;
+        })}
+      </ul>
+    );
+  }
+
+  if (clinical) {
+    return (
+      <div style={{ marginBottom: 18 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px", color: col }}>{title}</h2>
+        <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 4 }}>{clinical.genericName}</p>
+        {clinical.medicationType && (
+          <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 14, fontSize: 14 }}>{clinical.medicationType}</p>
+        )}
+        <div style={card}>
+          <div style={label}>How this helps</div>
+          <p style={{ margin: 0 }}>{clinical.howItHelps}</p>
+        </div>
+        {clinical.whatYouMayNotice.length > 0 && (
+          <div style={card}>
+            <div style={label}>What you may notice</div>
+            {renderBulletList(clinical.whatYouMayNotice)}
+          </div>
+        )}
+        {clinical.sharedModules.map(function (mod) {
+          return (
+            <div key={mod.id} style={card}>
+              <div style={label}>{mod.title}</div>
+              {renderBulletList(mod.items)}
+            </div>
+          );
+        })}
+        {clinical.callCareTeam.length > 0 && (
+          <div style={card}>
+            <div style={label}>Call your care team if…</div>
+            {renderBulletList(clinical.callCareTeam)}
+          </div>
+        )}
+        {clinical.urgentHelp.length > 0 && (
+          <div style={card}>
+            <div style={label}>Get urgent help if…</div>
+            {renderBulletList(clinical.urgentHelp)}
+          </div>
+        )}
+        {clinical.labsWatched.length > 0 && (
+          <div style={card}>
+            <div style={label}>Labs your care team may watch</div>
+            {renderBulletList(clinical.labsWatched)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  var ed = drug ? getEd(drug) : getEd(null);
   return (
     <div style={{ marginBottom: 18 }}>
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px", color: col }}>{title}</h2>
