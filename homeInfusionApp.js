@@ -2,44 +2,42 @@
 
 var HOME_PAGE_STYLE = {
   minHeight: "100vh",
-  background: "linear-gradient(165deg, #0a1628 0%, #0d1f2d 100%)",
-  color: "#f5f8fc",
+  color: "#f4f8fc",
   fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
   fontSize: 18,
   lineHeight: 1.55,
-  padding: "20px 16px 40px",
+  padding: "22px 18px 44px",
 };
+
+function companionSharedModuleClass(modId) {
+  if (modId === "seriousAllergy") return "dc-med-card dc-med-card--shared-allergy";
+  if (modId === "seriousDiarrhea") return "dc-med-card dc-med-card--shared-diarrhea";
+  if (modId === "homeInfusionLineConcerns") return "dc-med-card dc-med-card--shared-line";
+  return "dc-med-card dc-med-card--shared-line";
+}
 
 function HomeShell(props) {
   return (
-    <div style={HOME_PAGE_STYLE}>
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>{props.children}</div>
+    <div className="dc-companion-page" style={HOME_PAGE_STYLE}>
+      <div className="dc-companion-page__inner">{props.children}</div>
     </div>
   );
 }
 
 function HomeBtn(props) {
-  var accent = props.accentColor || "#2a9d8f";
+  var accent = props.accentColor || "#3aab9a";
   var primary = props.primary;
+  var btnClass = "dc-companion-btn " + (primary ? "dc-companion-btn--primary" : "dc-companion-btn--secondary");
+  if (props.className) btnClass += " " + props.className;
   return (
     <button
+      className={btnClass}
       onClick={props.onClick}
       disabled={props.disabled}
       style={{
-        display: "block",
-        width: "100%",
-        minHeight: 52,
-        padding: "14px 20px",
-        marginBottom: 10,
-        borderRadius: 12,
-        border: primary ? "none" : "2px solid rgba(255,255,255,0.2)",
-        background: primary ? accent : "rgba(255,255,255,0.08)",
-        color: primary ? "#041018" : "#f5f8fc",
-        fontSize: 17,
-        fontWeight: 700,
-        cursor: props.disabled ? "default" : "pointer",
+        background: primary ? accent : undefined,
+        color: primary ? "#041018" : undefined,
         opacity: props.disabled ? 0.5 : 1,
-        touchAction: "manipulation",
       }}
     >
       {props.children || props.label}
@@ -50,16 +48,9 @@ function HomeBtn(props) {
 function HomeBack(props) {
   return (
     <button
+      type="button"
+      className="dc-companion-back"
       onClick={props.onClick}
-      style={{
-        background: "transparent",
-        border: "none",
-        color: "rgba(255,255,255,0.5)",
-        fontSize: 15,
-        padding: "8px 0",
-        marginBottom: 12,
-        cursor: "pointer",
-      }}
     >
       ← {props.label || "Back"}
     </button>
@@ -209,35 +200,27 @@ function wizardDurationFromCourse(course) {
 var DASHBOARD_GEAR_PANEL_ID = "dashboard-gear-panel";
 
 function HomeGridBtn(props) {
-  var accent = props.accentColor || "#2a9d8f";
+  var accent = props.accentColor || "#3aab9a";
   var primary = props.primary;
+  var btnClass = "dc-companion-btn " + (primary ? "dc-companion-btn--primary" : "dc-companion-btn--secondary");
+  if (props.className) btnClass += " " + props.className;
   var style = {
-    display: "block",
-    width: "100%",
-    minHeight: 52,
-    padding: "14px 16px",
-    borderRadius: 12,
-    border: primary ? "none" : "2px solid rgba(255,255,255,0.2)",
-    background: primary ? accent : "rgba(255,255,255,0.08)",
-    color: primary ? "#041018" : "#f5f8fc",
-    fontSize: 16,
-    fontWeight: 700,
-    cursor: props.disabled ? "default" : "pointer",
+    background: primary ? accent : undefined,
+    color: primary ? "#041018" : undefined,
     opacity: props.disabled ? 0.5 : 1,
-    touchAction: "manipulation",
     textAlign: "center",
     textDecoration: "none",
     boxSizing: "border-box",
   };
   if (props.href) {
     return (
-      <a href={props.href} className={props.className} style={style} onClick={props.onClick}>
+      <a href={props.href} className={btnClass} style={style} onClick={props.onClick}>
         {props.label}
       </a>
     );
   }
   return (
-    <button type="button" className={props.className} onClick={props.onClick} disabled={props.disabled} style={style}>
+    <button type="button" className={btnClass} onClick={props.onClick} disabled={props.disabled} style={style}>
       {props.label}
     </button>
   );
@@ -246,7 +229,6 @@ function HomeGridBtn(props) {
 function HomeQuickActionGrid(props) {
   return (
     <div>
-      <style>{".dc-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}@media (max-width:360px){.dc-quick-grid{grid-template-columns:1fr}}"}</style>
       <div className="dc-quick-grid">{props.children}</div>
     </div>
   );
@@ -263,26 +245,23 @@ function DashboardGearMenu(props) {
   if (!props.open) return null;
   return (
     <div
+      className="dc-gear-overlay"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 1000,
-        background: "rgba(0,0,0,0.45)",
       }}
       onClick={props.onClose}
       role="presentation"
     >
       <div
+        className="dc-gear-panel"
         style={{
           position: "absolute",
           top: 56,
           right: 16,
           width: "min(320px, calc(100vw - 32px))",
-          background: "#0d1f2d",
-          border: "1px solid rgba(255,255,255,0.15)",
           borderRadius: 14,
-          padding: "12px 8px",
-          boxShadow: "0 12px 40px rgba(0,0,0,0.45)",
         }}
         onClick={function (e) { e.stopPropagation(); }}
         id={props.panelId || DASHBOARD_GEAR_PANEL_ID}
@@ -324,7 +303,7 @@ function CompactTimerBanner(props) {
   var pct = Math.round(STORE.getTimerProgress(timer) * 100);
   var medName = timer.medicationName || "Medication";
   return (
-    <div style={{ ...card, borderColor: col + "88", marginBottom: 14 }}>
+    <div className="dc-companion-card" style={{ ...card, borderColor: col + "88", marginBottom: 14 }}>
       <div style={{ fontSize: 13, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>
         Currently infusing
       </div>
@@ -395,12 +374,12 @@ function MedicationEducationPanel(props) {
     ? window.DOSECRAFT_getCompanionClinicalView(drug)
     : null;
 
-  function renderBulletList(items) {
+  function renderBulletList(items, listClass) {
     if (!items || !items.length) return null;
     return (
-      <ul style={{ margin: 0, paddingLeft: 20 }}>
+      <ul className={listClass || "dc-med-list"}>
         {items.map(function (x, i) {
-          return <li key={i} style={{ marginBottom: 6 }}>{x}</li>;
+          return <li key={i}>{x}</li>;
         })}
       </ul>
     );
@@ -408,45 +387,45 @@ function MedicationEducationPanel(props) {
 
   if (clinical) {
     return (
-      <div style={{ marginBottom: 18 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px", color: col }}>{title}</h2>
-        <p style={{ color: "rgba(255,255,255,0.55)", marginBottom: 4 }}>{clinical.genericName}</p>
+      <div className="dc-med-panel">
+        <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 6px", color: col, letterSpacing: "-0.02em" }}>{title}</h2>
+        <p style={{ color: "rgba(244,248,252,0.62)", marginBottom: 4, fontSize: 16 }}>{clinical.genericName}</p>
         {clinical.medicationType && (
-          <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 14, fontSize: 14 }}>{clinical.medicationType}</p>
+          <p style={{ color: "rgba(244,248,252,0.5)", marginBottom: 16, fontSize: 14 }}>{clinical.medicationType}</p>
         )}
-        <div style={card}>
-          <div style={label}>How this helps</div>
+        <div className="dc-med-card dc-med-card--reassuring" style={{ borderLeftColor: col }}>
+          <div className="dc-med-label dc-med-label--reassuring">How this helps</div>
           <p style={{ margin: 0 }}>{clinical.howItHelps}</p>
         </div>
         {clinical.whatYouMayNotice.length > 0 && (
-          <div style={card}>
-            <div style={label}>What you may notice</div>
+          <div className="dc-med-card dc-med-card--neutral">
+            <div className="dc-med-label">What you may notice</div>
             {renderBulletList(clinical.whatYouMayNotice)}
           </div>
         )}
         {clinical.sharedModules.map(function (mod) {
           return (
-            <div key={mod.id} style={card}>
-              <div style={label}>{mod.title}</div>
+            <div key={mod.id} className={companionSharedModuleClass(mod.id)}>
+              <div className={"dc-med-label" + (mod.id === "homeInfusionLineConcerns" ? " dc-med-label--shared-line" : "")}>{mod.title}</div>
               {renderBulletList(mod.items)}
             </div>
           );
         })}
         {clinical.callCareTeam.length > 0 && (
-          <div style={card}>
-            <div style={label}>Call your care team if…</div>
+          <div className="dc-med-card dc-med-card--call-care">
+            <div className="dc-med-label dc-med-label--call-care">Call your care team if…</div>
             {renderBulletList(clinical.callCareTeam)}
           </div>
         )}
         {clinical.urgentHelp.length > 0 && (
-          <div style={card}>
-            <div style={label}>Get urgent help if…</div>
+          <div className="dc-med-card dc-med-card--urgent">
+            <div className="dc-med-label dc-med-label--urgent">Get urgent help if…</div>
             {renderBulletList(clinical.urgentHelp)}
           </div>
         )}
         {clinical.labsWatched.length > 0 && (
-          <div style={card}>
-            <div style={label}>Labs your care team may watch</div>
+          <div className="dc-med-card dc-med-card--labs">
+            <div className="dc-med-label dc-med-label--labs">Labs your care team may watch</div>
             {renderBulletList(clinical.labsWatched)}
           </div>
         )}
@@ -1362,18 +1341,22 @@ function HomeInfusionApp() {
 
   var col = primaryColor();
   var card = {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    padding: "18px 20px",
-    marginBottom: 14,
+    background: "rgba(255,255,255,0.09)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 16,
+    padding: "20px 22px",
+    marginBottom: 16,
+    boxShadow: "0 10px 32px rgba(4, 18, 32, 0.28)",
+    lineHeight: 1.6,
+    color: "rgba(244, 248, 252, 0.95)",
   };
   var label = {
-    fontSize: 13,
-    letterSpacing: 1.5,
+    fontSize: 12,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
-    color: "rgba(255,255,255,0.5)",
-    marginBottom: 8,
+    fontWeight: 700,
+    color: "rgba(244, 248, 252, 0.58)",
+    marginBottom: 10,
   };
 
   var FREQ_OPTIONS = [
@@ -2447,11 +2430,11 @@ function HomeInfusionApp() {
           View all steps
         </button>
 
-        <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 8, height: 8, marginBottom: 20, overflow: "hidden" }}>
-          <div style={{ width: Math.round(progress * 100) + "%", height: "100%", background: col, transition: "width 0.3s" }} />
+        <div className="dc-sash-progress">
+          <div style={{ width: Math.round(progress * 100) + "%", height: "100%", background: col, transition: "width 0.3s", borderRadius: 999 }} />
         </div>
 
-        <div style={{ ...card, borderColor: col + "55" }}>
+        <div className="dc-companion-card dc-sash-step-card" style={{ ...card, borderLeftColor: col + "99" }}>
           {step.letter && (
             <div style={{ fontSize: 13, color: col, fontWeight: 700, marginBottom: 6 }}>{step.letter}</div>
           )}
@@ -2500,16 +2483,16 @@ function HomeInfusionApp() {
         {renderGlobalTimerBanner()}
         <HomeBack onClick={function () { setScreen("dashboard"); }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 16 }}>Warning signs</h1>
-        <div style={card}>
-          <div style={{ ...label, color: "#f4a261" }}>Call your care team if</div>
+        <div className="dc-companion-card dc-warnings-call" style={card}>
+          <div style={{ ...label, color: "#f0c989" }}>Call your care team if</div>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {COPY.warningSigns.callClinic.map(function (item, i) {
               return <li key={i} style={{ marginBottom: 8 }}>{item}</li>;
             })}
           </ul>
         </div>
-        <div style={card}>
-          <div style={{ ...label, color: "#e76f51" }}>Seek urgent or emergency care if</div>
+        <div className="dc-companion-card dc-warnings-urgent" style={card}>
+          <div style={{ ...label, color: "#f0a99e" }}>Seek urgent or emergency care if</div>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
             {COPY.warningSigns.seekUrgent.map(function (item, i) {
               return <li key={i} style={{ marginBottom: 8 }}>{item}</li>;
@@ -2577,14 +2560,13 @@ function HomeInfusionApp() {
               return (
                 <button
                   key={key}
+                  type="button"
+                  className="dc-med-chip"
                   onClick={function () { setMedInfoKey(key); }}
                   style={{
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: on ? "2px solid " + medColor(med) : "1px solid rgba(255,255,255,0.2)",
-                    background: on ? medColor(med) + "33" : "transparent",
+                    border: on ? "2px solid " + medColor(med) : "1px solid rgba(255,255,255,0.22)",
+                    background: on ? medColor(med) + "33" : "rgba(255,255,255,0.06)",
                     color: "#fff",
-                    fontSize: 15,
                     cursor: "pointer",
                   }}
                 >
@@ -3082,32 +3064,34 @@ function HomeInfusionApp() {
         onAddToHomeScreen={function () { handlePwaInstallClick(); setGearMenuOpen(false); }}
       />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
         <div>
-          <div style={{ fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.45)", textTransform: "uppercase" }}>Dosecraft</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, margin: "4px 0 0" }}>{cfg.clinicDisplayName || "Home infusion"}</h1>
+          <div style={{ fontSize: 12, letterSpacing: 2.2, color: "rgba(244,248,252,0.5)", textTransform: "uppercase", fontWeight: 700 }}>Dosecraft</div>
+          <h1 style={{ fontSize: 30, fontWeight: 800, margin: "6px 0 0", letterSpacing: "-0.02em" }}>{cfg.clinicDisplayName || "Home infusion"}</h1>
         </div>
         <button
           ref={gearMenuButtonRef}
           type="button"
+          className="dc-gear-trigger"
           aria-label={gearCopy.ariaLabel || "Settings menu"}
           aria-expanded={gearMenuOpen}
           aria-haspopup="true"
           aria-controls={DASHBOARD_GEAR_PANEL_ID}
           onClick={function () { setGearMenuOpen(function (open) { return !open; }); setSettingsConfirm(null); }}
           style={{
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.15)",
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.18)",
             color: "#fff",
             width: 48,
             height: 48,
             minWidth: 48,
             minHeight: 48,
-            borderRadius: 10,
+            borderRadius: 12,
             fontSize: 22,
             cursor: "pointer",
             touchAction: "manipulation",
             lineHeight: 1,
+            boxShadow: "0 4px 16px rgba(4, 18, 32, 0.25)",
           }}
         >
           ⚙
@@ -3115,14 +3099,14 @@ function HomeInfusionApp() {
       </div>
 
       {!STORE.isSetupComplete(settings) && (
-        <div style={{ ...card, borderColor: "#f4a26188" }}>
+        <div className="dc-companion-card dc-companion-card--warm-hint" style={card}>
           <p style={{ margin: 0 }}>Complete treatment setup to see your schedule and next dose.</p>
           <HomeBtn accentColor={col} primary label="Set up treatment" onClick={function () { setScreen("setupWizard"); }} />
         </div>
       )}
 
       {savedMedicationDisabled() && (
-        <div style={{ ...card, borderColor: "#f4a26188" }}>
+        <div className="dc-companion-card dc-companion-card--warm-hint" style={card}>
           <p style={{ margin: "0 0 12px", fontSize: 16 }}>
             A medication in your treatment is not available in this app. Please update your treatment setup.
           </p>
@@ -3130,7 +3114,7 @@ function HomeInfusionApp() {
         </div>
       )}
 
-      <div style={{ ...card, borderLeft: "4px solid " + col }}>
+      <div className="dc-companion-card dc-dashboard-hero" style={{ ...card, borderLeft: "4px solid " + col }}>
         <div style={label}>Your treatment</div>
         {treatmentMeds.length ? treatmentMeds.map(function (med) {
           return (

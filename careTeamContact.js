@@ -11,21 +11,23 @@ function CareTeamContact(props) {
   var showEmergency = props.showEmergency !== false;
 
   var card = {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: 14,
-    padding: "16px 18px",
-    marginBottom: 14,
+    background: "rgba(255,255,255,0.09)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 16,
+    padding: "18px 20px",
+    marginBottom: 16,
     fontSize: 16,
     lineHeight: 1.55,
+    boxShadow: "0 10px 32px rgba(4, 18, 32, 0.28)",
   };
 
   var sectionLabel = {
     fontSize: 12,
-    letterSpacing: 1.5,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
-    color: "rgba(255,255,255,0.5)",
-    marginBottom: 8,
+    fontWeight: 700,
+    color: "rgba(244, 248, 252, 0.58)",
+    marginBottom: 10,
   };
 
   function PhoneLink(props) {
@@ -56,13 +58,11 @@ function CareTeamContact(props) {
   if (variant === "emergency") {
     if (!showEmergency || !cfg.emergencyInstructions) return null;
     return (
-      <div style={{
+      <div className="dc-care-team-card dc-warnings-urgent" style={{
         ...card,
-        borderColor: "rgba(231,111,81,0.35)",
-        background: "rgba(231,111,81,0.1)",
-        marginBottom: props.noMargin ? 0 : 14,
+        marginBottom: props.noMargin ? 0 : 16,
       }}>
-        <div style={{ ...sectionLabel, color: "#e76f51" }}>Emergency</div>
+        <div style={{ ...sectionLabel, color: "#f0a99e" }}>Emergency</div>
         <p style={{ margin: 0, color: "rgba(255,255,255,0.88)", fontSize: 15 }}>{cfg.emergencyInstructions}</p>
       </div>
     );
@@ -78,10 +78,10 @@ function CareTeamContact(props) {
   var displayName = cfg.clinicDisplayName || cfg.clinicName;
 
   var routineBlock = (
-    <div style={{
+    <div className="dc-care-team-card" style={{
       ...card,
       borderLeft: variant === "full" ? "4px solid " + accent : card.border,
-      marginBottom: showEmergency && cfg.emergencyInstructions ? 10 : 14,
+      marginBottom: showEmergency && cfg.emergencyInstructions ? 12 : 16,
     }}>
       <div style={sectionLabel}>{routineTitle}</div>
       {showConfiguredContact && displayName && (
@@ -111,13 +111,11 @@ function CareTeamContact(props) {
   );
 
   var emergencyBlock = showEmergency && cfg.emergencyInstructions ? (
-    <div style={{
+    <div className="dc-care-team-card dc-warnings-urgent" style={{
       ...card,
-      borderColor: "rgba(231,111,81,0.35)",
-      background: "rgba(231,111,81,0.1)",
       marginBottom: 0,
     }}>
-      <div style={{ ...sectionLabel, color: "#e76f51" }}>Emergency</div>
+      <div style={{ ...sectionLabel, color: "#f0a99e" }}>Emergency</div>
       <p style={{ margin: 0, color: "rgba(255,255,255,0.88)", fontSize: 15 }}>{cfg.emergencyInstructions}</p>
     </div>
   ) : null;

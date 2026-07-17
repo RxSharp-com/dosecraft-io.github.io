@@ -1,0 +1,360 @@
+/* Dosecraft Companion — warmth & readability (presentation only) */
+
+:root {
+  --dc-bg-deep: #0f2438;
+  --dc-bg-mid: #162f44;
+  --dc-bg-soft: #1c3a52;
+  --dc-text: #f4f8fc;
+  --dc-text-muted: rgba(244, 248, 252, 0.72);
+  --dc-text-soft: rgba(244, 248, 252, 0.55);
+  --dc-surface: rgba(255, 255, 255, 0.09);
+  --dc-surface-raised: rgba(255, 255, 255, 0.12);
+  --dc-border: rgba(255, 255, 255, 0.14);
+  --dc-accent-teal: #3aab9a;
+  --dc-accent-warm: #e9c08a;
+  --dc-call-care: #e8b86d;
+  --dc-urgent: #e07a6a;
+  --dc-info: #7ec0e3;
+  --dc-line: #5ec4b8;
+  --dc-shadow: 0 10px 32px rgba(4, 18, 32, 0.32);
+  --dc-focus: #6ecfc2;
+  --dc-radius-lg: 16px;
+  --dc-radius-md: 12px;
+}
+
+html,
+body {
+  background: var(--dc-bg-deep);
+}
+
+.dc-companion-page {
+  background: linear-gradient(165deg, var(--dc-bg-deep) 0%, var(--dc-bg-mid) 45%, var(--dc-bg-soft) 100%);
+  color: var(--dc-text);
+}
+
+.dc-companion-page__inner {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.dc-companion-page h1 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.dc-companion-card {
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: var(--dc-shadow);
+  line-height: 1.6;
+  font-size: 17px;
+  color: var(--dc-text);
+}
+
+.dc-companion-card--accent {
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.dc-companion-card--warm-hint {
+  border-color: rgba(233, 192, 138, 0.35);
+  background: rgba(233, 192, 138, 0.06);
+}
+
+.dc-companion-label {
+  font-size: 12px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--dc-text-soft);
+  margin-bottom: 10px;
+}
+
+.dc-companion-btn {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  margin-bottom: 10px;
+  border-radius: var(--dc-radius-md);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dc-companion-btn:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+}
+
+.dc-companion-btn--secondary {
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: var(--dc-surface);
+  color: var(--dc-text);
+}
+
+.dc-companion-btn--secondary:hover:not(:disabled) {
+  background: var(--dc-surface-raised);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.dc-companion-btn--primary {
+  border: none;
+  color: #041018;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.dc-companion-btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.dc-companion-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.dc-companion-back {
+  background: transparent;
+  border: none;
+  color: var(--dc-text-soft);
+  font-size: 16px;
+  padding: 10px 4px;
+  margin-bottom: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dc-companion-back:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.dc-companion-input,
+.dc-companion-page input[type="date"],
+.dc-companion-page input[type="time"],
+.dc-companion-page input[type="number"],
+.dc-companion-page input[type="text"],
+.dc-companion-page select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 17px;
+  border-radius: var(--dc-radius-md);
+  margin-bottom: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(8, 22, 36, 0.55);
+  color: var(--dc-text);
+}
+
+.dc-companion-input:focus-visible,
+.dc-companion-page input:focus-visible,
+.dc-companion-page select:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 1px;
+  border-color: rgba(110, 207, 194, 0.55);
+}
+
+.dc-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 360px) {
+  .dc-quick-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dc-quick-btn {
+  min-height: 56px !important;
+  font-size: 15px !important;
+  line-height: 1.25 !important;
+  background: var(--dc-surface) !important;
+  border: 1px solid var(--dc-border) !important;
+  box-shadow: 0 4px 16px rgba(4, 18, 32, 0.2);
+}
+
+.dc-quick-btn:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+}
+
+.dc-gear-overlay {
+  background: rgba(8, 20, 32, 0.55) !important;
+  backdrop-filter: blur(4px);
+}
+
+.dc-gear-panel {
+  background: linear-gradient(180deg, #1a3348 0%, #142a3d 100%) !important;
+  border: 1px solid var(--dc-border) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45) !important;
+  padding: 14px 10px !important;
+}
+
+.dc-gear-trigger:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+}
+
+.dc-dashboard-hero {
+  border-left: 4px solid var(--dc-accent-teal);
+}
+
+.dc-med-panel {
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.dc-med-panel:last-child {
+  border-bottom: none;
+}
+
+.dc-med-card {
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 22px rgba(4, 18, 32, 0.22);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--dc-text);
+}
+
+.dc-med-card--reassuring {
+  border-left: 4px solid var(--dc-accent-teal);
+  background: linear-gradient(135deg, rgba(58, 171, 154, 0.1) 0%, var(--dc-surface) 55%);
+}
+
+.dc-med-card--neutral {
+  border-left: 4px solid rgba(255, 255, 255, 0.2);
+}
+
+.dc-med-card--shared-diarrhea {
+  border-left: 4px solid var(--dc-line);
+  background: linear-gradient(135deg, rgba(94, 196, 184, 0.08) 0%, var(--dc-surface) 60%);
+}
+
+.dc-med-card--shared-allergy {
+  border-left: 4px solid var(--dc-call-care);
+  background: linear-gradient(135deg, rgba(232, 184, 109, 0.1) 0%, var(--dc-surface) 60%);
+}
+
+.dc-med-card--shared-line {
+  border-left: 4px solid var(--dc-accent-teal);
+  background: linear-gradient(135deg, rgba(58, 171, 154, 0.07) 0%, var(--dc-surface) 60%);
+}
+
+.dc-med-card--call-care {
+  border-left: 4px solid var(--dc-call-care);
+  background: rgba(232, 184, 109, 0.06);
+}
+
+.dc-med-card--urgent {
+  border-left: 4px solid var(--dc-urgent);
+  background: rgba(224, 122, 106, 0.1);
+  border-color: rgba(224, 122, 106, 0.28);
+}
+
+.dc-med-card--labs {
+  border-left: 4px solid var(--dc-info);
+  background: rgba(126, 192, 227, 0.06);
+}
+
+.dc-med-label {
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--dc-text-soft);
+}
+
+.dc-med-label--reassuring {
+  color: #8fd9cc;
+}
+
+.dc-med-label--call-care {
+  color: #f0c989;
+}
+
+.dc-med-label--urgent {
+  color: #f0a99e;
+}
+
+.dc-med-label--labs {
+  color: #a8d8f0;
+}
+
+.dc-med-label--shared-line {
+  color: #8fd9cc;
+}
+
+.dc-med-list {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.dc-med-list li {
+  margin-bottom: 8px;
+}
+
+.dc-med-list li:last-child {
+  margin-bottom: 0;
+}
+
+.dc-warnings-call {
+  border-left: 4px solid var(--dc-call-care);
+  background: rgba(232, 184, 109, 0.06);
+}
+
+.dc-warnings-urgent {
+  border-left: 4px solid var(--dc-urgent);
+  background: rgba(224, 122, 106, 0.1);
+}
+
+.dc-sash-progress {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  height: 10px;
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+
+.dc-sash-step-card {
+  border-left-width: 4px;
+  border-left-style: solid;
+}
+
+.dc-care-team-card {
+  background: var(--dc-surface);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--dc-shadow);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.dc-med-chip {
+  min-height: 44px;
+  padding: 10px 16px !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  touch-action: manipulation;
+}
+
+.dc-med-chip:focus-visible {
+  outline: 2px solid var(--dc-focus);
+  outline-offset: 2px;
+}
