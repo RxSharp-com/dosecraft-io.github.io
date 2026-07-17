@@ -44,12 +44,11 @@
         "Your care team may check labs during longer courses.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "Unusual bruising or bleeding, new fever, sore throat, or feeling much weaker than usual.",
         "New confusion, shaking, twitching, or jerking movements, especially if you have kidney problems or a seizure history.",
       ],
       urgentHelp: [
-        "A seizure or seizure-like episode, trouble breathing, swelling of the face, lips, tongue, or throat, fainting, or a severe rash.",
+        "A seizure or seizure-like episode.",
       ],
       labsWatched: [
         "Kidney function",
@@ -70,13 +69,10 @@
         "Many patients receive cefazolin at home because it is commonly used for longer infection treatments.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "Unusual bruising, bleeding that is hard to stop, blood in the urine or stool, or many new purple spots on the skin.",
         "New rash, hives, or itching.",
       ],
-      urgentHelp: [
-        "Trouble breathing, swelling of the face, lips, tongue, or throat, fainting, or a severe rash.",
-      ],
+      urgentHelp: [],
       labsWatched: [
         "Kidney function",
         "Blood counts",
@@ -96,12 +92,9 @@
         "Your care team may watch labs during treatment, especially if treatment lasts more than a few days.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "New right upper belly pain, nausea that does not let up, vomiting, yellowing of the skin or eyes, or dark urine.",
       ],
-      urgentHelp: [
-        "Trouble breathing, swelling of the face, lips, tongue, or throat, fainting, or a severe rash.",
-      ],
+      urgentHelp: [],
       labsWatched: [
         "Blood counts",
         "Liver tests if clinically needed",
@@ -120,12 +113,11 @@
         "Kidney function matters with this medicine because the dose may need adjustment.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "New confusion, unusual sleepiness, seeing or hearing things that are not there, trouble speaking, twitching or jerking movements, or seizure-like activity.",
         "New rash, hives, or itching.",
       ],
       urgentHelp: [
-        "A seizure, severe confusion, trouble waking up, trouble breathing, swelling of the face/lips/tongue/throat, fainting, or a severe rash.",
+        "A seizure, severe confusion, or trouble waking up.",
       ],
       labsWatched: [
         "Kidney function",
@@ -146,12 +138,11 @@
         "Tell your care team if you take valproic acid or divalproex, which are sometimes used for seizures, bipolar disorder, or migraine prevention.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "New confusion, shaking, twitching, or seizure-like activity.",
         "Worsening rash, hives, or itching.",
       ],
       urgentHelp: [
-        "A seizure, trouble breathing, swelling of the face/lips/tongue/throat, fainting, or a severe rash.",
+        "A seizure.",
       ],
       labsWatched: [
         "Kidney function",
@@ -172,12 +163,11 @@
         "Tell your care team if you take valproic acid or divalproex, which are sometimes used for seizures, bipolar disorder, or migraine prevention.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "New confusion, shaking, twitching, or seizure-like activity.",
         "New or worsening rash.",
       ],
       urgentHelp: [
-        "A seizure, trouble breathing, swelling of the face/lips/tongue/throat, fainting, or a severe rash.",
+        "A seizure.",
       ],
       labsWatched: [
         "Kidney function",
@@ -201,10 +191,9 @@
         "Flushing, itching, rash, chest or back tightness, dizziness, or feeling faint during or soon after the infusion.",
         "Less urine than usual, new swelling, sudden weight gain, or feeling very dehydrated.",
         "Ringing in the ears or new hearing changes.",
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
       ],
       urgentHelp: [
-        "Trouble breathing, swelling of the face/lips/tongue/throat, fainting, chest pain, or a severe rash.",
+        "Chest pain.",
       ],
       labsWatched: [
         "Vancomycin level, if ordered",
@@ -228,10 +217,9 @@
         "New or worsening muscle pain, muscle tenderness, or muscle weakness, especially in the arms or legs.",
         "New numbness, tingling, or burning pain.",
         "New cough, fever, chest discomfort, or shortness of breath, especially after you have been on daptomycin for a couple of weeks.",
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
       ],
       urgentHelp: [
-        "Severe weakness, trouble breathing, chest pain, fainting, swelling of the face/lips/tongue/throat, or a severe rash.",
+        "Severe weakness, trouble breathing, chest pain, or fainting.",
       ],
       labsWatched: [
         "CPK muscle lab",
@@ -252,12 +240,11 @@
         "Mild diarrhea, nausea, or rash can happen.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "New confusion, twitching, jerking movements, or seizure-like activity, especially with kidney problems.",
         "New rash, hives, or itching.",
       ],
       urgentHelp: [
-        "Chest pain, fainting, severe weakness, trouble breathing, a new irregular heartbeat, a seizure, or symptoms of a severe allergic reaction.",
+        "Chest pain, fainting, severe weakness, trouble breathing, a new irregular heartbeat, or a seizure.",
       ],
       labsWatched: [
         "Potassium and other electrolytes",
@@ -279,11 +266,10 @@
       ],
       callCareTeam: [
         "Rash, itching, hives, flushing, or feeling lightheaded during or after the infusion.",
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "Symptoms that start days after the infusion and feel new or concerning.",
       ],
       urgentHelp: [
-        "Trouble breathing, swelling of the face/lips/tongue/throat, fainting, chest pain, or a severe rash.",
+        "Chest pain.",
       ],
       labsWatched: [
         "Usually limited after a one-time or two-dose course, unless your care team orders follow-up labs",
@@ -303,13 +289,10 @@
         "Your care team may watch blood counts, especially if therapy lasts longer.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "Unusual tiredness, pale skin, shortness of breath with normal activity, yellowing of the skin or eyes, or dark urine.",
         "New rash, hives, or itching.",
       ],
-      urgentHelp: [
-        "Trouble breathing, swelling of the face/lips/tongue/throat, fainting, or a severe rash.",
-      ],
+      urgentHelp: [],
       labsWatched: [
         "Blood counts",
         "Kidney function",
@@ -329,13 +312,12 @@
         "Mild nausea, diarrhea, or headache can happen.",
       ],
       callCareTeam: [
-        "Watery or bloody diarrhea, severe belly cramps, or fever with diarrhea.",
         "A severe sunburn-like rash, blistering skin, or a rash that spreads quickly.",
         "Severe headache, blurry vision, double vision, or vision loss.",
         "Tell your care team if you are pregnant, planning pregnancy, or breastfeeding.",
       ],
       urgentHelp: [
-        "Trouble breathing, swelling of the face/lips/tongue/throat, fainting, a severe rash, or sudden vision changes.",
+        "Sudden vision changes.",
       ],
       labsWatched: [
         "Usually no special routine labs for short courses unless your care team is watching your infection or other medicines",
