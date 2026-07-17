@@ -13,7 +13,7 @@
  * Cache invalidation: bump CACHE_VERSION whenever you deploy a new build.
  */
 
-const CACHE_VERSION = 'v1.0.22';
+const CACHE_VERSION = 'v1.0.23';
 const CACHE_NAME    = `infusion-arcade-${CACHE_VERSION}`;
 
 // clinicConfig.js is intentionally NOT pre-cached — see network-first handler below
@@ -27,6 +27,7 @@ const PRECACHE_URLS = [
   '/homeInfusionCopy.js',
   '/careTeamContact.js',
   '/drugCatalog.js',
+  '/companionClinicalContent.js',
   '/dosecraftAnalytics.js',
   '/icsExport.js',
   '/manifest.json',
